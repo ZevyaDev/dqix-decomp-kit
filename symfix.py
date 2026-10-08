@@ -16,6 +16,7 @@ declare any struct it names.
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import residue as _residue
 import glob
 import os
 import re
@@ -213,11 +214,13 @@ def verdict(mod, addr, path):
     import subprocess
     r = subprocess.run([sys.executable, f"{KIT}/wgate.py", mod, addr, path],
                        capture_output=True, text=True, cwd=REPO)
-    for line in ((r.stdout or "") + (r.stderr or "")).splitlines():
-        m = re.match(r"^(MATCH|RESIDUE \w+ -?\d+)", line)
-        if m:
-            return m.group(0)
-    return "?"
+    # ONE parser for the verdict (residue.py). These three copies each used `RESIDUE \w+`, which
+    # cannot match a HYPHENATED class: flagsweep's LOOP-SHAPE tier was unreachable and symfix
+    # refused every LOOP-SHAPE result as unparseable.
+    ok, cls, metric = _residue.parse_verdict((r.stdout or "") + (r.stderr or ""))
+    if not ok:
+        return "?"
+    return "MATCH" if cls == "MATCH" else f"RESIDUE {cls} {metric}"
 
 
 def main():

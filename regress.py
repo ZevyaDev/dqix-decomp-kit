@@ -1366,6 +1366,49 @@ def _rela_addend():
     return None
 
 
+@check("a residue verdict scores by its byte count, and a hyphenated class parses",
+       "four tools each grew their own `RESIDUE \\w+` parse. It cannot match a HYPHENATED class, so "
+       "LOOP-SHAPE -- a real, common class -- scored as unparseable instead of by its bytes: "
+       "flagsweep's LOOP-SHAPE tier was unreachable and symfix refused every such result. And "
+       "permorder's `abs()` turned wgate's NO-COMPILE -1 into 1, so a permutation that did not compile "
+       "outranked every real residue and was printed as the best one. Both hid behind a tool "
+       "reporting success")
+def _residue_scoring():
+    sys.path.insert(0, KIT)
+    import residue
+
+    cases = [("RESIDUE NO-COMPILE -1", residue.UNSCORED),
+             ("RESIDUE LOOP-SHAPE 308", 308),
+             ("RESIDUE UNDERGEN 4", 4),
+             ("RESIDUE SHAPE 86", 86),
+             ("MATCH", 0),
+             ("", residue.UNSCORED),
+             ("garbage", residue.UNSCORED)]
+    for text, want in cases:
+        got = residue.residue_score(text)
+        if got != want:
+            return f"residue.residue_score({text!r}) = {got}, expected {want}"
+    ok, cls, metric = residue.parse_verdict("RESIDUE LOOP-SHAPE 308 some detail")
+    if not ok or cls != "LOOP-SHAPE" or metric != 308:
+        return f"a hyphenated class did not parse: {ok} {cls} {metric}"
+
+    # The tools that grew their own parse must now agree with residue.py, including the one in
+    # pad/, which is not importable by name from here.
+    for tool in ("flagsweep.py", "symfix.py"):
+        path = f"{KIT}/{tool}"
+        if not os.path.exists(path):
+            continue
+        # Strip comments first: these files now CITE the old pattern when explaining why it went.
+        body = "".join(l.split("#", 1)[0] for l in open(path, encoding="utf-8").read().splitlines())
+        if "RESIDUE \\w" in body:
+            return f"{tool} still has its own `RESIDUE \\w+` parse instead of residue.parse_verdict"
+    perm = "".join(l.split("#", 1)[0]
+                   for l in open(f"{KIT}/pad/permorder.py", encoding="utf-8").read().splitlines())
+    if "abs(int(" in perm:
+        return "pad/permorder.py still uses abs() on the residue metric"
+    return None
+
+
 @check("prready.py refuses a pull request built on a stale kit or decomp, and passes a current one",
        "pull requests built on stale checkouts reverted the CI workflow, re-added a file for an address "
        "another file owned, renamed a symbol in one region only, recorded dead ends for matched "
