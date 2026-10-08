@@ -22,8 +22,9 @@ def read_keep_nl(path):
 
 
 def load_relocs(repo):
+    import buildcfg
     return {os.path.normcase(os.path.abspath(p)): read_keep_nl(p)
-            for p in sorted(glob.glob(repo + "/config/usa/arm9/**/relocs.txt", recursive=True))}
+            for p in sorted(glob.glob(repo + "/" + buildcfg.config_root() + "/**/relocs.txt", recursive=True))}
 
 
 def module_tag(module):

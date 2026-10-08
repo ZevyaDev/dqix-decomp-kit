@@ -9,6 +9,7 @@ Usage: python findorr.py [max_gap=3]
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.dirname(_kpos.path.abspath(__file__))))
 import kitpaths as _kp
+import buildcfg
 import glob
 import os
 import re
@@ -20,12 +21,12 @@ REPO = _kp.REPO
 BASE = 0x02000000
 GAP = int(sys.argv[1]) if len(sys.argv) > 1 else 3
 
-blob = open(f"{REPO}/extract/usa/arm9/arm9.bin", "rb").read()
+blob = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
 md = capstone.Cs(capstone.CS_ARCH_ARM, capstone.CS_MODE_ARM)
 md.skipdata = True
 
 ranges = []
-for dl in [f"{REPO}/config/usa/arm9/delinks.txt"]:
+for dl in [f"{REPO}/{buildcfg.config_root()}/delinks.txt"]:
     txt = open(dl, encoding="utf-8", errors="ignore").read()
     for a, b in re.findall(r"(?m)^\s*\.(?:text|init) start:0x([0-9a-fA-F]+) end:0x([0-9a-fA-F]+)\s*$", txt):
         ranges.append((int(a, 16), int(b, 16)))

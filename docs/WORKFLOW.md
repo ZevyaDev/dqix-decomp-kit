@@ -66,7 +66,7 @@ names the stub after a curated name, and `TODO_Name_<addr>` when the bound name 
 placeholder; rename that one. Look the name up by address, never construct it (it can carry a
 different overlay number than the module you are in):
 
-    grep -i "addr:0x$A" "$DQIX_REPO/config/usa/arm9/overlays/ov$M/symbols.txt"   # main: config/usa/arm9/symbols.txt
+    grep -i "addr:0x$A" "$DQIX_REPO/config/${DQIX_REGION:-usa}/arm9/overlays/ov$M/symbols.txt"   # main: config/${DQIX_REGION:-usa}/arm9/symbols.txt
 
 A `func_...` name is defined `extern "C"`:
 
@@ -269,7 +269,7 @@ file, a `gated/` copy or a log line saying MATCH is not a match.
 
     git -C "$DQIX_REPO" log --oneline -3
     python delinked.py $A $M && echo landed
-    python cov.py                          # coverage from build/usa/report.json
+    python cov.py                          # coverage from build/$DQIX_REGION/report.json (default usa)
 
 `ninja sha1` reproduces the whole ROM from day one because unclaimed ranges are filled with the
 ROM's own delinked assembly; coverage is the progress number, not the hash.

@@ -7,16 +7,15 @@
 KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && { pwd -W 2>/dev/null || pwd; })"
 SP="$(python "$KIT/kitpaths.py" state)"
 REPO="$(python "$KIT/kitpaths.py" repo)"; cd "$REPO" || exit 2
+REGION=$(python "$KIT/buildcfg.py" --region)
 LOG="$SP/wlog/wgate_scratch.log"; : > "$LOG"
 hits=0; tried=0
 for f in "$SP"/w[0-9a-f]*.cpp; do
   a=$(basename "$f" .cpp); a=${a#w}
   [[ "$a" =~ ^[0-9a-f]{8}$ ]] || continue
   # skip anything already in the build
-  grep -qi "\.text start:0x0*$a " config/usa/arm9/delinks.txt config/usa/arm9/overlays/*/delinks.txt 2>/dev/null && continue
-  if [ $((16#${a:0:4})) -lt $((16#0215)) ]; then m=main; else
-    m=$(for sy in config/usa/arm9/overlays/ov*/symbols.txt; do grep -q "addr:0x$a\b" "$sy" && basename "$(dirname "$sy")" | sed 's/ov//' && break; done)
-  fi
+  grep -qi "\.text start:0x0*$a " "config/${REGION}/arm9/delinks.txt" config/${REGION}/arm9/overlays/*/delinks.txt 2>/dev/null && continue
+  m=$(python "$KIT/addr2mod.py" "$a")
   [ -z "$m" ] && continue
   tried=$((tried+1))
   if python "$KIT/wgate.py" "$m" "$a" "$f" 2>&1 | head -1 | grep -q '^MATCH'; then

@@ -1,8 +1,9 @@
 import json, os, re, subprocess, sys
 
 from namingpaths import LABEL as REPO, NAMING as SP
+import buildcfg
 
-CFG = REPO + "/config/usa/arm9"
+CFG = REPO + "/" + buildcfg.config_root()
 OUTDIR = sys.argv[1] if len(sys.argv) > 1 else SP + "/inside1"
 PER = int(sys.argv[2]) if len(sys.argv) > 2 else 9
 LIMIT = int(sys.argv[3]) if len(sys.argv) > 3 else 0

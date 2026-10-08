@@ -11,6 +11,7 @@ way to compare against autotune's $7.23 all-tiers baseline without fooling ourse
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import glob
 import os
 import re
@@ -24,7 +25,7 @@ LINE = re.compile(r"(\d\d:\d\d) s(\d+) (MATCH|miss) ([0-9a-f]{8}) \$([0-9.]+)")
 
 def sizes():
     out = {}
-    for p in glob.glob(f"{REPO}/config/usa/arm9/**/symbols.txt", recursive=True):
+    for p in glob.glob(f"{REPO}/{buildcfg.config_root()}/**/symbols.txt", recursive=True):
         txt = open(p, encoding="utf-8", errors="ignore").read()
         for m in re.finditer(r"kind:function\((?:arm|thumb),size=0x([0-9a-fA-F]+)\)"
                              r"\s+addr:0x([0-9a-fA-F]+)", txt):

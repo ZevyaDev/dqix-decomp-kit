@@ -25,7 +25,7 @@ CC = buildcfg.cc_path(os.environ.get("MWCC"))
 FLAGS = list(buildcfg.FLAGS)
 if os.environ.get("SDIFF_FLAGS"): FLAGS = FLAGS + os.environ["SDIFF_FLAGS"].split()
 
-cfg = "config/usa/arm9" if MOD == "main" else f"config/usa/arm9/overlays/ov{MOD}"
+cfg = buildcfg.config_dir(MOD)
 symtxt = open(f"{REPO}/{cfg}/symbols.txt", encoding="utf-8", errors="ignore").read()
 m = re.search(r'\S+ kind:function\((arm|thumb),size=0x([0-9a-fA-F]+)\) addr:0x0*%s\b'
               % ADDR.lstrip('0'), symtxt, re.I)
@@ -35,9 +35,9 @@ isa, slot = m.group(1).lower(), int(m.group(2), 16)
 md = Cs(CS_ARCH_ARM, CS_MODE_THUMB if isa == "thumb" else CS_MODE_ARM)
 
 if MOD == "main":
-    blob = open(f"{REPO}/extract/usa/arm9/arm9.bin", "rb").read(); base = 0x02000000
+    blob = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read(); base = 0x02000000
 else:
-    blob = open(f"{REPO}/extract/usa/arm9_overlays/ov{MOD}.bin", "rb").read()
+    blob = open(f"{REPO}/{buildcfg.extract_root()}/arm9_overlays/ov{MOD}.bin", "rb").read()
     base = min(int(x, 16) for x in
                re.findall(r'start:0x([0-9a-fA-F]+)', open(f"{REPO}/{cfg}/delinks.txt").read()))
 off = int(ADDR, 16) - base

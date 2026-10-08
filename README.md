@@ -1,8 +1,9 @@
 # dqix-decomp-kit
 
-Tools for matching Dragon Quest IX (Nintendo DS, USA) functions to byte-exact C++ in
+Tools for matching Dragon Quest IX (Nintendo DS) functions to byte-exact C++ in
 [ZevyaDev/dqix-decomp](https://github.com/ZevyaDev/dqix-decomp), branch `decomp-matching`. Usable by
-hand, from a single AI session, or as an autonomous fleet of Claude Code workers.
+hand, from a single AI session, or as an autonomous fleet of Claude Code workers. The active
+region is `$DQIX_REGION` (`usa`, `jpn`, or `eur`); unset stays `usa`.
 
 The kit compiles a candidate with the build's own `mwccarm` and flags, compares it against the
 original ROM bytes, names the class of whatever still differs, applies meaning-preserving rewrites,
@@ -23,11 +24,11 @@ Clone both repositories side by side. The kit finds the decomp at `../dqix-decom
     git clone https://github.com/ZevyaDev/dqix-decomp-kit.git
 
 Build the decomp once. Supply your own base ROM and place it as the decomp README says
-(`extract/baserom_dqix_usa.nds`).
+(`extract/baserom_dqix_usa.nds` for the default region, or `extract/baserom_dqix_$DQIX_REGION.nds`).
 
     cd dqix-decomp
     python -m pip install -r tools/requirements.txt ninja
-    python tools/configure.py usa
+    python tools/configure.py "${DQIX_REGION:-usa}"
     ninja min
 
 Initialise the kit:

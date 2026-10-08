@@ -21,11 +21,12 @@ the paths `$DQIX_LABEL_REPO` and `$DQIX_REPO` stand for.
   Read this first, always. It is real C, matching the ROM.
 - **Asset strings.** Already in your input; they are the file paths the function's literal pool
   points at. Exact, not inferred.
-- **The call graph.** `config/usa/arm9/relocs.txt` records every call edge as
-  `from:0x… kind:… to:0x… module:…`. `config/usa/arm9/symbols.txt` (and
-  `config/usa/arm9/overlays/ovNNN/symbols.txt`) map addresses to names. Who calls a function, and
+- **The call graph.** `config/<region>/arm9/relocs.txt` records every call edge as
+  `from:0x… kind:… to:0x… module:…`. `config/<region>/arm9/symbols.txt` (and
+  `config/<region>/arm9/overlays/ovNNN/symbols.txt`) map addresses to names. `<region>` is
+  `$DQIX_REGION`, default `usa`. Who calls a function, and
   what it calls, is often what settles its purpose.
-- **The game's own files.** `$DQIX_REPO/extract/usa/files/` is the extracted filesystem. If a
+- **The game's own files.** `$DQIX_REPO/extract/<region>/files/` is the extracted filesystem. If a
   function reads `data/prm/level%d.bin`, list that directory — thirteen files numbered 0..12 told
   us it is per-vocation. Count things. Sizes and counts are evidence.
 - **Sibling functions.** Nearby addresses often form a family. If three functions differ only in

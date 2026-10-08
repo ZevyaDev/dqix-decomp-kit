@@ -1,9 +1,10 @@
 import os, re, struct, sys, bisect, json
 
 from namingpaths import GAME as REPO
+import buildcfg
 
-CFG = REPO + "/config/usa/arm9"
-EXT = REPO + "/extract/usa"
+CFG = REPO + "/" + buildcfg.config_root()
+EXT = REPO + "/" + buildcfg.extract_root()
 
 def text_base(delinks):
     for line in open(delinks, encoding="utf-8", errors="replace"):

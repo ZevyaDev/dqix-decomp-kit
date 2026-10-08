@@ -1,6 +1,7 @@
 import json, os, subprocess, sys
 
 from namingpaths import LABEL as REPO, NAMING as SP
+import buildcfg
 
 PLAN = sys.argv[1]
 OUT = sys.argv[2]
@@ -18,7 +19,7 @@ def attempt(items):
     if run([sys.executable, SP + "/port2.py", SP + "/try.json", "--apply"]) != 0:
         return False
     run([sys.executable, SP + "/propagate.py"])
-    if run([sys.executable, "tools/configure.py", "usa"]) != 0:
+    if run([sys.executable, "tools/configure.py", buildcfg.REGION]) != 0:
         return False
     return run(["ninja", "check"]) == 0
 

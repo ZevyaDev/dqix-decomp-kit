@@ -13,7 +13,7 @@ import sys
 
 REPO = _kp.REPO
 _TOOLS = os.path.join(REPO, "tools")
-# usa, jpn, or eur. Unset stays usa, which is every current config/ and extract/ path.
+# usa, jpn, or eur. Unset stays usa. config/, extract/ and build/ follow this name.
 REGION = os.environ.get("DQIX_REGION", "usa")
 
 
@@ -67,10 +67,54 @@ def config_dir(mod):
     return root if mod == "main" else f"{root}/overlays/ov{mod}"
 
 
+def config_root():
+    return config_dir("main")
+
+
+def extract_root():
+    return f"extract/{REGION}"
+
+
+def build_root():
+    return f"build/{REGION}"
+
+
+def report_path():
+    return f"{build_root()}/report.json"
+
+
 def pristine(mod):
     if mod == "main":
         return f"extract/{REGION}/arm9/arm9.bin"
     return f"extract/{REGION}/arm9_overlays/ov{mod}.bin"
+
+
+def config_files(kind, extra=()):
+    """Repo-relative <kind>.txt files: arm9, optional subdirs, then each overlay that has one.
+
+    extra is for callers that already walk arm9/itcm and arm9/dtcm. A missing overlays
+    directory is a missing region tree: the error names that path.
+    """
+    root = config_root()
+    out = [f"{root}/{kind}.txt"]
+    for sub in extra:
+        out.append(f"{root}/{sub}/{kind}.txt")
+    overlay_root = os.path.join(REPO, root, "overlays")
+    if not os.path.isdir(overlay_root):
+        raise FileNotFoundError(overlay_root)
+    for name in sorted(os.listdir(overlay_root)):
+        rel = f"{root}/overlays/{name}/{kind}.txt"
+        if os.path.isfile(os.path.join(REPO, rel)):
+            out.append(rel)
+    return out
+
+
+def symbol_files(extra=()):
+    return config_files("symbols", extra)
+
+
+def delink_files(extra=()):
+    return config_files("delinks", extra)
 
 
 def lcf_symbols():
@@ -83,7 +127,9 @@ def cc_path(version):
 
 
 if __name__ == "__main__":
-    if "--cc" in sys.argv:
+    if "--region" in sys.argv:
+        print(REGION)
+    elif "--cc" in sys.argv:
         print(CC)
     elif "--flags" in sys.argv:
         print(" ".join(FLAGS))

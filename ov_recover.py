@@ -2,6 +2,7 @@
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 # Hardened module integrator: sanitizes names (strips 0x-hex tokens that break dsd delinking),
 # never clobbers tracked files, restores HEAD cleanly, bisects to isolate link-poison funcs,
 # checks consistency before every commit. Usage: python ov_recover.py <OV|main> [staging_dirs...]
@@ -25,7 +26,7 @@ if MAIN:
     SUF     = "main"                       # suffix for wlog/hold/stage filenames
     TAGPRE  = "func_"                      # `// USA: func_<addr>` — no `ov` infix
     HEXC    = "[0-9a-fA-F]"                # main's delinks.txt mixes UPPER and lowercase hex
-    CFG     = "config/usa/arm9"            # not .../overlays/ovNN
+    CFG     = buildcfg.config_dir("main")  # not .../overlays/ovNN
     SRCDIR  = srcdir.for_module("main")
     INT     = f"{KIT}/integrate.py"         # one integrator for every module
     INTARGS = ["main"]
@@ -39,7 +40,7 @@ else:
     SUF     = f"ov{OV}"
     TAGPRE  = f"func_ov{OV}_"
     HEXC    = "[0-9a-f]"
-    CFG     = f"config/usa/arm9/overlays/ov{OV}"
+    CFG     = f"{buildcfg.config_root()}/overlays/ov{OV}"
     SRCDIR  = srcdir.for_module(OV)
     INT     = f"{KIT}/integrate.py"         # one integrator for every module
     INTARGS = [OV]
@@ -141,7 +142,7 @@ def clean():
     # restore ALL committed config + src + include + headers to HEAD (a worker may edit ANY
     # committed file — src/Combat/Main, include/, config), then delete untracked .cpp in this
     # module's dir. Reverting include/ too closes the header-edit-persists gap.
-    # For main, CFG is config/usa/arm9 — the PARENT of overlays/ — so this reverts every module's
+    # For main, CFG is config/<region>/arm9 — the PARENT of overlays/ — so this reverts every module's
     # config to HEAD. That is the intended superset (`git checkout HEAD -- src/` was already
     # project-wide); it only ever discards UNCOMMITTED config edits, which a wave must not carry.
     sh("git", "checkout", "HEAD", "--", CFG + "/", "src/", "include/")
@@ -210,11 +211,11 @@ def sweep_foreign():
 
 
 def gate():
-    for p in ["build/usa/arm9.o"] + glob.glob("build/usa/build/*.bin"):
+    for p in [f"{buildcfg.build_root()}/arm9.o"] + glob.glob(f"{buildcfg.build_root()}/build/*.bin"):
         try: os.remove(p)
         except OSError: pass
     sweep_foreign()
-    configure_args = ["python", "tools/configure.py", "usa", "--no-extract"]
+    configure_args = ["python", "tools/configure.py", buildcfg.REGION, "--no-extract"]
     if os.environ.get("DQIX_PREINSTALLED_COMPILER"):
         configure_args += ["--compiler", os.environ["DQIX_PREINSTALLED_COMPILER"]]
     cf = sh(*configure_args)

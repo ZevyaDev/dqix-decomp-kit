@@ -20,6 +20,7 @@ pull dispatch serves `wlog/priority_<mod>.txt`, so everything the old emit wrote
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import glob
 import json
 import subprocess
@@ -65,8 +66,8 @@ ASMONLY = re.compile(r"pool[- ]?load|pool-literal|ldr r\d+,?=0x|keeps? pool-load
 
 def matched_ranges():
     out = []
-    for dl in [f"{REPO}/config/usa/arm9/delinks.txt"] + \
-            glob.glob(f"{REPO}/config/usa/arm9/overlays/ov*/delinks.txt"):
+    for dl in [f"{REPO}/{buildcfg.config_root()}/delinks.txt"] + \
+            glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/ov*/delinks.txt"):
         if os.path.exists(dl):
             out += [(int(a, 16), int(b, 16)) for a, b in re.findall(
                 r"(?m)^\s*\.(?:text|init) start:0x([0-9a-fA-F]+) end:0x([0-9a-fA-F]+)\s*$",

@@ -11,6 +11,7 @@ Usage: python diffmine.py [max-candidates]
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import glob
 import os
 import re
@@ -33,8 +34,8 @@ def norm(ins):
 
 def module_of(addr, cache={}):
     if not cache:
-        for p in [f"{REPO}/config/usa/arm9/symbols.txt"] + \
-                 sorted(glob.glob(f"{REPO}/config/usa/arm9/overlays/*/symbols.txt")):
+        for p in [f"{REPO}/{buildcfg.config_root()}/symbols.txt"] + \
+                 sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/symbols.txt")):
             mod = "main" if "overlays" not in p else re.search(r'ov(\d+)', p).group(1)
             for m in re.finditer(r'kind:function\([^)]*\) addr:0x([0-9a-fA-F]{8})',
                                  open(p, encoding="utf-8", errors="ignore").read()):
@@ -45,8 +46,8 @@ def module_of(addr, cache={}):
 def done_ranges(cache={}):
     if not cache:
         rs = []
-        for p in [f"{REPO}/config/usa/arm9/delinks.txt"] + \
-                 sorted(glob.glob(f"{REPO}/config/usa/arm9/overlays/*/delinks.txt")):
+        for p in [f"{REPO}/{buildcfg.config_root()}/delinks.txt"] + \
+                 sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/delinks.txt")):
             txt = open(p, encoding="utf-8").read()
             rs += [(int(a, 16), int(b, 16)) for a, b in
                    re.findall(r'(?m)^\s*\.(?:text|init) start:0x([0-9a-fA-F]+) end:0x([0-9a-fA-F]+)\s*$', txt)]

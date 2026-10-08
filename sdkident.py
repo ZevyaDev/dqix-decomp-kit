@@ -30,6 +30,7 @@ so nothing is excluded on that basis and the whole module is always searched.
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import json
 import os
 import re
@@ -252,8 +253,8 @@ def load_index():
 
 
 def our_functions(mod="main"):
-    cfg = f"{REPO}/config/usa/arm9" if mod == "main" else \
-          f"{REPO}/config/usa/arm9/overlays/ov{mod}"
+    cfg = f"{REPO}/{buildcfg.config_root()}" if mod == "main" else \
+          f"{REPO}/{buildcfg.config_root()}/overlays/ov{mod}"
     sym = open(f"{cfg}/symbols.txt", encoding="utf-8", errors="ignore").read()
     dl = open(f"{cfg}/delinks.txt", encoding="utf-8", errors="ignore").read()
     done = [(int(a, 16), int(b, 16)) for a, b in re.findall(
@@ -270,11 +271,11 @@ def our_functions(mod="main"):
 def our_seq(mod, addr, size, isa):
     from capstone import Cs, CS_ARCH_ARM, CS_MODE_ARM, CS_MODE_THUMB
     if mod == "main":
-        rom = open(f"{REPO}/extract/usa/arm9/arm9.bin", "rb").read()
+        rom = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
         base = 0x02000000
     else:
-        cfg = f"{REPO}/config/usa/arm9/overlays/ov{mod}"
-        rom = open(f"{REPO}/extract/usa/arm9_overlays/ov{mod}.bin", "rb").read()
+        cfg = f"{REPO}/{buildcfg.config_root()}/overlays/ov{mod}"
+        rom = open(f"{REPO}/{buildcfg.extract_root()}/arm9_overlays/ov{mod}.bin", "rb").read()
         base = min(int(x, 16) for x in
                    re.findall(r"start:0x([0-9a-fA-F]+)", open(f"{cfg}/delinks.txt").read()))
     md = Cs(CS_ARCH_ARM, CS_MODE_THUMB if isa == "thumb" else CS_MODE_ARM)

@@ -17,6 +17,7 @@ Usage: transweep.py [--shard i/n] [--limit N] [--refmin BYTES]
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import bisect
 import collections
 import glob
@@ -43,8 +44,8 @@ T = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(T)
 
 done = []
-for p in [f"{REPO}/config/usa/arm9/delinks.txt"] + \
-         sorted(glob.glob(f"{REPO}/config/usa/arm9/overlays/*/delinks.txt")):
+for p in [f"{REPO}/{buildcfg.config_root()}/delinks.txt"] + \
+         sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/delinks.txt")):
     for a, b in re.findall(r"(?m)^\s*\.(?:text|init) start:0x([0-9a-fA-F]+) end:0x([0-9a-fA-F]+)\s*$",
                            open(p, encoding="utf-8", errors="ignore").read()):
         done.append((int(a, 16), int(b, 16)))
@@ -57,9 +58,9 @@ def landed(v):
 
 
 pool = []
-for cfg, mod in [(f"{REPO}/config/usa/arm9", "main")] + \
+for cfg, mod in [(f"{REPO}/{buildcfg.config_root()}", "main")] + \
                 [(os.path.dirname(p), re.search(r"ov(\d+)", p.replace(chr(92), "/")).group(1))
-                 for p in sorted(glob.glob(f"{REPO}/config/usa/arm9/overlays/*/symbols.txt"))]:
+                 for p in sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/symbols.txt"))]:
     sym = open(f"{cfg}/symbols.txt", encoding="utf-8", errors="ignore").read()
     for m in re.finditer(r"kind:function\((arm|thumb),size=0x([0-9a-fA-F]+)\) addr:0x([0-9a-fA-F]+)",
                          sym):
@@ -73,8 +74,8 @@ pool = pool[SHARD - 1::NSHARD][:LIMIT]
 
 # addr -> the symbol the config binds, so a byte-exact translation can be rebound instead of lost.
 BOUND = {}
-for _p in [f"{REPO}/config/usa/arm9/symbols.txt"] + \
-          sorted(glob.glob(f"{REPO}/config/usa/arm9/overlays/*/symbols.txt")):
+for _p in [f"{REPO}/{buildcfg.config_root()}/symbols.txt"] + \
+          sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/symbols.txt")):
     for _l in open(_p, encoding="utf-8", errors="ignore"):
         _m = re.match(r"(\S+)\s+kind:function\([^\n]*?addr:0x([0-9a-fA-F]+)", _l)
         if _m:

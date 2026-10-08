@@ -14,13 +14,14 @@ Usage: python findshape.py [--any]     (--any drops the r1<r2 requirement, listi
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.dirname(_kpos.path.abspath(__file__))))
 import kitpaths as _kp
+import buildcfg
 import os
 import re
 import sys
 
 REPO = _kp.REPO
-blob = open(f"{REPO}/extract/usa/arm9/arm9.bin", "rb").read()
-cfg = f"{REPO}/config/usa/arm9/delinks.txt"
+blob = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
+cfg = f"{REPO}/{buildcfg.config_root()}/delinks.txt"
 text = open(cfg).read()
 base = min(int(x, 16) for x in re.findall(r"start:0x([0-9a-fA-F]+)", text))
 

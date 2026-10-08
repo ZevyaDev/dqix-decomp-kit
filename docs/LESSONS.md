@@ -110,7 +110,7 @@ re-measure one of those before citing it.
 - An out-of-line `Class::Class()` emits both the complete and the `[base]` constructor; the unused
   copy shifts every later function. Define the mangled symbol as a free function
   (`extern "C" Cls* _ZN3ClsC1Ev(Cls* self)`) or leave the range to the delinked binary.
-  `grep -c '\[base\]()' build/usa/arm9.o.xMAP` counts duplicates.
+  `grep -c '\[base\]()' build/${DQIX_REGION:-usa}/arm9.o.xMAP` counts duplicates.
 - A static shared across functions: write it as `inline T& GetX() { static T s = ...; return s; }`.
   It emits `_ZZ...E1s`, which links from any object; a function-body static is local and does not.
   Only one file defines the accessor; others declare `extern "C" T _ZZ...E1s;`. `integrate.py`

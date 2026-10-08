@@ -27,6 +27,7 @@ export DQIX_REPO="$REPO"
 _final() { local rc=$?; wave_lock_release; echo "$(date '+%H:%M') INTEGRATE-END rc=$rc" | tee -a "$LOG"; }
 trap _final EXIT
 cd "$REPO" || exit 2
+REGION=$(python "$KIT/buildcfg.py" --region)
 
 n=$(ls "$SP"/staging/*/*.cpp 2>/dev/null | wc -l)
 [ "$n" -eq 0 ] && { echo "nothing staged"; exit 0; }
@@ -147,10 +148,10 @@ for d in "$SP"/staging/*/; do
 done
 # REGENERATE THE BUILD GRAPH. Wiring a source into delinks.txt tells the LINKER to expect
 # `<file>.o`, but ninja only knows how to produce objects listed in build.ninja -- so without this
-# the link fails with "Specified file build/usa/src/.../0200006a.o not found" and the combined build
+# the link fails with "Specified file build/<region>/src/.../0200006a.o not found" and the combined build
 # looks like the functions are bad when nothing was ever compiled. finish_wave has always done this;
 # my fast path omitted it, which is what made a set of TRUSTED candidates appear unbuildable.
-python tools/configure.py usa --no-extract >> "$LOG" 2>&1
+python tools/configure.py "$REGION" --no-extract >> "$LOG" 2>&1
 echo "$(date '+%H:%M') wired $placed modules, configured, building once" >> "$LOG"
 
 green=0

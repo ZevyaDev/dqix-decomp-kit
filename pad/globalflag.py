@@ -15,6 +15,7 @@ project default is wrong.
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.dirname(_kpos.path.abspath(__file__))))
 import kitpaths as _kp
+import buildcfg
 import glob
 import os
 import random
@@ -27,8 +28,8 @@ KIT = _kp.KIT
 REPO = _kp.REPO
 
 owner = {}
-for p in [f"{REPO}/config/usa/arm9/symbols.txt"] + \
-        sorted(glob.glob(f"{REPO}/config/usa/arm9/overlays/*/symbols.txt")):
+for p in [f"{REPO}/{buildcfg.config_root()}/symbols.txt"] + \
+        sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/symbols.txt")):
     mod = "main" if "overlays" not in p else re.search(r"ov(\d+)", p).group(1)
     for m in re.finditer(r"kind:function\(\w+,size=0x[0-9a-fA-F]+\) addr:0x([0-9a-fA-F]{8})",
                          open(p, encoding="utf-8", errors="ignore").read()):

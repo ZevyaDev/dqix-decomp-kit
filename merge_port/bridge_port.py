@@ -1,6 +1,7 @@
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.dirname(_kpos.path.abspath(__file__))))
 import kitpaths as _kp
+import buildcfg
 import re
 import subprocess
 import sys
@@ -22,7 +23,7 @@ def table(text):
     return out
 
 
-sym_files = [f for f in git("ls-files", "config/usa").split() if f.endswith("symbols.txt")]
+sym_files = [f for f in git("ls-files", "config/" + buildcfg.REGION).split() if f.endswith("symbols.txt")]
 renames = {}
 for f in sym_files:
     old = table(git("show", "HEAD:" + f))

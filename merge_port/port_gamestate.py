@@ -1,6 +1,7 @@
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.dirname(_kpos.path.abspath(__file__))))
 import kitpaths as _kp
+import buildcfg
 import collections
 import os
 import re
@@ -34,7 +35,7 @@ METHODS = {
 INSTANCE = {"GetBattleStruct"}
 
 MANGLED = re.compile(r"^_Z(\d+)(\w+)$")
-head_syms = subprocess.run(["git", "show", "HEAD:config/usa/arm9/symbols.txt"],
+head_syms = subprocess.run(["git", "show", "HEAD:" + buildcfg.config_root() + "/symbols.txt"],
                            capture_output=True, text=True).stdout
 for line in head_syms.splitlines():
     parts = line.split()
@@ -213,7 +214,7 @@ def main():
                 if f.endswith((".c", ".cpp", ".h", ".hpp")):
                     if port(os.path.join(root, f)):
                         changed += 1
-    for root, _, files in os.walk("config/usa"):
+    for root, _, files in os.walk("config/" + buildcfg.REGION):
         for f in files:
             if f == "symbols.txt":
                 port_symbols(os.path.join(root, f))

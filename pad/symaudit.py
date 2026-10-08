@@ -13,6 +13,7 @@ config/symbols.txt for the module.
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.dirname(_kpos.path.abspath(__file__))))
 import kitpaths as _kp
+import buildcfg
 import glob
 import os
 import re
@@ -23,8 +24,8 @@ KIT = _kp.KIT
 REPO = _kp.REPO
 
 symbols = {}
-for p in [f"{REPO}/config/usa/arm9/symbols.txt"] + \
-        sorted(glob.glob(f"{REPO}/config/usa/arm9/overlays/*/symbols.txt")):
+for p in [f"{REPO}/{buildcfg.config_root()}/symbols.txt"] + \
+        sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/symbols.txt")):
     for line in open(p, encoding="utf-8", errors="ignore"):
         m = re.match(r"(\S+)\s+kind:function\(", line)
         if m:

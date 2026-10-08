@@ -1,6 +1,7 @@
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import json
 import os
 import re
@@ -13,7 +14,7 @@ SP = _kp.SP
 KIT = _kp.KIT
 TMP = f"{SP}/wlog/countfix_diff.json"
 BACKUP = f"{SP}/wlog/countfix_backup"
-CFG = f"{REPO}/config/usa/arm9"
+CFG = f"{REPO}/{buildcfg.config_root()}"
 
 
 def config_files(kind):
@@ -136,7 +137,7 @@ def landed_units(since=None):
 
 
 def report_units():
-    report = json.load(open(f"{REPO}/build/usa/report.json"))
+    report = json.load(open(f"{REPO}/{buildcfg.build_root()}/report.json"))
     return [u["name"] for u in report["units"] if u["metadata"].get("complete")
             and any(0 < f.get("fuzzy_match_percent", 0) < 100 for f in u.get("functions", []))]
 

@@ -39,8 +39,8 @@ MD.skipdata = True
 
 
 def rom_text():
-    blob = open(f"{REPO}/extract/usa/arm9/arm9.bin", "rb").read()
-    cfg = f"{REPO}/config/usa/arm9/delinks.txt"
+    blob = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
+    cfg = f"{REPO}/{buildcfg.config_root()}/delinks.txt"
     base = min(int(x, 16) for x in re.findall(r"start:0x([0-9a-fA-F]+)", open(cfg).read()))
     off = FUNC - base
     return blob[off:off + 0x27DC]

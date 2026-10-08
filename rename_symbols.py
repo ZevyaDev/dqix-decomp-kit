@@ -20,6 +20,7 @@ Usage: python rename_symbols.py <old-rev> [<new-rev>]     new-rev defaults to th
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import regionblocks
 import os
 import re
@@ -39,7 +40,7 @@ IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def symbol_files():
-    r = subprocess.run(["git", "ls-files", "config/usa/arm9"], capture_output=True, text=True)
+    r = subprocess.run(["git", "ls-files", buildcfg.config_root()], capture_output=True, text=True)
     return [f for f in r.stdout.split() if f.endswith("symbols.txt")]
 
 

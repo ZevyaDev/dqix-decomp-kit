@@ -1,6 +1,7 @@
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.dirname(_kpos.path.abspath(__file__))))
 import kitpaths as _kp
+import buildcfg
 import glob
 import re
 import sys
@@ -9,7 +10,7 @@ from elftools.elf.elffile import ELFFile
 from elftools.elf.relocation import RelocationSection
 
 REPO = _kp.REPO
-CFG = REPO + "/config/usa/arm9"
+CFG = REPO + "/" + buildcfg.config_root()
 
 
 def tables():

@@ -7,6 +7,7 @@ outside every committed .text/.init delink range.
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import bisect
 import glob
 import os
@@ -18,8 +19,8 @@ KIT = _kp.KIT
 REPO = _kp.REPO
 
 ranges = []
-for d in [f"{REPO}/config/usa/arm9/delinks.txt"] + sorted(
-        glob.glob(f"{REPO}/config/usa/arm9/overlays/*/delinks.txt")):
+for d in [f"{REPO}/{buildcfg.config_root()}/delinks.txt"] + sorted(
+        glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/delinks.txt")):
     with open(d, encoding="utf-8", errors="replace") as fh:
         text = fh.read()
     for x, y in re.findall(r"(?m)^\s*\.(?:text|init) start:0x([0-9a-fA-F]+) end:0x([0-9a-fA-F]+)\s*$", text):

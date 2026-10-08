@@ -1,6 +1,7 @@
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.dirname(_kpos.path.abspath(__file__))))
 import kitpaths as _kp
+import buildcfg
 import argparse
 import glob
 import os
@@ -29,7 +30,7 @@ def git(*args):
 
 def functions(rev):
     out = {}
-    for path in git("ls-tree", "-r", "--name-only", rev, "config/usa/arm9").split():
+    for path in git("ls-tree", "-r", "--name-only", rev, buildcfg.config_root()).split():
         if path.endswith("symbols.txt"):
             m = re.search(r"/ov(\d+)/", path)
             for line in git("show", "%s:%s" % (rev, path)).splitlines():

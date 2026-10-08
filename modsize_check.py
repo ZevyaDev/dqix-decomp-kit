@@ -1,6 +1,7 @@
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 # Preflight for the mwldarm link: verify no dsd-delinked gap module has
 #     sum(symbol sizes in a section)  >  section size
 # mwldarm hard-errors on that with a misleading message that names neither the symbol nor the cause:
@@ -12,7 +13,7 @@ import kitpaths as _kp
 # padding) to absorb it; fatal the moment a new delink entry splits that module into fully-attributed
 # code.  See SP/inv/mainfix_FINDINGS.md.
 #
-# Usage:  python modsize_check.py            # scan build/usa/delinks/*.o, exit 1 on any violation
+# Usage:  python modsize_check.py            # scan build/<region>/delinks/*.o, exit 1 on any violation
 #         python modsize_check.py --nested   # also list every nested sized symbol (the latent mines)
 # Run it after `ninja delink` and BEFORE `ninja check` — it turns the cryptic link failure into the
 # exact module, section, and offending symbol.  Pure ELF reader: no pyelftools, no repo writes.
@@ -52,7 +53,7 @@ def read_elf(path):
 def main():
     os.chdir(REPO)
     show_nested = '--nested' in sys.argv[1:]
-    objs = sorted(glob.glob('build/usa/delinks/*.o'))
+    objs = sorted(glob.glob(buildcfg.build_root() + '/delinks/*.o'))
     if not objs:
         print("modsize_check: no delinked objects — run `ninja delink` first"); return 2
     viol, nested = [], []

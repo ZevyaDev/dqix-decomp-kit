@@ -12,6 +12,7 @@ Usage: python fixundef.py <module> <addr> <file.cpp>
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import os, re, subprocess, sys, glob
 
 SP = _kp.SP
@@ -20,8 +21,8 @@ REPO = _kp.REPO
 mod, addr, src = sys.argv[1], sys.argv[2], sys.argv[3]
 
 names = {}
-_symfiles = [f"{REPO}/config/usa/arm9/symbols.txt"] + \
-            sorted(glob.glob(f"{REPO}/config/usa/arm9/overlays/*/symbols.txt"))
+_symfiles = [f"{REPO}/{buildcfg.config_root()}/symbols.txt"] + \
+            sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/symbols.txt"))
 _texts = [open(p, encoding="utf-8", errors="ignore").read() for p in _symfiles]
 # FUNCTIONS FIRST, so an address carrying both kinds resolves to the function.
 for _kind in ("function", "data"):

@@ -30,12 +30,12 @@ FLAGS = list(buildcfg.FLAGS)
 os.chdir(REPO)
 
 if OV == "main":
-    CFG = "config/usa/arm9"
-    ROM = open("extract/usa/arm9/arm9.bin", "rb").read()
+    CFG = buildcfg.config_dir("main")
+    ROM = open(buildcfg.pristine("main"), "rb").read()
     BASE = 0x02000000
 else:
-    CFG = f"config/usa/arm9/overlays/ov{OV}"
-    ROM = open(f"extract/usa/arm9_overlays/ov{OV}.bin", "rb").read()
+    CFG = f"{buildcfg.config_root()}/overlays/ov{OV}"
+    ROM = open(f"{buildcfg.extract_root()}/arm9_overlays/ov{OV}.bin", "rb").read()
     BASE = min(int(x, 16) for x in re.findall(r"start:0x([0-9a-fA-F]+)", open(f"{CFG}/delinks.txt").read()))
 
 symtxt = open(f"{CFG}/symbols.txt", encoding="utf-8", errors="ignore").read()
@@ -51,7 +51,7 @@ SEC = next(("." + h.group(1) for h in
             if int(h.group(2), 16) <= int(ADDR, 16) < int(h.group(3), 16)), ".text")
 
 addr_of = {}
-for p in [f"{REPO}/config/usa/arm9/symbols.txt"] + glob.glob(f"{REPO}/config/usa/arm9/overlays/*/symbols.txt"):
+for p in [f"{REPO}/{buildcfg.config_root()}/symbols.txt"] + glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/symbols.txt"):
     for s in re.finditer(r"^(\S+) kind:\S+ addr:0x([0-9a-fA-F]{8})", open(p, encoding="utf-8", errors="ignore").read(), re.M):
         addr_of.setdefault(s.group(1), int(s.group(2), 16))
 

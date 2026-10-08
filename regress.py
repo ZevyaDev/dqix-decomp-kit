@@ -35,6 +35,8 @@ def check(name, fault):
     def deco(fn):
         try:
             bad = fn()
+        except SystemExit as e:                      # a missing region tree must fail the case, not abort the suite
+            bad = "raised SystemExit: %s" % (e.code if e.code is not None else e)
         except Exception as e:                       # a test that explodes is a failure
             bad = "raised %s: %s" % (type(e).__name__, e)
         if bad:
@@ -1289,8 +1291,12 @@ def _dataown_replay():
     import subprocess
     import buildcfg
     import dataown
+    if buildcfg.REGION != "usa":
+        print("skip  data planner ov026 fixture is a USA commit pair; "
+              "not opened for DQIX_REGION=%s" % buildcfg.REGION)
+        return None
     repo = buildcfg.REPO
-    cfg = "config/usa/arm9/overlays/ov026"
+    cfg = buildcfg.config_dir("026")
     srcpath = "src/Combat/Overlay_26/func_ov026_021d8ba0.cpp"
     before, after = "aea3f05d", "2424ebd7"
 
@@ -1298,7 +1304,7 @@ def _dataown_replay():
         r = subprocess.run(["git", "show", "%s:%s" % (rev, path)], cwd=repo, capture_output=True)
         return r.stdout.decode("utf-8").replace("\r\n", "\n")
 
-    pristine = open(repo + "/extract/usa/arm9_overlays/ov026.bin", "rb").read()
+    pristine = open(os.path.join(repo, buildcfg.pristine("026")), "rb").read()
     own = os.path.normcase(os.path.abspath(os.path.join(repo, cfg, "relocs.txt")))
 
     def run(text, rom):

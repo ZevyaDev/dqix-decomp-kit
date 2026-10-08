@@ -12,6 +12,7 @@ Module names are exactly what ov_recover.py takes: "main" or a zero-padded overl
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import re, os, sys, glob
 
 SP = _kp.SP
@@ -27,7 +28,7 @@ TAG = re.compile(r'// USA: func_(?:ov(\d+)_)?([0-9a-fA-F]{8})')
 
 def delinked(mod):
     hexc = "[0-9a-fA-F]" if mod == "main" else "[0-9a-f]"
-    cfg = "config/usa/arm9" if mod == "main" else f"config/usa/arm9/overlays/ov{mod}"
+    cfg = buildcfg.config_dir(mod)
     p = f"{REPO}/{cfg}/delinks.txt"
     if not os.path.exists(p):
         return set(), []

@@ -15,10 +15,11 @@ import subprocess
 import sys
 
 import kitpaths as _kp
+import buildcfg
 
 REPO = os.environ.get("DQIX_MAIN_REPO") or _kp.REPO
 BRANCH = os.environ.get("DQIX_BRANCH", "decomp-matching")
-REGION = os.environ.get("DQIX_REGION", "usa")
+REGION = buildcfg.REGION
 _env = os.environ.get("DQIX_INTEG", "")
 OFF = _env.lower() == "off"
 LOCAL = os.environ.get("DQIX_PUBLISH") == "local"

@@ -17,6 +17,7 @@ calls them, which is why collapsing them carries no risk to a running wave.
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import glob
 import os
 import re
@@ -30,11 +31,11 @@ KIT = _kp.KIT
 def cfg_for(mod):
     """(config dir, pristine binary, load base) for a module."""
     if mod == "main":
-        cfg = f"{REPO}/config/usa/arm9"
-        rom = open(f"{REPO}/extract/usa/arm9/arm9.bin", "rb").read()
+        cfg = f"{REPO}/{buildcfg.config_root()}"
+        rom = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
         return cfg, rom, 0x02000000
-    cfg = f"{REPO}/config/usa/arm9/overlays/ov{mod}"
-    rom = open(f"{REPO}/extract/usa/arm9_overlays/ov{mod}.bin", "rb").read()
+    cfg = f"{REPO}/{buildcfg.config_root()}/overlays/ov{mod}"
+    rom = open(f"{REPO}/{buildcfg.extract_root()}/arm9_overlays/ov{mod}.bin", "rb").read()
     base = min(int(m, 16) for m in
                re.findall(r"start:0x([0-9a-fA-F]+)", open(f"{cfg}/delinks.txt").read()))
     return cfg, rom, base
@@ -104,7 +105,7 @@ def _scan(pattern, want_matched):
     (a ';'-separated sequence of per-instruction regexes)."""
     pats = [re.compile(p) for p in pattern.split(";")]
     mods = ["main"] + sorted(re.search(r"ov(\d+)", p).group(1)
-                             for p in glob.glob(f"{REPO}/config/usa/arm9/overlays/ov*"))
+                             for p in glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/ov*"))
     hits, scanned = [], 0
     for mod in mods:
         try:

@@ -15,8 +15,8 @@ import buildcfg
 
 REPO = buildcfg.REPO
 mod, src, lo, hi = sys.argv[1], os.path.abspath(sys.argv[2]), int(sys.argv[3], 16), int(sys.argv[4], 16)
-cfg = "config/usa/arm9" + ("" if mod == "main" else f"/overlays/ov{mod}")
-rom = f"{REPO}/extract/usa/arm9/arm9.bin" if mod == "main" else f"{REPO}/extract/usa/arm9_overlays/ov{mod}.bin"
+cfg = buildcfg.config_dir(mod)
+rom = f"{REPO}/{buildcfg.pristine(mod)}"
 delinks = open(f"{REPO}/{cfg}/delinks.txt", encoding="utf-8").read()
 base = min(int(m.group(1), 16) for m in re.finditer(r"start:0x([0-9a-fA-F]+)\s+end:0x[0-9a-fA-F]+\s+kind:", delinks))
 funcs = sorted((int(m.group(2), 16), m.group(1)) for m in re.finditer(

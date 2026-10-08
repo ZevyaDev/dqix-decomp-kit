@@ -35,10 +35,10 @@ def _symbols(module=None):
     """addr -> committed symbol name; overlays share addresses, so `module` and main win."""
     if module not in _SYMS:
         own = [] if module in (None, "main") else \
-              [f"{REPO}/config/usa/arm9/overlays/ov{module}/symbols.txt"]
+              [f"{REPO}/{buildcfg.config_root()}/overlays/ov{module}/symbols.txt"]
         syms = {}
-        for p in own + [f"{REPO}/config/usa/arm9/symbols.txt"] + \
-                 sorted(glob.glob(f"{REPO}/config/usa/arm9/overlays/*/symbols.txt")):
+        for p in own + [f"{REPO}/{buildcfg.config_root()}/symbols.txt"] + \
+                 sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/symbols.txt")):
             try:
                 txt = open(p, encoding="utf-8", errors="ignore").read()
             except IOError:
@@ -51,8 +51,8 @@ def _symbols(module=None):
 
 def _all_symbol_names():
     names = set()
-    for p in [f"{REPO}/config/usa/arm9/symbols.txt"] + \
-             glob.glob(f"{REPO}/config/usa/arm9/overlays/*/symbols.txt"):
+    for p in [f"{REPO}/{buildcfg.config_root()}/symbols.txt"] + \
+             glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/symbols.txt"):
         try:
             names.update(re.findall(r'(?m)^(\S+) kind:function', open(p, encoding="utf-8",
                                                                       errors="ignore").read()))
@@ -72,8 +72,8 @@ def _addresses_in(name):
 
 def _code_section_for(module, addr):
     """Name of the delinks code section containing addr, or None."""
-    cfg = f"{REPO}/config/usa/arm9" if module == "main" else \
-          f"{REPO}/config/usa/arm9/overlays/ov{module}"
+    cfg = f"{REPO}/{buildcfg.config_root()}" if module == "main" else \
+          f"{REPO}/{buildcfg.config_root()}/overlays/ov{module}"
     try:
         head = open(f"{cfg}/delinks.txt", encoding="utf-8").read().split("\n\n")[0]
     except IOError:

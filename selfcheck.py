@@ -76,6 +76,31 @@ def _pr_hook():
     return None
 
 
+def _ninja_matches(text, region):
+    return f"config/{region}/" in text or f"config\\{region}\\" in text
+
+
+@check("tools read the active region's config, extract and build.ninja",
+       "a USA tree left configured while DQIX_REGION names another region makes every gate measure the wrong ROM")
+def _active_region():
+    import buildcfg
+    region = buildcfg.REGION
+    root = f"{REPO}/{buildcfg.config_root()}"
+    extract = f"{REPO}/{buildcfg.pristine('main')}"
+    ninja_path = f"{REPO}/build.ninja"
+    missing = [p for p in (f"{root}/symbols.txt", f"{root}/delinks.txt", extract, ninja_path)
+               if not os.path.isfile(p)]
+    if missing:
+        return "DQIX_REGION=%s is missing %s" % (region, ", ".join(missing))
+    ninja = read(ninja_path)
+    if not ninja:
+        return "build.ninja is missing"
+    if not _ninja_matches(ninja, region):
+        return ("build.ninja is not configured for DQIX_REGION=%s; "
+                "run python tools/configure.py %s" % (region, region))
+    return None
+
+
 @check("gates accept THUMB",
        "an ARM-only keep-raw regex rejected every thumb function in main as NO-DEF")
 def _thumb():
@@ -210,8 +235,12 @@ def _hand_work_recorded():
         return "OPEN_WORK.md is missing -- nothing can be recorded in it"
     import bisect
     ranges = []
-    for d in [f"{REPO}/config/usa/arm9/delinks.txt"] + \
-             sorted(_g.glob(f"{REPO}/config/usa/arm9/overlays/*/delinks.txt")):
+    import buildcfg
+    try:
+        delinks = [f"{REPO}/{p}" for p in buildcfg.delink_files()]
+    except OSError as e:
+        return "active region delinks unreadable: %s" % e
+    for d in delinks:
         for x, y in re.findall(r"(?m)^\s*\.(?:text|init) start:0x([0-9a-fA-F]+) end:0x([0-9a-fA-F]+)\s*$",
                                read(d)):
             ranges.append((int(x, 16), int(y, 16)))
@@ -987,7 +1016,8 @@ def _focus_ratio():
         return "CLAIM_FOCUS is set but PULL_VARIETY is not a count >= 2"
     lo, hi = focus
     sizes = {}
-    for p in glob.glob(f"{REPO}/config/usa/arm9/**/symbols.txt", recursive=True):
+    import buildcfg
+    for p in glob.glob(f"{REPO}/{buildcfg.config_root()}/**/symbols.txt", recursive=True):
         for m in re.finditer(r"kind:function\((?:arm|thumb),size=0x([0-9a-fA-F]+)\)"
                              r"\s+addr:0x([0-9a-fA-F]+)", read(p)):
             sizes[m.group(2).lower()] = int(m.group(1), 16)
@@ -1197,6 +1227,8 @@ fails = 0
 for name, why, fn in CHECKS:
     try:
         bad = fn()
+    except SystemExit as e:
+        bad = "check raised SystemExit: %s" % (e.code if e.code is not None else e)
     except Exception as e:
         bad = f"check raised {e!r}"
     if bad:

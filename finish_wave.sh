@@ -32,11 +32,12 @@ export DQIX_MAIN_REPO="${DQIX_MAIN_REPO:-$(python "$KIT/kitpaths.py" repo)}"
 REPO="$(python "$KIT/integ_tree.py" sync)" || { echo "FATAL: no integration tree"; exit 2; }
 export DQIX_REPO="$REPO"
 cd "$REPO" || { echo "FATAL: no repo"; exit 2; }
+REGION=$(python "$KIT/buildcfg.py" --region)
 if [ "$OV" = "main" ]; then
-  DL="config/usa/arm9/delinks.txt"; SRCDIR=$(python "$KIT/srcdir.py" main); TAGPRE="func_"; LBL="main"
+  DL="config/${REGION}/arm9/delinks.txt"; SRCDIR=$(python "$KIT/srcdir.py" main); TAGPRE="func_"; LBL="main"
 else
   DEC=$((10#$OV))
-  DL="config/usa/arm9/overlays/ov${OV}/delinks.txt"; SRCDIR=$(python "$KIT/srcdir.py" "$OV")
+  DL="config/${REGION}/arm9/overlays/ov${OV}/delinks.txt"; SRCDIR=$(python "$KIT/srcdir.py" "$OV")
   TAGPRE="func_ov${OV}_"; LBL="ov${OV}"
 fi
 Q="$SP/quarantine"; mkdir -p "$Q"
@@ -157,7 +158,7 @@ fi
 # gate
 _compiler_args=()
 [ -n "${DQIX_PREINSTALLED_COMPILER:-}" ] && _compiler_args=(--compiler "$DQIX_PREINSTALLED_COMPILER")
-python tools/configure.py usa --no-extract "${_compiler_args[@]}" >/dev/null 2>&1
+python tools/configure.py "$REGION" --no-extract "${_compiler_args[@]}" >/dev/null 2>&1
 if ! ninja check >/tmp/fw_check.log 2>&1; then
   echo "RED: ninja check FAILED — NOT pushing. tail:"; tail -3 /tmp/fw_check.log
   echo "held: $SP/hold_${LBL} (nothing lost)"; exit 4
@@ -195,7 +196,7 @@ else
   PUSH="no-new-commits"
 fi
 
-rm -f build/usa/report.json; ninja report >/dev/null 2>&1
-COV=$(python -c "import json;m=json.load(open('build/usa/report.json'))['measures'];print('%d/%d = %.2f%%'%(m['matched_functions'],m['total_functions'],m['matched_functions_percent']))")
+rm -f "build/${REGION}/report.json"; ninja report >/dev/null 2>&1
+COV=$(python -c "import json;m=json.load(open('build/${REGION}/report.json'))['measures'];print('%d/%d = %.2f%%'%(m['matched_functions'],m['total_functions'],m['matched_functions_percent']))")
 python "$KIT/integ_tree.py" report
 echo "OK ${LBL}: +${GAINED} delinked (${BEFORE}->${AFTER}), green, sha1 OK, ${PUSH}, cov ${COV}, held ${SP}/hold_${LBL}"

@@ -64,7 +64,7 @@ Branches in the label clone:
 
 In the label clone:
 
-    python tools/configure.py usa     # after adding or removing any source file
+    python tools/configure.py "${DQIX_REGION:-usa}"     # after adding or removing any source file
     ninja check                       # the matching gate
     ninja sha1                        # full ROM SHA-1, needs arm7_bios.bin at the repo root
 
@@ -130,7 +130,7 @@ Strings:
 Generated inputs, kept in `naming/` and never committed:
 
     strxref.json    `python strxref.py strxref.json`, from `$DQIX_REPO/config` and
-                    `$DQIX_REPO/extract/usa`; read by queue.py, queue2.py and queue_insides.py
+                    `$DQIX_REPO/extract/<region>` (`DQIX_REGION`, default `usa`); read by queue.py, queue2.py and queue_insides.py
     cg.json         `python callgraph.py`, the call graph `{callers, callees}` from the label
                     clone's `relocs.txt`, keys `module|address|name`; read by queue.py and queue2.py
 

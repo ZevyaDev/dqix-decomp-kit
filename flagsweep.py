@@ -12,6 +12,7 @@ Reports, per address, the best verdict across sets and which set produced it. Wr
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import glob
 import os
 import re
@@ -25,8 +26,8 @@ REPO = _kp.REPO
 SETS = ["", "-O3", "-O4", "-opt speed", "-inline on", "-inline all", "-O3 -inline on"]
 
 owner = {}
-for p in [f"{REPO}/config/usa/arm9/symbols.txt"] + \
-        sorted(glob.glob(f"{REPO}/config/usa/arm9/overlays/*/symbols.txt")):
+for p in [f"{REPO}/{buildcfg.config_root()}/symbols.txt"] + \
+        sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/symbols.txt")):
     mod = "main" if "overlays" not in p else re.search(r"ov(\d+)", p).group(1)
     for m in re.finditer(r"kind:function\(\w+,size=0x[0-9a-fA-F]+\) addr:0x([0-9a-fA-F]{8})",
                          open(p, encoding="utf-8", errors="ignore").read()):

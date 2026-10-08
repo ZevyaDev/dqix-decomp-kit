@@ -1,8 +1,9 @@
 import json, os, re, sys
 
 from namingpaths import LABEL as REPO
+import buildcfg
 
-CFG = REPO + "/config/usa/arm9"
+CFG = REPO + "/" + buildcfg.config_root()
 APPLY = "--apply" in sys.argv
 
 SYMF = re.compile(r"^(\S+)\s+kind:(\w+)[\(\s]")

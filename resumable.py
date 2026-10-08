@@ -22,6 +22,7 @@ most likely to close it; then everything else, newest attempt first.
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import glob, os, re, sys, collections
 
 SP = _kp.SP
@@ -52,8 +53,8 @@ def rank_of(f):
     return RANK_DIR.get(os.path.basename(os.path.dirname(p)), 0)
 
 _rng = []          # (start, end, module) over .text, from the delink config
-for dl in [f"{REPO}/config/usa/arm9/delinks.txt"] + sorted(
-        glob.glob(f"{REPO}/config/usa/arm9/overlays/ov*/delinks.txt")):
+for dl in [f"{REPO}/{buildcfg.config_root()}/delinks.txt"] + sorted(
+        glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/ov*/delinks.txt")):
     if not os.path.exists(dl):
         continue
     mod = "main" if dl.endswith("arm9/delinks.txt") else re.search(r'ov(\d+)', dl).group(1)
@@ -70,12 +71,28 @@ def matched(addr):
 # Module by ADDRESS RANGE, never by symbol name: a matched function is renamed and its func_ symbol
 # stops existing. main is checked first and is never ambiguous; overlays can share a load region, so
 # an address inside two overlays is reported as ambiguous and skipped rather than gated wrongly.
-_MAIN_END = 0x020e5920
+_main_end = None
+
+
+def _main_text_end():
+    global _main_end
+    if _main_end is not None:
+        return _main_end
+    path = f"{REPO}/{buildcfg.config_root()}/delinks.txt"
+    try:
+        text = open(path, encoding="utf-8", errors="ignore").read()
+    except OSError as e:
+        raise SystemExit("cannot read main .text end from %s: %s" % (path, e))
+    m = re.search(r"\.text\s+start:0x[0-9a-fA-F]+\s+end:0x([0-9a-fA-F]+)\s+kind:", text)
+    if not m:
+        raise SystemExit("no .text section end in %s" % path)
+    _main_end = int(m.group(1), 16)
+    return _main_end
 
 
 def module_of(addr):
     x = int(addr, 16)
-    if x < _MAIN_END:
+    if x < _main_text_end():
         return "main"
     hits = {m for s, e, m in _rng if s <= x < e and m != "main"}
     return hits.pop() if len(hits) == 1 else ""

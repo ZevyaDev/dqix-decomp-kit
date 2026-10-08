@@ -1,6 +1,7 @@
 import os, re, subprocess
 
 from namingpaths import LABEL as REPO
+import buildcfg
 
 SYMF = re.compile(r"^(\S+)\s+kind:(\w+)[\(\s]")
 ADDR = re.compile(r"addr:0x([0-9a-fA-F]+)")
@@ -17,11 +18,12 @@ def load(text):
 
 
 def rels():
-    yield "config/usa/arm9/symbols.txt"
+    root = buildcfg.config_root()
+    yield root + "/symbols.txt"
     for sub in ("itcm", "dtcm"):
-        yield "config/usa/arm9/%s/symbols.txt" % sub
-    for n in sorted(os.listdir(REPO + "/config/usa/arm9/overlays")):
-        yield "config/usa/arm9/overlays/%s/symbols.txt" % n
+        yield root + "/%s/symbols.txt" % sub
+    for n in sorted(os.listdir(REPO + "/" + root + "/overlays")):
+        yield root + "/overlays/%s/symbols.txt" % n
 
 
 renames = {}

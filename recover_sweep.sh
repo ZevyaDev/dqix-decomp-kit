@@ -17,6 +17,7 @@ KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && { pwd -W 2>/dev/null || pwd; })"
 SP="$(python "$KIT/kitpaths.py" state)"
 REPO="$(python "$KIT/kitpaths.py" repo)"
 cd "$REPO" || exit 2
+REGION=$(python "$KIT/buildcfg.py" --region)
 LOG="$SP/wlog/sweep.log"
 echo "=== recover_sweep $(date '+%m-%d %H:%M:%S') ===" >> "$LOG"
 
@@ -69,7 +70,7 @@ done
 # fail-soft: a missing/short report must never make the sweep look like it errored — run_all reads the
 # exit code of the last command, and a bare `python -c` that raises would report a failed sweep after
 # a run that actually committed everything it found.
-python -c "import json;m=json.load(open('build/usa/report.json'))['measures'];print('sweep end: %.2f%% (%d/%d)'%(m['matched_functions_percent'],m['matched_functions'],m['total_functions']))" >> "$LOG" 2>/dev/null \
+python -c "import json;m=json.load(open('build/${REGION}/report.json'))['measures'];print('sweep end: %.2f%% (%d/%d)'%(m['matched_functions_percent'],m['matched_functions'],m['total_functions']))" >> "$LOG" 2>/dev/null \
   || echo "sweep end: (report unavailable)" >> "$LOG"
 tail -1 "$LOG"
 exit 0

@@ -1,8 +1,9 @@
 import os, re, sys, json, bisect, collections
 
 from namingpaths import LABEL as REPO, NAMING as SP
+import buildcfg
 
-CFG = REPO + "/config/usa/arm9"
+CFG = REPO + "/" + buildcfg.config_root()
 
 FUNC = re.compile(r"^(\S+)\s+kind:function\((\w+),size=0x([0-9a-fA-F]+)\)\s+addr:0x([0-9a-fA-F]+)")
 ADDR = re.compile(r"0[12][0-9a-f]{6}")

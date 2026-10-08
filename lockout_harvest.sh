@@ -23,6 +23,7 @@ SP="$(python "$KIT/kitpaths.py" state)"
 REPO="$(python "$KIT/kitpaths.py" repo)"
 LOG="$SP/wlog/harvest.log"
 cd "$REPO" || exit 2
+REGION=$(python "$KIT/buildcfg.py" --region)
 DUR=${1:-3600}
 END=$(( $(date +%s) + DUR ))
 echo "=== lockout harvest $(date '+%m-%d %H:%M:%S'), ${DUR}s budget ===" >> "$LOG"
@@ -73,7 +74,7 @@ while [ "$(date +%s)" -lt "$END" ]; do
   sleep $(( LEFT < 900 ? LEFT : 900 ))
 done
 
-python -c "import json;m=json.load(open('build/usa/report.json'))['measures'];print('harvest end: %.2f%% (%d/%d)'%(m['matched_functions_percent'],m['matched_functions'],m['total_functions']))" >> "$LOG" 2>/dev/null \
+python -c "import json;m=json.load(open('build/${REGION}/report.json'))['measures'];print('harvest end: %.2f%% (%d/%d)'%(m['matched_functions_percent'],m['matched_functions'],m['total_functions']))" >> "$LOG" 2>/dev/null \
   || echo "harvest end: (report unavailable)" >> "$LOG"
 echo "=== harvest done after $cycle cycles $(date '+%m-%d %H:%M:%S') ===" >> "$LOG"
 exit 0

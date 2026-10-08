@@ -34,8 +34,8 @@ FLAGS = list(buildcfg.FLAGS)
 
 def expected_sizes():
     out = {}
-    for p in [f"{REPO}/config/usa/arm9/symbols.txt"] + \
-            sorted(glob.glob(f"{REPO}/config/usa/arm9/overlays/*/symbols.txt")):
+    for p in [f"{REPO}/{buildcfg.config_root()}/symbols.txt"] + \
+            sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/symbols.txt")):
         for m in re.finditer(r"^(\S+)\s+kind:function\(\w+,size=0x([0-9a-fA-F]+)\)",
                              open(p, encoding="utf-8", errors="ignore").read(), re.M):
             out.setdefault(m.group(1), int(m.group(2), 16))

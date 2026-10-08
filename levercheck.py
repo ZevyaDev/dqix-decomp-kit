@@ -1,6 +1,7 @@
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import glob
 import os
 import re
@@ -13,7 +14,7 @@ DOCS = os.environ.get("LEVERCHECK_DOCS",
                       os.pathsep.join((f"{KIT}/worker_src/core.md", f"{KIT}/worker_src/deadends.md"))).split(os.pathsep)
 DECLINED = os.environ.get("LEVERCHECK_DECLINED", f"{SP}/wlog/levers_declined.txt")
 BOARDS = os.environ.get("LEVERCHECK_BOARDS", f"{SP}/handwork")
-CFG = os.environ.get("LEVERCHECK_CFG", (_kp.REPO + "/config/usa/arm9"))
+CFG = os.environ.get("LEVERCHECK_CFG", (_kp.REPO + "/" + buildcfg.config_root()))
 HEX8 = re.compile(r"[0-9a-fA-F]{8}")
 LEVER_LINE = re.compile(r"^EVO\b.*\b(?:RULE:|MATCH\b)")
 

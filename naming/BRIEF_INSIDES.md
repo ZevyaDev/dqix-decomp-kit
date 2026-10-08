@@ -33,14 +33,15 @@ already excludes global symbols, which are named elsewhere and are off limits he
   round's conclusion and often already states what a field means — a comment saying "ten halfwords
   at +0x488" is exactly the evidence for `short equippedItemIds[10]`.
 - **Other decompiled functions that touch the same object.** This is the strongest evidence for
-  field names. `config/usa/arm9/relocs.txt` records call edges as `from:0x… kind:… to:0x… module:…`;
-  `config/usa/arm9/symbols.txt` and `config/usa/arm9/overlays/ovNNN/symbols.txt` map addresses to
+  field names. `config/<region>/arm9/relocs.txt` records call edges as `from:0x… kind:… to:0x… module:…`;
+  `config/<region>/arm9/symbols.txt` and `config/<region>/arm9/overlays/ovNNN/symbols.txt` map addresses to
   names. Read a caller's or callee's body with
   `git -C $DQIX_LABEL_REPO show labeling-pass:<path>` — the `labeling-pass` branch holds matched C
   for ten thousand functions. Find the path with
   `git -C $DQIX_LABEL_REPO ls-tree -r --name-only labeling-pass | grep <name>`.
   A field is named by what the code that writes it does, not by its offset.
-- **The game's own files.** `$DQIX_REPO/extract/usa/files/` is the extracted filesystem. Counts
+- **The game's own files.** `$DQIX_REPO/extract/<region>/files/` is the extracted filesystem
+  (`<region>` is `$DQIX_REGION`, default `usa`). Counts
   settle array extents: thirteen `level%d.bin` files means thirteen vocations.
 - **Sibling functions at nearby addresses** usually operate on the same struct. Two accessors that
   read +0x454 and +0x49c of the same record name two fields at once.

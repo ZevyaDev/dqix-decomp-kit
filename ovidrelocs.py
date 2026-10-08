@@ -10,6 +10,7 @@ Usage: python ovidrelocs.py [--apply]
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import glob, os, re, sys
 from capstone import Cs, CS_ARCH_ARM, CS_MODE_ARM
 from capstone.arm import ARM_OP_REG
@@ -76,15 +77,15 @@ def module_sites(cfg, binpath, base):
 
 
 def modules():
-    yield "main", "config/usa/arm9", "extract/usa/arm9/arm9.bin", 0x02000000
-    for d in sorted(glob.glob(f"{REPO}/config/usa/arm9/overlays/ov*")):
+    yield "main", buildcfg.config_dir("main"), buildcfg.pristine("main"), 0x02000000
+    for d in sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/ov*")):
         ov = os.path.basename(d)
-        binpath = f"extract/usa/arm9_overlays/{ov}.bin"
+        binpath = f"{buildcfg.extract_root()}/arm9_overlays/{ov}.bin"
         if not os.path.exists(f"{REPO}/{binpath}"):
             continue
         delinks = open(f"{d}/delinks.txt").read()
         base = min(int(x, 16) for x in re.findall(r'start:0x([0-9a-fA-F]+)', delinks))
-        yield ov, f"config/usa/arm9/overlays/{ov}", binpath, base
+        yield ov, f"{buildcfg.config_root()}/overlays/{ov}", binpath, base
 
 
 total = 0

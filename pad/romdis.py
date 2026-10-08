@@ -9,12 +9,13 @@ Usage: python romdis.py <start-hex> <count-instrs>
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.dirname(_kpos.path.abspath(__file__))))
 import kitpaths as _kp
+import buildcfg
 import sys
 
 import capstone
 
 REPO = _kp.REPO
-blob = open(f"{REPO}/extract/usa/arm9/arm9.bin", "rb").read()
+blob = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
 BASE = 0x02000000
 
 start = int(sys.argv[1], 16)

@@ -26,8 +26,6 @@ STATE_DIRS = ["wlog", "wlog/gates", "wip", "staging", "handwork", "attempts", "c
               "gated", "clsbest", "quarantine", "doc_cache", "refs"]
 REQUIRED = {"capstone": "capstone", "elftools": "pyelftools"}
 OPTIONAL = {"frida": "frida (only for frida/*.py and pad/renum/)", "yaml": "pyyaml (only for frida/schedforce.py)"}
-REPO_FILES = ["tools/configure.py", "config/usa/arm9/symbols.txt", "config/usa/arm9/delinks.txt",
-              "build.ninja", "extract/usa/arm9/arm9.bin"]
 PORTABLE_SKILLS = ["dqix-hand-match", "dqix-status", "dqix-stop"]
 
 
@@ -52,26 +50,45 @@ def check_python():
     return ok
 
 
+def _ninja_matches(text, region):
+    return f"config/{region}/" in text or f"config\\{region}\\" in text
+
+
 def check_repo():
     if not os.path.isdir(REPO):
         print(f"FAIL  decomp checkout not found at {REPO}; clone it there or set DQIX_REPO")
         return False
-    missing = [f for f in REPO_FILES if not os.path.exists(os.path.join(REPO, f))]
-    if missing:
-        print(f"FAIL  {REPO} is not configured and built; missing: {', '.join(missing)}")
-        print("      follow the decomp README (base ROM in place, python tools/configure.py, ninja check)")
+    if not os.path.isfile(os.path.join(REPO, "tools/configure.py")):
+        print(f"FAIL  {REPO} has no tools/configure.py")
         return False
     try:
         import buildcfg
     except Exception as e:
         print(f"FAIL  buildcfg could not read the build configuration: {e}")
         return False
+    region = buildcfg.REGION
+    needed = [f"config/{region}/arm9/symbols.txt", f"config/{region}/arm9/delinks.txt",
+              "build.ninja", f"extract/{region}/arm9/arm9.bin"]
+    missing = [f for f in needed if not os.path.exists(os.path.join(REPO, f))]
+    if missing:
+        print(f"FAIL  DQIX_REGION={region} is not configured and built; missing: {', '.join(missing)}")
+        print(f"      base ROM in place, then: python tools/configure.py {region} && ninja check")
+        return False
+    try:
+        ninja = open(os.path.join(REPO, "build.ninja"), encoding="utf-8", errors="ignore").read()
+    except OSError as e:
+        print(f"FAIL  build.ninja unreadable: {e}")
+        return False
+    if not _ninja_matches(ninja, region):
+        print(f"FAIL  build.ninja is not configured for DQIX_REGION={region}; "
+              f"run `python tools/configure.py {region}`")
+        return False
     if not os.path.exists(buildcfg.CC):
         print(f"FAIL  compiler {buildcfg.CC} is missing; run `ninja check` in the decomp once to fetch the toolchain")
         return False
     branch = subprocess.run(["git", "-C", REPO, "rev-parse", "--abbrev-ref", "HEAD"],
                             capture_output=True, text=True).stdout.strip()
-    print(f"ok    decomp checkout {REPO} (branch {branch or '?'}), compiler {buildcfg.MWCC_VERSION}")
+    print(f"ok    decomp checkout {REPO} (branch {branch or '?'}), region {region}, compiler {buildcfg.MWCC_VERSION}")
     return True
 
 

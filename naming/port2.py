@@ -1,8 +1,9 @@
 import os, re, sys, json, subprocess
 
 from namingpaths import LABEL as REPO
+import buildcfg
 
-CFG = REPO + "/config/usa/arm9"
+CFG = REPO + "/" + buildcfg.config_root()
 SRC_BRANCH = "labeling-pass"
 APPLY = "--apply" in sys.argv
 
@@ -16,11 +17,12 @@ def git(*a):
 
 
 def rel_for(mod):
+    root = buildcfg.config_root()
     if mod == "main":
-        return "config/usa/arm9/symbols.txt"
+        return root + "/symbols.txt"
     if mod in ("itcm", "dtcm"):
-        return "config/usa/arm9/%s/symbols.txt" % mod
-    return "config/usa/arm9/overlays/%s/symbols.txt" % mod
+        return root + "/%s/symbols.txt" % mod
+    return root + "/overlays/%s/symbols.txt" % mod
 
 
 def modules():

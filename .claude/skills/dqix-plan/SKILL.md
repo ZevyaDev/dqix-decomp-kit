@@ -124,7 +124,7 @@ Never write a coverage number or a commit hash into a skill file — `selfcheck.
 
 * **Bytes, not functions, mean "how much of the game is decompiled"** — they diverge by more than
   half. STATE.md prints both plus the per-band split; steer by bytes.
-* **`cov.py` reports the build's count when `build/usa/report.json` exists and a config estimate
+* **`cov.py` reports the build's count when `build/<region>/report.json` exists and a config estimate
   otherwise** — different denominators, so quote its label with the number. STATE.md always reads
   the config.
 * **`selfcheck.py` and `regress.py` green is the floor.** A red means the last pipeline edit broke

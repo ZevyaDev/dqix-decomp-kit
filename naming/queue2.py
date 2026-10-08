@@ -1,8 +1,9 @@
 import bisect, collections, json, os, re, subprocess, sys
 
 from namingpaths import LABEL as REPO, NAMING as SP
+import buildcfg
 
-CFG = REPO + "/config/usa/arm9"
+CFG = REPO + "/" + buildcfg.config_root()
 SRC_BRANCH = "labeling-pass"
 OUTDIR = sys.argv[1] if len(sys.argv) > 1 else SP + "/chunks4"
 PER = int(sys.argv[2]) if len(sys.argv) > 2 else 11
@@ -19,11 +20,12 @@ def git(*a):
 
 
 def rels():
-    yield "main", "config/usa/arm9"
+    root = buildcfg.config_root()
+    yield "main", root
     for sub in ("itcm", "dtcm"):
-        yield sub, "config/usa/arm9/" + sub
+        yield sub, root + "/" + sub
     for n in sorted(os.listdir(CFG + "/overlays")):
-        yield n, "config/usa/arm9/overlays/" + n
+        yield n, root + "/overlays/" + n
 
 
 def parse_funcs(text):

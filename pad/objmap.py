@@ -8,6 +8,7 @@ used off that base. An invented `char pad[N]; int field;` struct is a guess; thi
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.dirname(_kpos.path.abspath(__file__))))
 import kitpaths as _kp
+import buildcfg
 import os
 import re
 import struct
@@ -24,13 +25,15 @@ md.detail = True
 
 
 def image(mod):
+    cfg = buildcfg.config_root()
+    ext = buildcfg.extract_root()
     if mod == "arm9":
-        return (REPO + "/extract/usa/arm9/arm9.bin",
-                REPO + "/config/usa/arm9/delinks.txt",
-                REPO + "/config/usa/arm9/symbols.txt")
-    return (REPO + "/extract/usa/arm9_overlays/%s.bin" % mod,
-            REPO + "/config/usa/arm9/overlays/%s/delinks.txt" % mod,
-            REPO + "/config/usa/arm9/overlays/%s/symbols.txt" % mod)
+        return (REPO + "/" + ext + "/arm9/arm9.bin",
+                REPO + "/" + cfg + "/delinks.txt",
+                REPO + "/" + cfg + "/symbols.txt")
+    return (REPO + "/" + ext + "/arm9_overlays/%s.bin" % mod,
+            REPO + "/" + cfg + "/overlays/%s/delinks.txt" % mod,
+            REPO + "/" + cfg + "/overlays/%s/symbols.txt" % mod)
 
 
 def syms(path):

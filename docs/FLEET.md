@@ -189,7 +189,7 @@ Routing:
 | `bash leverwatch.sh --once` | exits on the first lever needing promotion |
 | `bash psq.sh [--count\|--list\|--kind work\|job]` | live DQIX processes, excluding the querying process and its ancestors |
 | `python progress.py --print` | rewrites and prints `STATE.md`: fleet, coverage in functions and bytes, remaining work per band, HEAD, staged-not-committed, selfcheck, recent verdicts |
-| `python cov.py` | coverage from `build/usa/report.json` |
+| `python cov.py` | coverage from `build/<region>/report.json` (`DQIX_REGION`, default `usa`) |
 | `python pullstat.py [recent_n]` | cost and conversion per size band, with median size |
 | `python autotune.py [hours]` | $/function from real sessions |
 | `python toolgripes.py [--hours N]` | tool complaints mined from worker verdicts |

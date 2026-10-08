@@ -78,7 +78,7 @@ place it and the whole file is silently dropped:
 
 `KEEP-NAME` only when `symbols.txt` gives the address a curated (non-`func_`) name; that name is
 binding and must be the name you define. Check with:
-`grep "addr:0x<addr>" $REPO/config/usa/arm9/symbols.txt`
+`grep "addr:0x<addr>" $REPO/config/${DQIX_REGION:-usa}/arm9/symbols.txt`
 
 For ARM code prefix the definition with `ARM`, for Thumb with `THUMB` (macros for
 `#pragma thumb off` / `on`). An assembly definition is `ARM asm void Name(args) { ... }` with mwcc

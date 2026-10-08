@@ -40,7 +40,8 @@ carries all matched work plus configuration the kit depends on (`tools/cc_flag_o
        git remote add zevya https://github.com/ZevyaDev/dqix-decomp.git
 
    `finish_wave.sh` pushes to `origin decomp-matching` and refuses to push from any other branch.
-3. Supply your own base ROM and place it as the decomp README says: `extract/baserom_dqix_usa.nds`.
+3. Supply your own base ROM and place it as the decomp README says: `extract/baserom_dqix_usa.nds`
+   for the default region, or `extract/baserom_dqix_<region>.nds` when `DQIX_REGION` is `jpn` or `eur`.
 4. Optional, needed for pushing from the landing scripts: an ARM7 BIOS dump at the repo root as
    `arm7_bios.bin` (decomp README). Without it `ninja sha1` cannot pass. The integrator still
    commits locally on a green `ninja check`, but `finish_wave.sh` then stops with
@@ -48,14 +49,14 @@ carries all matched work plus configuration the kit depends on (`tools/cc_flag_o
 5. Build:
 
        python -m pip install -r tools/requirements.txt ninja
-       python tools/configure.py usa
+       python tools/configure.py "${DQIX_REGION:-usa}"
        ninja min        # module checks and ROM; fetches dsd and mwccarm; no GCC or BIOS needed
        ninja report     # objdiff progress report; fetches objdiff-cli, which cov.py and countfix.py use
        ninja sha1       # only with arm7_bios.bin
 
    The kit's scripts always name a target (`check`, `rom`, `sha1`, `report`). Bare `ninja` also
    generates a decomp.me context for every source with GCC, which is slow. Rerun
-   `python tools/configure.py usa` whenever a source file is added or removed; the landing scripts
+   `python tools/configure.py "${DQIX_REGION:-usa}"` whenever a source file is added or removed; the landing scripts
    do that themselves.
 
 ## Python packages
@@ -79,9 +80,10 @@ carries all matched work plus configuration the kit depends on (`tools/cc_flag_o
 
 - Python 3.10+, `capstone`, `pyelftools`; notes a missing `frida`, `pyyaml` or `claude`
 - `git`, `ninja`, `bash` on PATH
-- `$DQIX_REPO` holds `tools/configure.py`, `config/usa/arm9/symbols.txt`, `config/usa/arm9/delinks.txt`,
-  `build.ninja`, `extract/usa/arm9/arm9.bin`, and the compiler `buildcfg.py` reads out of
-  `tools/configure.py`
+- `$DQIX_REPO` holds `tools/configure.py`, `config/<region>/arm9/symbols.txt`,
+  `config/<region>/arm9/delinks.txt`, `build.ninja` generated for that region,
+  `extract/<region>/arm9/arm9.bin`, and the compiler `buildcfg.py` reads out of
+  `tools/configure.py`. `<region>` is `$DQIX_REGION`, default `usa`
 
 It then creates the state directories, copies `OPEN_WORK.template.md` to `OPEN_WORK.md` if missing,
 and runs `build_worker_docs.py`. It ends with `ready: run python selfcheck.py` or
@@ -109,6 +111,7 @@ All of these are under the state directory `$SP`, never under the checkout.
 | variable | default | effect |
 |---|---|---|
 | `DQIX_REPO` | `../dqix-decomp` | the decomp checkout, for every script |
+| `DQIX_REGION` | `usa` | `usa`, `jpn`, or `eur`. `config/`, `extract/`, `build/`, and `tools/configure.py` all use this name. A `build.ninja` generated for a different region fails `kit_init.py` and `selfcheck.py` |
 | `DQIX_STATE` | `state.path`, else `../dqix-kit-state` | the state directory, for every script |
 | `DQIX_KIT` | the working directory | where skills and workflows find the checkout when the session runs elsewhere |
 | `CLAUDE_PROJECTS` | `~/.claude/projects` | where `evocap.py` and transcript readers find Claude Code sessions |
@@ -166,7 +169,7 @@ Decomp, on a clean tree:
 
     cd ../dqix-decomp
     git pull --rebase zevya decomp-matching
-    python tools/configure.py usa
+    python tools/configure.py "${DQIX_REGION:-usa}"
     ninja min
 
 Kit, at the start of every session (`AGENTS.md` makes agents do this themselves):

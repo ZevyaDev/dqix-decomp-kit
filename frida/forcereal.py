@@ -1,6 +1,7 @@
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.dirname(_kpos.path.abspath(__file__))))
 import kitpaths as _kp
+import buildcfg
 import os
 import re
 import struct
@@ -21,9 +22,9 @@ TARGETS = {
 
 
 def rom(mod, addr, size):
-    cfg = open(REPO + "/config/usa/arm9/overlays/%s/delinks.txt" % mod).read()
+    cfg = open(REPO + "/" + buildcfg.config_root() + "/overlays/%s/delinks.txt" % mod).read()
     base = min(int(x, 16) for x in re.findall(r"start:0x([0-9a-fA-F]+)", cfg))
-    blob = open(REPO + "/extract/usa/arm9_overlays/%s.bin" % mod, "rb").read()
+    blob = open(REPO + "/" + buildcfg.extract_root() + "/arm9_overlays/%s.bin" % mod, "rb").read()
     return struct.unpack("<%dI" % (size // 4), blob[addr - base:addr - base + size])
 
 

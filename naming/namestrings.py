@@ -1,10 +1,11 @@
 import os, re, sys, json
 
 from namingpaths import GAME, LABEL
+import buildcfg
 
 REPO = sys.argv[1] if len(sys.argv) > 1 else LABEL
-EXT = GAME + "/extract/usa"
-CFG = REPO + "/config/usa/arm9"
+EXT = GAME + "/" + buildcfg.extract_root()
+CFG = REPO + "/" + buildcfg.config_root()
 APPLY = "--apply" in sys.argv
 
 SYM = re.compile(r"^(\S+)\s+kind:data\(([^)]*)\)\s+addr:0x([0-9a-fA-F]+)(.*)$")

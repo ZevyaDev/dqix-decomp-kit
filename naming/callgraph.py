@@ -10,6 +10,7 @@ import re
 import sys
 
 import namingpaths
+import buildcfg
 
 CALLS = {"arm_call", "arm_call_thumb", "thumb_call", "thumb_call_arm"}
 FUNC = re.compile(r"^(\S+) kind:function\(\w+,size=0x([0-9a-fA-F]+)\) addr:0x([0-9a-fA-F]+)", re.M)
@@ -17,7 +18,7 @@ RELOC = re.compile(r"^from:0x([0-9a-fA-F]+) kind:(\w+) to:0x([0-9a-fA-F]+) modul
 
 
 def modules(repo):
-    base = f"{repo}/config/usa/arm9"
+    base = f"{repo}/{buildcfg.config_root()}"
     out = {"main": base, "itcm": f"{base}/itcm", "dtcm": f"{base}/dtcm"}
     for d in sorted(glob.glob(f"{base}/overlays/ov*")):
         out[os.path.basename(d)] = d.replace("\\", "/")

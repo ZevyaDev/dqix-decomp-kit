@@ -56,8 +56,8 @@ os.chdir(REPO)
 
 # ---- the ONLY module-dependent values -------------------------------------------------------
 if MAIN:
-    CFG = "config/usa/arm9"
-    PRISTINE = open(f"{REPO}/extract/usa/arm9/arm9.bin", "rb").read()
+    CFG = buildcfg.config_dir("main")
+    PRISTINE = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
     PREFIX = "func_"
     # ALL of src/, not the module's own directory. The `// USA: <PREFIX><addr>` tag decides which
     # module a file belongs to, and main functions live outside src/Combat/Main -- src/System/
@@ -68,8 +68,8 @@ if MAIN:
     WLOG = f"{SP}/wlog/integ_main.txt"
     LBL = "main"
 else:
-    CFG = f"config/usa/arm9/overlays/ov{MOD}"
-    PRISTINE = open(f"{REPO}/extract/usa/arm9_overlays/ov{MOD}.bin", "rb").read()
+    CFG = f"{buildcfg.config_root()}/overlays/ov{MOD}"
+    PRISTINE = open(f"{REPO}/{buildcfg.extract_root()}/arm9_overlays/ov{MOD}.bin", "rb").read()
     PREFIX = f"func_ov{MOD}_"
     SRCDIR = SRCDIR or "src"        # see the note above: the tag, not the directory, selects module
     STAGE = f"{SP}/ov{MOD}_stage"
@@ -160,7 +160,7 @@ def section_for(addr):
 # and every symbol's address, so a relocation can be checked against what the ROM really calls.
 SYMADDR = buildcfg.lcf_symbols()
 SYMSET = set(SYMADDR)
-for _p in glob.glob("config/usa/arm9/**/symbols.txt", recursive=True):
+for _p in glob.glob(f"{buildcfg.config_root()}/**/symbols.txt", recursive=True):
     try:
         for _l in open(_p, encoding="utf-8", errors="ignore"):
             if " kind:" in _l:

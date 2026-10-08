@@ -19,6 +19,7 @@ Usage: python synth.py <module> <addr>      -> prints MATCH/NO and writes the .c
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import re, sys, os, glob, subprocess
 from capstone import Cs, CS_ARCH_ARM, CS_MODE_ARM
 
@@ -35,10 +36,10 @@ STORES = {'str': 'int', 'strh': 'unsigned short', 'strb': 'unsigned char'}
 
 def insns(mod, addr):
     if mod == "main":
-        cfg, binp, base = "config/usa/arm9", "extract/usa/arm9/arm9.bin", 0x02000000
+        cfg, binp, base = buildcfg.config_dir("main"), buildcfg.pristine("main"), 0x02000000
     else:
-        cfg = f"config/usa/arm9/overlays/ov{mod}"
-        binp = f"extract/usa/arm9_overlays/ov{mod}.bin"
+        cfg = f"{buildcfg.config_root()}/overlays/ov{mod}"
+        binp = f"{buildcfg.extract_root()}/arm9_overlays/ov{mod}.bin"
         d = open(f"{REPO}/{cfg}/delinks.txt").read()
         base = min(int(x, 16) for x in re.findall(r'start:0x([0-9a-fA-F]+)', d))
     sym = open(f"{REPO}/{cfg}/symbols.txt").read()
@@ -170,7 +171,7 @@ if sys.argv[1] == "--sweep":
         if os.path.exists(q):
             skip |= {l.split()[0].lower() for l in open(q) if l.strip()}
     tried = hit = 0
-    for sy in glob.glob(f"{REPO}/config/usa/arm9/overlays/ov*/symbols.txt") + [f"{REPO}/config/usa/arm9/symbols.txt"]:
+    for sy in glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/ov*/symbols.txt") + [f"{REPO}/{buildcfg.config_root()}/symbols.txt"]:
         mod = "main" if sy.endswith("arm9/symbols.txt") else re.search(r'ov(\d+)', sy).group(1)
         d = os.path.join(os.path.dirname(sy), "delinks.txt")
         # ANCHOR THE RANGE REGEX. Unanchored, it matched COMMENTED-OUT delinks too

@@ -16,6 +16,7 @@ on; makes no change to the repository.
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import os, re, shutil, subprocess, sys, glob, hashlib
 
 SP = _kp.SP
@@ -32,8 +33,8 @@ WORK = f"{SP}/repair_work{TAG}"
 os.makedirs(WORK, exist_ok=True)
 
 sym = {}
-for p in [f"{REPO}/config/usa/arm9/symbols.txt"] + \
-         sorted(glob.glob(f"{REPO}/config/usa/arm9/overlays/*/symbols.txt")):
+for p in [f"{REPO}/{buildcfg.config_root()}/symbols.txt"] + \
+         sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/symbols.txt")):
     mod = "main" if "overlays" not in p else re.search(r'ov(\d+)', p).group(1)
     for m in re.finditer(r'^\S+ kind:function\(\w+,size=0x[0-9a-fA-F]+\) addr:0x([0-9a-fA-F]{8})',
                          open(p, encoding="utf-8", errors="ignore").read(), re.M):
@@ -41,8 +42,8 @@ for p in [f"{REPO}/config/usa/arm9/symbols.txt"] + \
 
 done = set()
 ranges = []
-for p in [f"{REPO}/config/usa/arm9/delinks.txt"] + \
-         sorted(glob.glob(f"{REPO}/config/usa/arm9/overlays/*/delinks.txt")):
+for p in [f"{REPO}/{buildcfg.config_root()}/delinks.txt"] + \
+         sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/delinks.txt")):
     txt = open(p, encoding="utf-8").read()
     for a, b in re.findall(r'(?m)^\s*\.(?:text|init) start:0x([0-9a-fA-F]+) end:0x([0-9a-fA-F]+)\s*$', txt):
         done.add(a.lower())

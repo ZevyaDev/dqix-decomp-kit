@@ -6,6 +6,7 @@ Usage: python findmat.py [imm_hex]
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.dirname(_kpos.path.abspath(__file__))))
 import kitpaths as _kp
+import buildcfg
 import os
 import re
 import sys
@@ -25,9 +26,9 @@ md.skipdata = True
 
 
 def modules():
-    yield "main", f"{REPO}/config/usa/arm9/delinks.txt", f"{REPO}/extract/usa/arm9/arm9.bin"
-    for d in sorted(os.listdir(f"{REPO}/config/usa/arm9/overlays")):
-        yield d, f"{REPO}/config/usa/arm9/overlays/{d}/delinks.txt", f"{REPO}/extract/usa/arm9_overlays/{d}.bin"
+    yield "main", f"{REPO}/{buildcfg.config_root()}/delinks.txt", f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin"
+    for d in sorted(os.listdir(f"{REPO}/{buildcfg.config_root()}/overlays")):
+        yield d, f"{REPO}/{buildcfg.config_root()}/overlays/{d}/delinks.txt", f"{REPO}/{buildcfg.extract_root()}/arm9_overlays/{d}.bin"
 
 
 def ranges(cfg):

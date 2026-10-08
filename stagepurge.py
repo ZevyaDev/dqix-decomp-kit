@@ -15,6 +15,7 @@ address AND a tracked file under src/ defines it.
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import glob
 import os
 import re
@@ -30,8 +31,8 @@ APPLY = "--apply" in sys.argv
 
 def cfg_for(mod):
     if mod == "main":
-        return f"{REPO}/config/usa/arm9"
-    return f"{REPO}/config/usa/arm9/overlays/ov{mod}"
+        return f"{REPO}/{buildcfg.config_root()}"
+    return f"{REPO}/{buildcfg.config_root()}/overlays/ov{mod}"
 
 
 def live_ranges(mod):

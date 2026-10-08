@@ -4,7 +4,7 @@
     python cov.py            ->  (11637/14778) 78.75%
     python cov.py --config   ->  config-derived estimate, when no build report exists
 
-`build/usa/report.json` is the authoritative measure: `finish_wave` reads exactly these fields, so
+`build/<region>/report.json` is the authoritative measure: `finish_wave` reads exactly these fields, so
 every historical figure in this project (46.43%, 78.64%, ...) is on this scale.
 
 DO NOT SUBSTITUTE A DIFFERENT METRIC. The first version of this file counted function symbols
@@ -16,14 +16,15 @@ estimate is kept only as a labelled fallback for when no build has run yet.
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import json
 import os
 import re
 import sys
 
 REPO = _kp.REPO
-REPORT = f"{REPO}/build/usa/report.json"
-CFG = f"{REPO}/config/usa/arm9"
+REPORT = f"{REPO}/{buildcfg.build_root()}/report.json"
+CFG = f"{REPO}/{buildcfg.config_root()}"
 
 FUNC = re.compile(r"(?m)^(\S+)\s+kind:function\((?:arm|thumb),size=0x([0-9a-fA-F]+)\)"
                   r"\s+addr:0x([0-9a-fA-F]+)")
@@ -37,6 +38,8 @@ def from_report():
 
 def from_config():
     """Fallback only. Counts function symbols inside delink ranges across every module."""
+    if not os.path.isdir(CFG):
+        raise SystemExit(f"no config at {CFG}; DQIX_REGION={buildcfg.REGION} is not configured")
     mods = [CFG]
     ovdir = f"{CFG}/overlays"
     if os.path.isdir(ovdir):

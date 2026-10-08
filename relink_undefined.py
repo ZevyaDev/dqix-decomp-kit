@@ -32,6 +32,7 @@ Usage: python relink_undefined.py <mwldarm-log>
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import buildcfg
 import regionblocks
 import collections
 import os
@@ -45,9 +46,10 @@ os.chdir(REPO)
 
 
 def symbol_paths():
-    return ["config/usa/arm9/symbols.txt"] + sorted(
+    root = buildcfg.config_root()
+    return [f"{root}/symbols.txt"] + sorted(
         os.path.join(r, "symbols.txt").replace("\\", "/")
-        for r, _, fs in os.walk("config/usa/arm9/overlays") if "symbols.txt" in fs)
+        for r, _, fs in os.walk(f"{root}/overlays") if "symbols.txt" in fs)
 
 
 def load_symbols(rev=None):
