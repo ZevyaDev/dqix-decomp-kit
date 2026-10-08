@@ -78,7 +78,60 @@ def staleness():
         problems.append(f"DECOMP BEHIND by {n} commit(s): in {REPO} run git pull --rebase "
                         f"{kitpaths.DECOMP_URL} {kitpaths.DECOMP_BRANCH}, then python tools/configure.py usa "
                         "&& ninja check")
+    problems += fork_behind(TARGET)
     return problems, kit_tip, decomp_tip
+
+
+def fork_behind(target):
+    """Your OWN fork must not lag: a pull request opened from it would drop the lag.
+
+    Checking upstream is not enough. Several people share one GitHub account, so others push to
+    this fork and the local checkout never sees it: a PR opened from a stale fork loses their work
+    silently. Compares the fork's own branch against BOTH the local checkout and upstream, and
+    reports either direction.
+
+    Only the repository being submitted is checked. `target` is "kit" or "decomp".
+    """
+    problems = []
+    pairs = (("KIT", kitpaths.KIT_URL, kitpaths.KIT_BRANCH, KIT),
+             ("DECOMP", kitpaths.DECOMP_URL, kitpaths.DECOMP_BRANCH, REPO))
+    for label, url, branch, repo in pairs:
+        if label != target.upper():
+            continue
+        remote = git(repo, "remote").stdout.split()
+        if "origin" not in remote:
+            continue
+        origin_url = git(repo, "config", "--get", "remote.origin.url").stdout.strip()
+        if not origin_url:
+            continue
+        if origin_url.rstrip("/") == url.rstrip("/"):
+            # origin IS the published repo. That is correct for a fresh clone and for CI; there is
+            # no separate fork here to be behind, so it is not a finding. A contributor who wants
+            # the fork checked points origin at their fork, and the branches below run.
+            continue
+        if git(repo, "fetch", "-q", "origin", branch).returncode != 0:
+            problems.append(f"{label}: could not fetch origin/{branch}")
+            continue
+        ref = f"origin/{branch}"
+        if git(repo, "rev-parse", "--verify", ref).returncode != 0:
+            continue
+        # Two directions, and they are NOT the same test. `behind()` counts what `tip` has that
+        # HEAD lacks -- so `behind(repo, ref)` is how far the FORK is AHEAD. For the other
+        # direction you must invert the range yourself: `behind(repo, "HEAD")` is
+        # `rev-list --count HEAD..HEAD`, which is always 0, not the count of `ref..HEAD`.
+        fork_ahead = behind(repo, ref)
+        head_ahead = int(git(repo, "rev-list", "--count", f"{ref}..HEAD").stdout.strip() or 0)
+        if head_ahead:
+            problems.append(f"{label} FORK BEHIND by {head_ahead} commit(s): this checkout has commits "
+                            f"origin/{branch} does not. Run: git push origin {branch}")
+        if fork_ahead:
+            extra = git(repo, "log", "--format=%h %an %s", f"HEAD..{ref}").stdout.strip().splitlines()
+            problems.append(f"{label} FORK HAS {fork_ahead} commit(s) this checkout LACKS -- someone else "
+                            f"pushed to your fork. Fetch and integrate them or your pull request will "
+                            f"delete their work: "
+                            + "; ".join(extra[:3])
+                            + ("; ..." if fork_ahead > 3 else ""))
+    return problems
 
 
 def kit(kit_tip, decomp_tip):
@@ -140,6 +193,7 @@ def hooked_target():
     return "decomp" if cwd.startswith(REPO.lower()) else "kit"
 
 
+TARGET = ""
 HOOK = sys.argv[1:] == ["--hook"]
 if HOOK:
     target = hooked_target()
@@ -149,6 +203,7 @@ elif sys.argv[1:] in (["kit"], ["decomp"]):
     target = sys.argv[1]
 else:
     sys.exit(__doc__)
+TARGET = target
 problems, kit_tip, decomp_tip = staleness()
 problems += kit(kit_tip, decomp_tip) if target == "kit" else decomp(decomp_tip)
 report = "\n".join(problems + [f"NOT READY: {len(problems)} problem(s)" if problems else "READY"])

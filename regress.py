@@ -1438,6 +1438,29 @@ def _prready():
         code, out = prready("--hook", stdin=json.dumps({"tool_input": {"command": "git status"}}))
         if code != 0:
             return f"the hook blocked a command that opens no pull request: exit {code} {out.strip()[-200:]}"
+
+        # THE FORK. Upstream freshness is not enough: several people share one GitHub account, so
+        # a push to your own fork from another machine is invisible here and a pull request opened
+        # from the stale fork deletes their work. Both directions are pinned, because getting them
+        # backwards is easy -- `behind(repo, "HEAD")` is `rev-list HEAD..HEAD`, always 0, not the
+        # count of commits the fork lacks.
+        # The clone's origin is the published repo, so stand a separate fork up for it to compare.
+        fork_decomp = f"{d}/fork_decomp"
+        git(d, "clone", "-q", pub_decomp, fork_decomp)
+        git(decomp, "remote", "add", "fork", fork_decomp)
+        git(decomp, "remote", "set-url", "origin", fork_decomp)
+        commit(decomp, {"src/A.cpp": "void Foo() {  }\n"})          # checkout ahead of the fork
+        code, out = prready("decomp")
+        if code != 1 or "FORK BEHIND" not in out:
+            return f"prready.py did not report the fork lagging this checkout: exit {code} {out.strip()[-300:]}"
+        git(decomp, "reset", "-q", "--hard", "HEAD~1")
+        git(decomp, "fetch", "-q", "origin", "decomp-matching")
+        commit(pub_decomp, {"src/B.cpp": "void Bar() {}\n"})        # fork ahead of the checkout
+        git(decomp, "fetch", "-q", "origin", "decomp-matching")
+        code, out = prready("decomp")
+        if code != 1 or "FORK HAS" not in out:
+            return (f"prready.py did not report the fork carrying commits this checkout lacks: "
+                    f"exit {code} {out.strip()[-300:]}")
     return None
 
 
