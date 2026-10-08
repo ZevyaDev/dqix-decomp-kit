@@ -32,7 +32,7 @@ def gate(mod, addr, path):
     r = subprocess.run([sys.executable, f"{KIT}/wgate.py", mod, addr, path],
                        capture_output=True, text=True, cwd=REPO, env=env)
     for line in ((r.stdout or "") + (r.stderr or "")).splitlines():
-        m = re.match(r"^(MATCH|RESIDUE \w+ -?\d+)", line)
+        m = re.match(r"^(MATCH|RESIDUE [\w-]+ -?\d+)", line)
         if m:
             return m.group(0)
     return "?"
@@ -41,7 +41,7 @@ def gate(mod, addr, path):
 def score(v):
     if v.startswith("MATCH"):
         return -1
-    m = re.match(r"RESIDUE \w+ (-?\d+)", v)
+    m = re.match(r"RESIDUE [\w-]+ (-?\d+)", v)
     return abs(int(m.group(1))) if m else 1 << 20
 
 
