@@ -1240,6 +1240,33 @@ together. A switch arm that does only what "no arm" does should not be written.
   it as `default:` makes mwcc emit a compare chain instead. `02005ac4` needed an explicit `case 3:`
   to get the target's table dispatch.
 
+
+**AN EPILOGUE OF TWO INSTRUCTIONS IS TAIL-MERGED; ONE IS PREDICATED** (`020d5684`, `020d16b0`).
+With a `sub sp` frame the epilogue is `add sp,sp,#N` + `pop {..,pc}`, and mwcc shares one such
+tail across every conditional return, emitting `bXX` per site instead. That costs exactly 4 bytes
+per site: measured 7 sites x 4 = UNDERGEN 28 at `020d5684`, 1 site = UNDERGEN 4 at `020d16b0`. A
+one-instruction epilogue (no `sub sp`) is predicated correctly, which is why most matched functions
+show `popne` but never `addne sp`. Pinned on 12 isolated probes and confirmed against an
+already-committed function: no C form suppresses it — not a different return value, not `goto` to
+a common exit, not `return` inside a `switch`, not nesting depth, not pop-list position, not
+function size. The ROM kept its `mov r0,#N` BETWEEN the `add sp` and the `pop`, which breaks the
+mergeable suffix. If UNDERGEN is only this, it is a pragma decision, not a source problem.
+
+**PREDICATION HAS A CEILING OF FIVE ARM INSTRUCTIONS PER ARM** (`020c70e8`, `020c338c`). An
+if-converted arm is emitted predicated up to 5 instructions and branches from 6. So an arm that
+must branch needs either >=6 instructions or a construct that is not predicable. The only 1-2
+instruction arms that ever branched carried a `bx lr` or a 16-bit truncation chain. Copy-prop and
+DCE run BEFORE the pass, so padding an arm with dead statements or temp hops does nothing; the
+way to force a branch is to make the arm too long, e.g. by duplicating the tail into both arms
+(`020c70e8`: 28 -> 4 bytes). `pad/renum/ifcvtrace.py` traces the pcode-op count.
+
+**NO C CONSTRUCT EMITS AN UNROLLED BLOCK COPY OVER 32 BYTES** (`020d19f4`). Measured 4..88-byte
+single-unit copies across {copy-init, assign, cast-assign, union-assign, array-assign} at
+-O1/-O2/-O4/-unroll: everything <=32 inlines, everything >=36 emits `mov ip,#K; ldm!; stm!;
+subs ip,#1; bne`. Only 7 `swp` instructions exist in arm9 main plus all 40 overlays, in 4
+functions, two of them already-landed hand-asm; and the full chained writeback form appears once
+in the whole binary. A 36-byte copy is NOT two statements either: the second reloads the source
+because the frame store may alias.
 ## LOOP FORM — mwcc does NOT rotate loops
 A `while` emits a `b` to a bottom test; it will never become the target's top-tested do-while. Pick
 the form directly:
