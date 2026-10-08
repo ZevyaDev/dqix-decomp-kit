@@ -32,7 +32,8 @@ export DQIX_MAIN_REPO="${DQIX_MAIN_REPO:-$(python "$KIT/kitpaths.py" repo)}"
 REPO="$(python "$KIT/integ_tree.py" sync)" || { echo "FATAL: no integration tree"; exit 2; }
 export DQIX_REPO="$REPO"
 cd "$REPO" || { echo "FATAL: no repo"; exit 2; }
-REGION=$(python "$KIT/buildcfg.py" --region)
+python "$KIT/kitpaths.py" require-usa || exit 2
+REGION=$(python "$KIT/kitpaths.py" region) || exit 2
 if [ "$OV" = "main" ]; then
   DL="config/${REGION}/arm9/delinks.txt"; SRCDIR=$(python "$KIT/srcdir.py" main); TAGPRE="func_"; LBL="main"
 else

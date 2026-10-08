@@ -35,7 +35,7 @@ def check(name, fault):
     def deco(fn):
         try:
             bad = fn()
-        except SystemExit as e:                      # a missing region tree must fail the case, not abort the suite
+        except SystemExit as e:
             bad = "raised SystemExit: %s" % (e.code if e.code is not None else e)
         except Exception as e:                       # a test that explodes is a failure
             bad = "raised %s: %s" % (type(e).__name__, e)

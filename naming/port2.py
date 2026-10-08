@@ -3,7 +3,6 @@ import os, re, sys, json, subprocess
 from namingpaths import LABEL as REPO
 import buildcfg
 
-CFG = REPO + "/" + buildcfg.config_root()
 SRC_BRANCH = "labeling-pass"
 APPLY = "--apply" in sys.argv
 
@@ -16,8 +15,8 @@ def git(*a):
     return subprocess.check_output(["git", "-C", REPO] + list(a)).decode("utf-8", "replace")
 
 
-def rel_for(mod):
-    root = buildcfg.config_root()
+def rel_for(mod, region="usa"):
+    root = buildcfg.config_dir("main", region)
     if mod == "main":
         return root + "/symbols.txt"
     if mod in ("itcm", "dtcm"):
@@ -26,11 +25,17 @@ def rel_for(mod):
 
 
 def modules():
-    yield "main"
-    for s in ("itcm", "dtcm"):
-        yield s
-    for n in sorted(os.listdir(CFG + "/overlays")):
-        yield n
+    seen = set()
+    for root in buildcfg.config_roots():
+        cfg = REPO + "/" + root
+        names = ["main", "itcm", "dtcm"]
+        ov = cfg + "/overlays"
+        if os.path.isdir(ov):
+            names += sorted(os.listdir(ov))
+        for name in names:
+            if name not in seen:
+                seen.add(name)
+                yield name
 
 
 def parse(text):
@@ -85,16 +90,23 @@ def func_size(mod, addr):
     return None
 
 
-def delinks_path(mod):
+def delinks_path(mod, region="usa"):
+    cfg = REPO + "/" + buildcfg.config_dir("main", region)
     if mod == "main":
-        return CFG + "/delinks.txt"
+        return cfg + "/delinks.txt"
     if mod in ("itcm", "dtcm"):
-        return CFG + "/" + mod + "/delinks.txt"
-    return CFG + "/overlays/" + mod + "/delinks.txt"
+        return cfg + "/" + mod + "/delinks.txt"
+    return cfg + "/overlays/" + mod + "/delinks.txt"
 
 
 def insert_delink(mod, srcpath, start, end):
-    p = delinks_path(mod)
+    for region in buildcfg.region_names():
+        p = delinks_path(mod, region)
+        if os.path.exists(p):
+            _insert_delink(p, srcpath, start, end)
+
+
+def _insert_delink(p, srcpath, start, end):
     t = open(p, encoding="utf-8", newline="").read()
     nl = "\r\n" if "\r\n" in t else "\n"
     if srcpath + ":" in t:
@@ -114,15 +126,20 @@ def insert_delink(mod, srcpath, start, end):
 
 
 def rename_symbol(mod, addr, new):
-    p = REPO + "/" + rel_for(mod)
-    lines = open(p, encoding="utf-8", newline="").read().split("\n")
-    for i, line in enumerate(lines):
-        m = SYMF.match(line) or SYMD.match(line)
-        if m and int(m.groups()[-1], 16) == addr:
-            lines[i] = new + line[len(m.group(1)):]
-            open(p, "w", encoding="utf-8", newline="").write("\n".join(lines))
-            return m.group(1)
-    return None
+    old = None
+    for region in buildcfg.region_names():
+        p = REPO + "/" + rel_for(mod, region)
+        if not os.path.exists(p):
+            continue
+        lines = open(p, encoding="utf-8", newline="").read().split("\n")
+        for i, line in enumerate(lines):
+            m = SYMF.match(line) or SYMD.match(line)
+            if m and int(m.groups()[-1], 16) == addr:
+                lines[i] = new + line[len(m.group(1)):]
+                open(p, "w", encoding="utf-8", newline="").write("\n".join(lines))
+                old = old or m.group(1)
+                break
+    return old
 
 
 EXTRA_DECLS = {

@@ -35,6 +35,7 @@ from elftools.elf.elffile import ELFFile
 
 import buildcfg
 import dataown
+_kp.require_usa()
 
 SP = _kp.SP
 KIT = _kp.KIT
@@ -57,7 +58,7 @@ os.chdir(REPO)
 # ---- the ONLY module-dependent values -------------------------------------------------------
 if MAIN:
     CFG = buildcfg.config_dir("main")
-    PRISTINE = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
+    PRISTINE = open(f"{REPO}/{buildcfg.pristine('main')}", "rb").read()
     PREFIX = "func_"
     # ALL of src/, not the module's own directory. The `// USA: <PREFIX><addr>` tag decides which
     # module a file belongs to, and main functions live outside src/Combat/Main -- src/System/
@@ -68,8 +69,8 @@ if MAIN:
     WLOG = f"{SP}/wlog/integ_main.txt"
     LBL = "main"
 else:
-    CFG = f"{buildcfg.config_root()}/overlays/ov{MOD}"
-    PRISTINE = open(f"{REPO}/{buildcfg.extract_root()}/arm9_overlays/ov{MOD}.bin", "rb").read()
+    CFG = f"{buildcfg.config_dir(MOD)}"
+    PRISTINE = open(f"{REPO}/{buildcfg.pristine(MOD)}", "rb").read()
     PREFIX = f"func_ov{MOD}_"
     SRCDIR = SRCDIR or "src"        # see the note above: the tag, not the directory, selects module
     STAGE = f"{SP}/ov{MOD}_stage"

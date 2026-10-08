@@ -16,6 +16,7 @@
 KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && { pwd -W 2>/dev/null || pwd; })"
 SP="$(python "$KIT/kitpaths.py" state)"
 REPO="$(python "$KIT/kitpaths.py" repo)"
+python "$KIT/kitpaths.py" require-usa || exit 2
 MOD="${1:-main}"
 SLOT="${2:-1}"
 BUDGET="${3:-10}"
@@ -34,12 +35,11 @@ fi
 # 0 of 7 for $16.63. The batch driver had always split these into separate worker types; the pull
 # loop lost that distinction when it was written.
 size_of() {   # $1 = addr -> function size in bytes (0 if unknown)
-  python - "$KIT" "$REPO" "$MARG" "$1" <<'PY'
+  python - "$MARG" "$1" <<'PY'
 import re, sys
-sys.path.insert(0, sys.argv[1])
-import buildcfg
-repo, mod, addr = sys.argv[2], sys.argv[3], sys.argv[4].lower()
-cfg = f"{repo}/{buildcfg.config_dir(mod)}"
+REPO = "$REPO"
+mod, addr = sys.argv[1], sys.argv[2].lower()
+cfg = f"{REPO}/config/usa/arm9" if mod == "main" else f"{REPO}/config/usa/arm9/overlays/ov{mod}"
 try:
     sym = open(f"{cfg}/symbols.txt", encoding="utf-8", errors="ignore").read()
     m = re.search(r"kind:function\((?:arm|thumb),size=0x([0-9a-fA-F]+)\)\s+addr:0x0*%s\b"

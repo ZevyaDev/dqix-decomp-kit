@@ -269,6 +269,7 @@ def purge_declined():
 
 
 def main():
+    _kp.require_usa()
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     # `--residue <addr>` prints the measured residue, or nothing. The dispatcher caps a near-miss
     # session by this rather than by the function's size, and it cannot ask the QUEUE: claim.py

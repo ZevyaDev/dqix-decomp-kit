@@ -3,7 +3,6 @@ import json, os, re, subprocess, sys
 from namingpaths import LABEL as REPO, NAMING as SP
 import buildcfg
 
-CFG = REPO + "/" + buildcfg.config_root()
 OUTDIR = sys.argv[1] if len(sys.argv) > 1 else SP + "/inside1"
 PER = int(sys.argv[2]) if len(sys.argv) > 2 else 9
 LIMIT = int(sys.argv[3]) if len(sys.argv) > 3 else 0
@@ -20,12 +19,16 @@ def git(*a):
 
 
 def modules():
-    yield "main", CFG
-    for sub in ("itcm", "dtcm"):
-        yield sub, CFG + "/" + sub
-    ovd = CFG + "/overlays"
-    for n in sorted(os.listdir(ovd)):
-        yield n, ovd + "/" + n
+    for root in buildcfg.config_roots():
+        cfg = REPO + "/" + root
+        yield "main", cfg
+        for sub in ("itcm", "dtcm"):
+            yield sub, cfg + "/" + sub
+        ovd = cfg + "/overlays"
+        if not os.path.isdir(ovd):
+            continue
+        for n in sorted(os.listdir(ovd)):
+            yield n, ovd + "/" + n
 
 
 def symbols(base):

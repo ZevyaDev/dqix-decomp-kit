@@ -18,11 +18,14 @@ RELOC = re.compile(r"^from:0x([0-9a-fA-F]+) kind:(\w+) to:0x([0-9a-fA-F]+) modul
 
 
 def modules(repo):
-    base = f"{repo}/{buildcfg.config_root()}"
-    out = {"main": base, "itcm": f"{base}/itcm", "dtcm": f"{base}/dtcm"}
-    for d in sorted(glob.glob(f"{base}/overlays/ov*")):
-        out[os.path.basename(d)] = d.replace("\\", "/")
-    return {m: d for m, d in out.items() if os.path.exists(f"{d}/symbols.txt")}
+    groups = []
+    for root in buildcfg.config_roots():
+        base = f"{repo}/{root}"
+        out = {"main": base, "itcm": f"{base}/itcm", "dtcm": f"{base}/dtcm"}
+        for d in sorted(glob.glob(f"{base}/overlays/ov*")):
+            out[os.path.basename(d)] = d.replace("\\", "/")
+        groups.append({m: d for m, d in out.items() if os.path.exists(f"{d}/symbols.txt")})
+    return groups
 
 
 def functions(cfg):
@@ -52,9 +55,18 @@ def target_module(spec, here):
 
 def main():
     repo = (sys.argv[1] if len(sys.argv) > 1 else namingpaths.LABEL).replace("\\", "/")
-    mods = modules(repo)
-    tables = {m: functions(d) for m, d in mods.items()}
     callers, callees = {}, {}
+    for mods in modules(repo):
+        tables = {m: functions(d) for m, d in mods.items()}
+        _edges(mods, tables, callers, callees)
+    out = {"callers": {k: sorted(v) for k, v in sorted(callers.items())},
+           "callees": {k: sorted(v) for k, v in sorted(callees.items())}}
+    with open(f"{namingpaths.NAMING}/cg.json", "w", encoding="utf-8") as fh:
+        json.dump(out, fh)
+    print(f"cg.json: {len(callers)} callees with callers, {sum(len(v) for v in callees.values())} edges")
+
+
+def _edges(mods, tables, callers, callees):
     for m, d in mods.items():
         path = f"{d}/relocs.txt"
         if not os.path.exists(path):
@@ -73,11 +85,6 @@ def main():
             b = f"{tm}|{dst[0]:08x}|{dst[2]}"
             callees.setdefault(a, set()).add(b)
             callers.setdefault(b, set()).add(a)
-    out = {"callers": {k: sorted(v) for k, v in sorted(callers.items())},
-           "callees": {k: sorted(v) for k, v in sorted(callees.items())}}
-    with open(f"{namingpaths.NAMING}/cg.json", "w", encoding="utf-8") as fh:
-        json.dump(out, fh)
-    print(f"cg.json: {len(callers)} callees with callers, {sum(len(v) for v in callees.values())} edges")
 
 
 main()

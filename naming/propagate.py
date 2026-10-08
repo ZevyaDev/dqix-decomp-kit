@@ -18,12 +18,15 @@ def load(text):
 
 
 def rels():
-    root = buildcfg.config_root()
-    yield root + "/symbols.txt"
-    for sub in ("itcm", "dtcm"):
-        yield root + "/%s/symbols.txt" % sub
-    for n in sorted(os.listdir(REPO + "/" + root + "/overlays")):
-        yield root + "/overlays/%s/symbols.txt" % n
+    for root in buildcfg.config_roots():
+        yield root + "/symbols.txt"
+        for sub in ("itcm", "dtcm"):
+            yield root + "/%s/symbols.txt" % sub
+        ov = os.path.join(REPO, root, "overlays")
+        if not os.path.isdir(ov):
+            continue
+        for n in sorted(os.listdir(ov)):
+            yield root + "/overlays/%s/symbols.txt" % n
 
 
 renames = {}

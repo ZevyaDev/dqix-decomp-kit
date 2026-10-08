@@ -61,6 +61,8 @@ A pull request is accepted when:
 - a symbol renamed in one region's `symbols.txt` is renamed in every region that has it
 - `python prready.py decomp` prints `READY` against the current `decomp-matching`
 
+USA stays the matching reference, and acceptance checks `usa`.
+
 A near miss is not a pull request to the decomp. If you spent real effort ruling forms out, send a
 row for `worker_src/deadends.md` to the kit; if you found a lever, send the rule (below).
 

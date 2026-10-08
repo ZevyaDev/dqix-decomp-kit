@@ -32,7 +32,7 @@ APPLY = "--apply" in sys.argv
 def cfg_for(mod):
     if mod == "main":
         return f"{REPO}/{buildcfg.config_root()}"
-    return f"{REPO}/{buildcfg.config_root()}/overlays/ov{mod}"
+    return f"{REPO}/{buildcfg.config_dir(mod)}"
 
 
 def live_ranges(mod):
@@ -51,6 +51,7 @@ def tracked_sources():
 
 
 def main():
+    _kp.require_usa()
     tracked = tracked_sources()
     defined = set()
     for rel in tracked:

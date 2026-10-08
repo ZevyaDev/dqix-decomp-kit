@@ -22,9 +22,10 @@ TARGETS = {
 
 
 def rom(mod, addr, size):
-    cfg = open(REPO + "/" + buildcfg.config_root() + "/overlays/%s/delinks.txt" % mod).read()
+    # TARGETS are USA addresses. The active region must not move this read.
+    cfg = open(f"{REPO}/config/usa/arm9/overlays/{mod}/delinks.txt").read()
     base = min(int(x, 16) for x in re.findall(r"start:0x([0-9a-fA-F]+)", cfg))
-    blob = open(REPO + "/" + buildcfg.extract_root() + "/arm9_overlays/%s.bin" % mod, "rb").read()
+    blob = open(f"{REPO}/extract/usa/arm9_overlays/{mod}.bin", "rb").read()
     return struct.unpack("<%dI" % (size // 4), blob[addr - base:addr - base + size])
 
 

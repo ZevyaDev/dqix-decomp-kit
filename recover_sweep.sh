@@ -17,7 +17,7 @@ KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && { pwd -W 2>/dev/null || pwd; })"
 SP="$(python "$KIT/kitpaths.py" state)"
 REPO="$(python "$KIT/kitpaths.py" repo)"
 cd "$REPO" || exit 2
-REGION=$(python "$KIT/buildcfg.py" --region)
+REGION=$(python "$KIT/kitpaths.py" region) || exit 2
 LOG="$SP/wlog/sweep.log"
 echo "=== recover_sweep $(date '+%m-%d %H:%M:%S') ===" >> "$LOG"
 

@@ -27,7 +27,8 @@ export DQIX_REPO="$REPO"
 _final() { local rc=$?; wave_lock_release; echo "$(date '+%H:%M') INTEGRATE-END rc=$rc" | tee -a "$LOG"; }
 trap _final EXIT
 cd "$REPO" || exit 2
-REGION=$(python "$KIT/buildcfg.py" --region)
+python "$KIT/kitpaths.py" require-usa || exit 2
+REGION=$(python "$KIT/kitpaths.py" region) || exit 2
 
 n=$(ls "$SP"/staging/*/*.cpp 2>/dev/null | wc -l)
 [ "$n" -eq 0 ] && { echo "nothing staged"; exit 0; }

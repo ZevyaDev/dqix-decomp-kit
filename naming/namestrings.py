@@ -4,8 +4,6 @@ from namingpaths import GAME, LABEL
 import buildcfg
 
 REPO = sys.argv[1] if len(sys.argv) > 1 else LABEL
-EXT = GAME + "/" + buildcfg.extract_root()
-CFG = REPO + "/" + buildcfg.config_root()
 APPLY = "--apply" in sys.argv
 
 SYM = re.compile(r"^(\S+)\s+kind:data\(([^)]*)\)\s+addr:0x([0-9a-fA-F]+)(.*)$")
@@ -21,16 +19,22 @@ def text_base(delinks):
 
 
 def modules():
-    yield ("main", EXT + "/arm9/arm9.bin", CFG + "/delinks.txt", CFG + "/symbols.txt")
-    for sub in ("itcm", "dtcm"):
-        b = EXT + "/arm9/" + sub + ".bin"
-        if os.path.exists(b):
-            yield (sub, b, CFG + "/" + sub + "/delinks.txt", CFG + "/" + sub + "/symbols.txt")
-    ovdir = CFG + "/overlays"
-    for name in sorted(os.listdir(ovdir)):
-        b = EXT + "/arm9_overlays/" + name + ".bin"
-        if os.path.exists(b):
-            yield (name, b, ovdir + "/" + name + "/delinks.txt", ovdir + "/" + name + "/symbols.txt")
+    for root in buildcfg.config_roots():
+        region = root.split("/")[1]
+        cfg = REPO + "/" + root
+        ext = GAME + "/extract/" + region
+        yield ("main", ext + "/arm9/arm9.bin", cfg + "/delinks.txt", cfg + "/symbols.txt")
+        for sub in ("itcm", "dtcm"):
+            b = ext + "/arm9/" + sub + ".bin"
+            if os.path.exists(b):
+                yield (sub, b, cfg + "/" + sub + "/delinks.txt", cfg + "/" + sub + "/symbols.txt")
+        ovdir = cfg + "/overlays"
+        if not os.path.isdir(ovdir):
+            continue
+        for name in sorted(os.listdir(ovdir)):
+            b = ext + "/arm9_overlays/" + name + ".bin"
+            if os.path.exists(b):
+                yield (name, b, ovdir + "/" + name + "/delinks.txt", ovdir + "/" + name + "/symbols.txt")
 
 
 PRINTABLE = set(range(0x20, 0x7F))

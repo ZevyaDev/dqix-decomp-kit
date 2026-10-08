@@ -92,11 +92,11 @@ def normalise(mn, op):
 def load(mod, addr):
     if mod == "main":
         cfg = f"{REPO}/{buildcfg.config_root()}"
-        rom = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
+        rom = open(f"{REPO}/{buildcfg.pristine('main')}", "rb").read()
         base = 0x02000000
     else:
-        cfg = f"{REPO}/{buildcfg.config_root()}/overlays/ov{mod}"
-        rom = open(f"{REPO}/{buildcfg.extract_root()}/arm9_overlays/ov{mod}.bin", "rb").read()
+        cfg = f"{REPO}/{buildcfg.config_dir(mod)}"
+        rom = open(f"{REPO}/{buildcfg.pristine(mod)}", "rb").read()
         base = min(int(x, 16) for x in
                    re.findall(r"start:0x([0-9a-fA-F]+)", open(f"{cfg}/delinks.txt").read()))
     sym = open(f"{cfg}/symbols.txt", encoding="utf-8", errors="ignore").read()
@@ -195,7 +195,7 @@ def emit_s(mod, addr, name, sym, size, a, ins, prov):
 
 
 def symbols_text(mod):
-    cfg = f"{REPO}/{buildcfg.config_root()}" if mod == "main" else f"{REPO}/{buildcfg.config_root()}/overlays/ov{mod}"
+    cfg = f"{REPO}/{buildcfg.config_dir(mod)}"
     return open(f"{cfg}/symbols.txt", encoding="utf-8", errors="ignore").read()
 
 

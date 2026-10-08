@@ -3,7 +3,6 @@ import json, os, re, sys
 from namingpaths import LABEL as REPO
 import buildcfg
 
-CFG = REPO + "/" + buildcfg.config_root()
 APPLY = "--apply" in sys.argv
 
 SYMF = re.compile(r"^(\S+)\s+kind:(\w+)[\(\s]")
@@ -23,13 +22,15 @@ NULL ARM THUMB TRUE FALSE size_t va_list
 
 
 def symbols_paths():
-    yield CFG + "/symbols.txt"
-    for sub in ("itcm", "dtcm"):
-        yield CFG + "/" + sub + "/symbols.txt"
-    ovd = CFG + "/overlays"
-    if os.path.isdir(ovd):
-        for n in sorted(os.listdir(ovd)):
-            yield ovd + "/" + n + "/symbols.txt"
+    for root in buildcfg.config_roots():
+        cfg = REPO + "/" + root
+        yield cfg + "/symbols.txt"
+        for sub in ("itcm", "dtcm"):
+            yield cfg + "/" + sub + "/symbols.txt"
+        ovd = cfg + "/overlays"
+        if os.path.isdir(ovd):
+            for n in sorted(os.listdir(ovd)):
+                yield ovd + "/" + n + "/symbols.txt"
 
 
 def global_symbols():

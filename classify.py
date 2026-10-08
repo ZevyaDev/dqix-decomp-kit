@@ -77,13 +77,13 @@ def _ctx(MOD):
     MAIN = (MOD == 'main')
     if MAIN:
         CFG = f"{REPO}/{buildcfg.config_root()}"
-        pristine = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
+        pristine = open(f"{REPO}/{buildcfg.pristine('main')}", "rb").read()
         HEXC, PRE, ANCH = "[0-9a-fA-F]", "func_", "(?m)^"   # main's configs mix hex case; the ^ anchor
         # stops `func_<8hex>` from matching inside a `func_ovNNN_<8hex>` symbol (it cannot anyway — `o`
         # is not hex — but the anchor makes that structural rather than accidental).
     else:
-        CFG = f"{REPO}/{buildcfg.config_root()}/overlays/ov{MOD}"
-        pristine = open(f"{REPO}/{buildcfg.extract_root()}/arm9_overlays/ov{MOD}.bin", "rb").read()
+        CFG = f"{REPO}/{buildcfg.config_dir(MOD)}"
+        pristine = open(f"{REPO}/{buildcfg.pristine(MOD)}", "rb").read()
         HEXC, PRE, ANCH = "[0-9a-f]", f"func_ov{MOD}_", ""
     _dl = open(f"{CFG}/delinks.txt").read()
     # Section map (header block) — ALL code sections, not just .text. `.init` holds

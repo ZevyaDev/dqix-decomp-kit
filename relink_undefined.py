@@ -46,10 +46,13 @@ os.chdir(REPO)
 
 
 def symbol_paths():
-    root = buildcfg.config_root()
-    return [f"{root}/symbols.txt"] + sorted(
-        os.path.join(r, "symbols.txt").replace("\\", "/")
-        for r, _, fs in os.walk(f"{root}/overlays") if "symbols.txt" in fs)
+    out = []
+    for root in buildcfg.config_roots():
+        out.append(f"{root}/symbols.txt")
+        out.extend(sorted(
+            os.path.join(r, "symbols.txt").replace("\\", "/")
+            for r, _, fs in os.walk(f"{root}/overlays") if "symbols.txt" in fs))
+    return out
 
 
 def load_symbols(rev=None):

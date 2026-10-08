@@ -3,9 +3,6 @@ import os, re, struct, sys, bisect, json
 from namingpaths import GAME as REPO
 import buildcfg
 
-CFG = REPO + "/" + buildcfg.config_root()
-EXT = REPO + "/" + buildcfg.extract_root()
-
 def text_base(delinks):
     for line in open(delinks, encoding="utf-8", errors="replace"):
         m = re.search(r"\.text\s+start:0x([0-9a-fA-F]+)", line)
@@ -25,13 +22,19 @@ def funcs(symbols):
 STR = re.compile(rb"[\x20-\x7e]{5,}\x00")
 
 def modules():
-    yield ("main", EXT + "/arm9/arm9.bin", CFG + "/delinks.txt", CFG + "/symbols.txt")
-    ovdir = CFG + "/overlays"
-    for name in sorted(os.listdir(ovdir)):
-        d = ovdir + "/" + name
-        b = EXT + "/arm9_overlays/" + name + ".bin"
-        if os.path.exists(b) and os.path.exists(d + "/delinks.txt"):
-            yield (name, b, d + "/delinks.txt", d + "/symbols.txt")
+    for root in buildcfg.config_roots():
+        region = root.split("/")[1]
+        cfg = REPO + "/" + root
+        ext = REPO + "/extract/" + region
+        yield ("main", ext + "/arm9/arm9.bin", cfg + "/delinks.txt", cfg + "/symbols.txt")
+        ovdir = cfg + "/overlays"
+        if not os.path.isdir(ovdir):
+            continue
+        for name in sorted(os.listdir(ovdir)):
+            d = ovdir + "/" + name
+            b = ext + "/arm9_overlays/" + name + ".bin"
+            if os.path.exists(b) and os.path.exists(d + "/delinks.txt"):
+                yield (name, b, d + "/delinks.txt", d + "/symbols.txt")
 
 def main():
     strings_by_addr = {}

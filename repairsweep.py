@@ -17,6 +17,7 @@ import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
 import buildcfg
+_kp.require_usa()
 import os, re, shutil, subprocess, sys, glob, hashlib
 
 SP = _kp.SP

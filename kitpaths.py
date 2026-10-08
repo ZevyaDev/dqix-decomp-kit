@@ -7,6 +7,8 @@
     REPO   the decomp checkout: $DQIX_REPO, else ../dqix-decomp beside the checkout.
 
     python kitpaths.py kit|state|repo     print one of them, for shell scripts
+    python kitpaths.py region             usa, jpn or eur; unset is usa; anything else exits 2
+    python kitpaths.py require-usa        exit 2 unless the region is usa
     python kitpaths.py behind             commits the published kit is ahead of this checkout
 """
 import os
@@ -39,6 +41,29 @@ REPO = _norm(os.environ.get("DQIX_REPO", os.path.join(os.path.dirname(KIT), "dqi
 CLAUDE_PROJECTS = _norm(os.environ.get("CLAUDE_PROJECTS", os.path.expanduser("~/.claude/projects")))
 KIT_URL = os.environ.get("DQIX_KIT_URL", "https://github.com/ZevyaDev/dqix-decomp-kit.git")
 KIT_BRANCH = os.environ.get("DQIX_KIT_BRANCH", "main")
+_REGIONS = ("usa", "jpn", "eur")
+
+
+def region():
+    """The active region. Unset is usa. Anything else is an error, not a silent usa."""
+    value = os.environ.get("DQIX_REGION", "usa").strip().lower()
+    if value not in _REGIONS:
+        print(f"DQIX_REGION={value} is not usa, jpn or eur", file=sys.stderr)
+        raise SystemExit(2)
+    return value
+
+
+def require_usa():
+    """Landing tools key state and `// USA:` tags by the USA address. Another region would
+    write those addresses into that region's delinks."""
+    got = region()
+    if got != "usa":
+        print(f"refusing DQIX_REGION={got}: this tool lands USA addresses", file=sys.stderr)
+        raise SystemExit(2)
+
+
+def ninja_matches(text, region_name):
+    return f"config/{region_name}/" in text or f"config\\{region_name}\\" in text
 DECOMP_URL = os.environ.get("DQIX_DECOMP_URL", "https://github.com/ZevyaDev/dqix-decomp.git")
 DECOMP_BRANCH = os.environ.get("DQIX_DECOMP_BRANCH", "decomp-matching")
 BUSY = ("pull_all.pid", "wave.lock", "claims/INTEGRATING")
@@ -95,6 +120,10 @@ if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else ""
     if which == "behind":
         print(behind())
+    elif which == "region":
+        print(region())
+    elif which == "require-usa":
+        require_usa()
     elif which in ("kit", "state", "repo"):
         print({"kit": KIT, "state": SP, "repo": REPO}[which])
     else:

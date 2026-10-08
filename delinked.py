@@ -5,7 +5,6 @@
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
-import buildcfg
 import glob
 import re
 import sys
@@ -15,7 +14,7 @@ RANGE = re.compile(r"(?m)^\s*\.text\s+start:0x([0-9a-fA-F]+)\s+end:0x([0-9a-fA-F
 
 
 def files(mod=None):
-    root = f"{REPO}/{buildcfg.config_root()}"
+    root = f"{REPO}/config/{_kp.region()}/arm9"
     paths = glob.glob(f"{root}/delinks.txt") + glob.glob(f"{root}/overlays/*/delinks.txt")
     if mod:
         paths = [p for p in paths if (mod == "main") == ("overlays" not in p) and (mod == "main" or f"ov{mod}" in p)]

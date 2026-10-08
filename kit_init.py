@@ -50,10 +50,6 @@ def check_python():
     return ok
 
 
-def _ninja_matches(text, region):
-    return f"config/{region}/" in text or f"config\\{region}\\" in text
-
-
 def check_repo():
     if not os.path.isdir(REPO):
         print(f"FAIL  decomp checkout not found at {REPO}; clone it there or set DQIX_REPO")
@@ -79,7 +75,7 @@ def check_repo():
     except OSError as e:
         print(f"FAIL  build.ninja unreadable: {e}")
         return False
-    if not _ninja_matches(ninja, region):
+    if not kitpaths.ninja_matches(ninja, region):
         print(f"FAIL  build.ninja is not configured for DQIX_REGION={region}; "
               f"run `python tools/configure.py {region}`")
         return False

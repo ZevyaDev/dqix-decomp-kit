@@ -13,8 +13,8 @@ import sys
 
 REPO = _kp.REPO
 _TOOLS = os.path.join(REPO, "tools")
-# usa, jpn, or eur. Unset stays usa. config/, extract/ and build/ follow this name.
-REGION = os.environ.get("DQIX_REGION", "usa")
+# usa, jpn, or eur. Validated once in kitpaths. config/, extract/ and build/ follow this name.
+REGION = _kp.region()
 
 
 def _load():
@@ -62,13 +62,23 @@ FLAGS = (_cfg.CC_FLAGS + " " + _cfg.CC_INCLUDES + " " + _mwcc_defines(_cfg)).spl
 CODEGEN_PRAGMA = re.compile(r"(?m)^[ \t]*#[ \t]*pragma[ \t]+(?!(?:define_section|section|once)\b)(\w+)")
 
 
-def config_dir(mod):
-    root = f"config/{REGION}/arm9"
+def region_names():
+    """Every region tree on disk, not the active one. Rename and merge walk this."""
+    return [name for name in ("usa", "jpn", "eur")
+            if os.path.isdir(os.path.join(REPO, "config", name))]
+
+
+def config_dir(mod, region=None):
+    root = f"config/{region or REGION}/arm9"
     return root if mod == "main" else f"{root}/overlays/ov{mod}"
 
 
 def config_root():
     return config_dir("main")
+
+
+def config_roots():
+    return [config_dir("main", name) for name in region_names()]
 
 
 def extract_root():
@@ -83,38 +93,11 @@ def report_path():
     return f"{build_root()}/report.json"
 
 
-def pristine(mod):
+def pristine(mod, region=None):
+    name = region or REGION
     if mod == "main":
-        return f"extract/{REGION}/arm9/arm9.bin"
-    return f"extract/{REGION}/arm9_overlays/ov{mod}.bin"
-
-
-def config_files(kind, extra=()):
-    """Repo-relative <kind>.txt files: arm9, optional subdirs, then each overlay that has one.
-
-    extra is for callers that already walk arm9/itcm and arm9/dtcm. A missing overlays
-    directory is a missing region tree: the error names that path.
-    """
-    root = config_root()
-    out = [f"{root}/{kind}.txt"]
-    for sub in extra:
-        out.append(f"{root}/{sub}/{kind}.txt")
-    overlay_root = os.path.join(REPO, root, "overlays")
-    if not os.path.isdir(overlay_root):
-        raise FileNotFoundError(overlay_root)
-    for name in sorted(os.listdir(overlay_root)):
-        rel = f"{root}/overlays/{name}/{kind}.txt"
-        if os.path.isfile(os.path.join(REPO, rel)):
-            out.append(rel)
-    return out
-
-
-def symbol_files(extra=()):
-    return config_files("symbols", extra)
-
-
-def delink_files(extra=()):
-    return config_files("delinks", extra)
+        return f"extract/{name}/arm9/arm9.bin"
+    return f"extract/{name}/arm9_overlays/ov{mod}.bin"
 
 
 def lcf_symbols():

@@ -55,7 +55,7 @@ def fail(msg):
 
 if OV == "main":
     CFG = buildcfg.config_dir("main")
-    PRISTINE = open(buildcfg.pristine("main"), "rb").read()
+    PRISTINE = open(buildcfg.pristine('main'), "rb").read()
     PFX = "func_"
     BASE = 0x02000000
 else:

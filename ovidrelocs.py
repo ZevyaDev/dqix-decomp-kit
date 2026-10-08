@@ -77,15 +77,15 @@ def module_sites(cfg, binpath, base):
 
 
 def modules():
-    yield "main", buildcfg.config_dir("main"), buildcfg.pristine("main"), 0x02000000
+    yield "main", buildcfg.config_dir("main"), buildcfg.pristine('main'), 0x02000000
     for d in sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/ov*")):
         ov = os.path.basename(d)
-        binpath = f"{buildcfg.extract_root()}/arm9_overlays/{ov}.bin"
+        binpath = buildcfg.pristine(ov[2:])
         if not os.path.exists(f"{REPO}/{binpath}"):
             continue
         delinks = open(f"{d}/delinks.txt").read()
         base = min(int(x, 16) for x in re.findall(r'start:0x([0-9a-fA-F]+)', delinks))
-        yield ov, f"{buildcfg.config_root()}/overlays/{ov}", binpath, base
+        yield ov, buildcfg.config_dir(ov[2:]), binpath, base
 
 
 total = 0

@@ -15,11 +15,9 @@ import subprocess
 import sys
 
 import kitpaths as _kp
-import buildcfg
 
 REPO = os.environ.get("DQIX_MAIN_REPO") or _kp.REPO
 BRANCH = os.environ.get("DQIX_BRANCH", "decomp-matching")
-REGION = buildcfg.REGION
 _env = os.environ.get("DQIX_INTEG", "")
 OFF = _env.lower() == "off"
 LOCAL = os.environ.get("DQIX_PUBLISH") == "local"
@@ -107,10 +105,11 @@ def publish():
 
 
 def report():
-    src = f"{INTEG}/build/{REGION}/report.json"
+    region = _kp.region()
+    src = f"{INTEG}/build/{region}/report.json"
     if not OFF and os.path.isfile(src):
-        os.makedirs(f"{REPO}/build/{REGION}", exist_ok=True)
-        shutil.copy2(src, f"{REPO}/build/{REGION}/report.json")
+        os.makedirs(f"{REPO}/build/{region}", exist_ok=True)
+        shutil.copy2(src, f"{REPO}/build/{region}/report.json")
 
 
 if __name__ == "__main__":

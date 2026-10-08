@@ -45,7 +45,8 @@ SP="$(python "$KIT/kitpaths.py" state)"
 REPO="$(python "$KIT/kitpaths.py" repo)"
 UPSTREAM="DQIX/dqix-decomp"
 cd "$REPO" || exit 2
-REGION=$(python "$KIT/buildcfg.py" --region)
+python "$KIT/kitpaths.py" require-usa || exit 2
+REGION=$(python "$KIT/kitpaths.py" region) || exit 2
 mkdir -p "$SP/wlog"
 
 [ $# -ge 1 ] || { echo "usage: merge_human.sh --check | <pr-number> | <ref>"; exit 2; }
@@ -153,9 +154,13 @@ for i in 1 2 3 4 5 6 7 8; do
   # build deleted 24 real symbols the branch was adding.
   if ! grep -q "^FAILED.*arm9\.o" "$SP/wlog/merge_check.log" \
      && ! grep -qE "cpp:[0-9]+:" "$SP/wlog/merge_check.log"; then
-    ./dsd.exe check symbols --config-path "config/${REGION}/arm9/config.yaml" \
-        --elf-path "build/${REGION}/arm9.o" --fail 2>&1 \
-      | grep -oE "Symbol '[^']+'" | cut -d"'" -f2 | sort -u > "$SP/wlog/stale_symbols.txt"
+    : > "$SP/wlog/stale_symbols.txt"
+    for _reg in usa jpn eur; do
+      [ -f "config/${_reg}/arm9/config.yaml" ] && [ -f "build/${_reg}/arm9.o" ] || continue
+      ./dsd.exe check symbols --config-path "config/${_reg}/arm9/config.yaml" \
+          --elf-path "build/${_reg}/arm9.o" --fail 2>&1 \
+        | grep -oE "Symbol '[^']+'" | cut -d"'" -f2
+    done | sort -u > "$SP/wlog/stale_symbols.txt"
     # A link that SUCCEEDS still reports the whole table when the elf is stale, and dropping it
     # took symbols.txt from 7987 lines to 2058 -- the delink then fails on every relocation.
     N=$(wc -l < "$SP/wlog/stale_symbols.txt")
@@ -163,7 +168,11 @@ for i in 1 2 3 4 5 6 7 8; do
       echo "  refusing to drop $N symbols; see wlog/stale_symbols.txt"
     else
       while read -r s; do
-        sed -i "/^$s /d" "config/${REGION}/arm9/symbols.txt" && echo "  dropped stale symbol $s"
+        for _reg in usa jpn eur; do
+          _sf="config/${_reg}/arm9/symbols.txt"
+          [ -f "$_sf" ] || continue
+          sed -i "/^$s /d" "$_sf" && echo "  dropped stale symbol $s from $_reg"
+        done
       done < "$SP/wlog/stale_symbols.txt"
     fi
   fi

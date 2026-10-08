@@ -45,10 +45,10 @@ isa, slot = m.group(1).lower(), int(m.group(2), 16)
 md = Cs(CS_ARCH_ARM, CS_MODE_THUMB if isa == "thumb" else CS_MODE_ARM)
 
 if MOD == "main":
-    blob = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
+    blob = open(f"{REPO}/{buildcfg.pristine('main')}", "rb").read()
     base = 0x02000000
 else:
-    blob = open(f"{REPO}/{buildcfg.extract_root()}/arm9_overlays/ov{MOD}.bin", "rb").read()
+    blob = open(f"{REPO}/{buildcfg.pristine(MOD)}", "rb").read()
     base = min(int(x, 16) for x in
                re.findall(r'start:0x([0-9a-fA-F]+)', open(f"{REPO}/{cfg}/delinks.txt").read()))
 off = int(ADDR, 16) - base

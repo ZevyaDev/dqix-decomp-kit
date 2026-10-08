@@ -3,8 +3,6 @@ import os, re, sys, json, bisect, collections
 from namingpaths import LABEL as REPO, NAMING as SP
 import buildcfg
 
-CFG = REPO + "/" + buildcfg.config_root()
-
 FUNC = re.compile(r"^(\S+)\s+kind:function\((\w+),size=0x([0-9a-fA-F]+)\)\s+addr:0x([0-9a-fA-F]+)")
 ADDR = re.compile(r"0[12][0-9a-f]{6}")
 ASSET = re.compile(r"^[A-Za-z0-9_%<>./\-]+\.(nat|gp2|bin|spr|chr|pac|nsarc|stb|sdat|obg|mes|bact|ambl|amdj|mse|NCGR|bncg|cchr|mon)$")
@@ -20,16 +18,20 @@ OVERLAY_NAME = {
 
 
 def paths():
-    yield ("main", CFG + "/symbols.txt", CFG + "/delinks.txt")
-    for sub in ("itcm", "dtcm"):
-        p = CFG + "/" + sub
-        if os.path.exists(p + "/symbols.txt"):
-            yield (sub, p + "/symbols.txt", p + "/delinks.txt")
-    ovdir = CFG + "/overlays"
-    for name in sorted(os.listdir(ovdir)):
-        p = ovdir + "/" + name
-        if os.path.exists(p + "/symbols.txt"):
-            yield (name, p + "/symbols.txt", p + "/delinks.txt")
+    for root in buildcfg.config_roots():
+        cfg = REPO + "/" + root
+        yield ("main", cfg + "/symbols.txt", cfg + "/delinks.txt")
+        for sub in ("itcm", "dtcm"):
+            p = cfg + "/" + sub
+            if os.path.exists(p + "/symbols.txt"):
+                yield (sub, p + "/symbols.txt", p + "/delinks.txt")
+        ovdir = cfg + "/overlays"
+        if not os.path.isdir(ovdir):
+            continue
+        for name in sorted(os.listdir(ovdir)):
+            p = ovdir + "/" + name
+            if os.path.exists(p + "/symbols.txt"):
+                yield (name, p + "/symbols.txt", p + "/delinks.txt")
 
 
 def module_label(mod):

@@ -1,9 +1,10 @@
 # dqix-decomp-kit
 
 Tools for matching Dragon Quest IX (Nintendo DS) functions to byte-exact C++ in
-[ZevyaDev/dqix-decomp](https://github.com/ZevyaDev/dqix-decomp), branch `decomp-matching`. Usable by
-hand, from a single AI session, or as an autonomous fleet of Claude Code workers. The active
-region is `$DQIX_REGION` (`usa`, `jpn`, or `eur`); unset stays `usa`.
+[ZevyaDev/dqix-decomp](https://github.com/ZevyaDev/dqix-decomp), branch `decomp-matching`. USA is
+the matching reference, and acceptance checks `usa`. Usable by hand, from a single AI session, or
+as an autonomous fleet of Claude Code workers. Read-only tools follow `$DQIX_REGION` (`usa`,
+`jpn`, or `eur`); unset stays `usa`.
 
 The kit compiles a candidate with the build's own `mwccarm` and flags, compares it against the
 original ROM bytes, names the class of whatever still differs, applies meaning-preserving rewrites,

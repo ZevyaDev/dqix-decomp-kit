@@ -457,6 +457,7 @@ def function_sizes(mod):
 
 
 def main():
+    _kp.require_usa()
     if len(sys.argv) < 2:
         sys.exit("usage: claim.py <main|NNN> [--release <addr> | --status] | --best | --pools")
     busy = set()

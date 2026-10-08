@@ -26,9 +26,10 @@ md.skipdata = True
 
 
 def modules():
-    yield "main", f"{REPO}/{buildcfg.config_root()}/delinks.txt", f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin"
+    yield "main", f"{REPO}/{buildcfg.config_root()}/delinks.txt", f"{REPO}/{buildcfg.pristine('main')}"
     for d in sorted(os.listdir(f"{REPO}/{buildcfg.config_root()}/overlays")):
-        yield d, f"{REPO}/{buildcfg.config_root()}/overlays/{d}/delinks.txt", f"{REPO}/{buildcfg.extract_root()}/arm9_overlays/{d}.bin"
+        num = d[2:] if d.startswith("ov") else d
+        yield d, f"{REPO}/{buildcfg.config_dir(num)}/delinks.txt", f"{REPO}/{buildcfg.pristine(num)}"
 
 
 def ranges(cfg):

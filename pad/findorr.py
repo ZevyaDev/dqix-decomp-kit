@@ -21,7 +21,7 @@ REPO = _kp.REPO
 BASE = 0x02000000
 GAP = int(sys.argv[1]) if len(sys.argv) > 1 else 3
 
-blob = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
+blob = open(f"{REPO}/{buildcfg.pristine('main')}", "rb").read()
 md = capstone.Cs(capstone.CS_ARCH_ARM, capstone.CS_MODE_ARM)
 md.skipdata = True
 

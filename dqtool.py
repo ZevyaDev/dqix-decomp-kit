@@ -32,10 +32,10 @@ def cfg_for(mod):
     """(config dir, pristine binary, load base) for a module."""
     if mod == "main":
         cfg = f"{REPO}/{buildcfg.config_root()}"
-        rom = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
+        rom = open(f"{REPO}/{buildcfg.pristine('main')}", "rb").read()
         return cfg, rom, 0x02000000
-    cfg = f"{REPO}/{buildcfg.config_root()}/overlays/ov{mod}"
-    rom = open(f"{REPO}/{buildcfg.extract_root()}/arm9_overlays/ov{mod}.bin", "rb").read()
+    cfg = f"{REPO}/{buildcfg.config_dir(mod)}"
+    rom = open(f"{REPO}/{buildcfg.pristine(mod)}", "rb").read()
     base = min(int(m, 16) for m in
                re.findall(r"start:0x([0-9a-fA-F]+)", open(f"{cfg}/delinks.txt").read()))
     return cfg, rom, base

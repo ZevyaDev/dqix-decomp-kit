@@ -35,8 +35,10 @@ METHODS = {
 INSTANCE = {"GetBattleStruct"}
 
 MANGLED = re.compile(r"^_Z(\d+)(\w+)$")
-head_syms = subprocess.run(["git", "show", "HEAD:" + buildcfg.config_root() + "/symbols.txt"],
-                           capture_output=True, text=True).stdout
+head_syms = "".join(
+    subprocess.run(["git", "show", "HEAD:" + root + "/symbols.txt"],
+                   capture_output=True, text=True).stdout
+    for root in buildcfg.config_roots())
 for line in head_syms.splitlines():
     parts = line.split()
     if not parts:

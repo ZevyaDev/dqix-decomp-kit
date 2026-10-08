@@ -31,11 +31,11 @@ os.chdir(REPO)
 
 if OV == "main":
     CFG = buildcfg.config_dir("main")
-    ROM = open(buildcfg.pristine("main"), "rb").read()
+    ROM = open(buildcfg.pristine('main'), "rb").read()
     BASE = 0x02000000
 else:
-    CFG = f"{buildcfg.config_root()}/overlays/ov{OV}"
-    ROM = open(f"{buildcfg.extract_root()}/arm9_overlays/ov{OV}.bin", "rb").read()
+    CFG = f"{buildcfg.config_dir(OV)}"
+    ROM = open(f"{buildcfg.pristine(OV)}", "rb").read()
     BASE = min(int(x, 16) for x in re.findall(r"start:0x([0-9a-fA-F]+)", open(f"{CFG}/delinks.txt").read()))
 
 symtxt = open(f"{CFG}/symbols.txt", encoding="utf-8", errors="ignore").read()

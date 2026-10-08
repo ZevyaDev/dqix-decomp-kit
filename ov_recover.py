@@ -3,6 +3,7 @@ import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
 import buildcfg
+_kp.require_usa()
 # Hardened module integrator: sanitizes names (strips 0x-hex tokens that break dsd delinking),
 # never clobbers tracked files, restores HEAD cleanly, bisects to isolate link-poison funcs,
 # checks consistency before every commit. Usage: python ov_recover.py <OV|main> [staging_dirs...]
@@ -40,7 +41,7 @@ else:
     SUF     = f"ov{OV}"
     TAGPRE  = f"func_ov{OV}_"
     HEXC    = "[0-9a-f]"
-    CFG     = f"{buildcfg.config_root()}/overlays/ov{OV}"
+    CFG     = f"{buildcfg.config_dir(OV)}"
     SRCDIR  = srcdir.for_module(OV)
     INT     = f"{KIT}/integrate.py"         # one integrator for every module
     INTARGS = [OV]

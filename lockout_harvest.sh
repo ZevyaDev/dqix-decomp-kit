@@ -23,7 +23,7 @@ SP="$(python "$KIT/kitpaths.py" state)"
 REPO="$(python "$KIT/kitpaths.py" repo)"
 LOG="$SP/wlog/harvest.log"
 cd "$REPO" || exit 2
-REGION=$(python "$KIT/buildcfg.py" --region)
+REGION=$(python "$KIT/kitpaths.py" region) || exit 2
 DUR=${1:-3600}
 END=$(( $(date +%s) + DUR ))
 echo "=== lockout harvest $(date '+%m-%d %H:%M:%S'), ${DUR}s budget ===" >> "$LOG"

@@ -76,10 +76,6 @@ def _pr_hook():
     return None
 
 
-def _ninja_matches(text, region):
-    return f"config/{region}/" in text or f"config\\{region}\\" in text
-
-
 @check("tools read the active region's config, extract and build.ninja",
        "a USA tree left configured while DQIX_REGION names another region makes every gate measure the wrong ROM")
 def _active_region():
@@ -95,7 +91,7 @@ def _active_region():
     ninja = read(ninja_path)
     if not ninja:
         return "build.ninja is missing"
-    if not _ninja_matches(ninja, region):
+    if not _kp.ninja_matches(ninja, region):
         return ("build.ninja is not configured for DQIX_REGION=%s; "
                 "run python tools/configure.py %s" % (region, region))
     return None
@@ -237,7 +233,8 @@ def _hand_work_recorded():
     ranges = []
     import buildcfg
     try:
-        delinks = [f"{REPO}/{p}" for p in buildcfg.delink_files()]
+        root = f"{REPO}/{buildcfg.config_dir('main')}"
+        delinks = glob.glob(f"{root}/delinks.txt") + glob.glob(f"{root}/overlays/*/delinks.txt")
     except OSError as e:
         return "active region delinks unreadable: %s" % e
     for d in delinks:

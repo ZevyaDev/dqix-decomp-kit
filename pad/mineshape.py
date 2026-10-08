@@ -17,7 +17,6 @@ laboratories; the rest are unsplit code.
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.dirname(_kpos.path.abspath(__file__))))
 import kitpaths as _kp
-import buildcfg
 import glob
 import os
 import re
@@ -37,7 +36,8 @@ md = capstone.Cs(capstone.CS_ARCH_ARM, capstone.CS_MODE_ARM)
 md.skipdata = True
 
 ranges = []
-txt = open(f"{REPO}/{buildcfg.config_root()}/delinks.txt", encoding="utf-8", errors="ignore").read()
+# Sources are tagged // USA: with USA addresses, so the ROM and delinks stay on that region.
+txt = open(f"{REPO}/config/usa/arm9/delinks.txt", encoding="utf-8", errors="ignore").read()
 for a, b in re.findall(r"(?m)^\s*\.(?:text|init) start:0x([0-9a-fA-F]+) end:0x([0-9a-fA-F]+)\s*$", txt):
     ranges.append((int(a, 16), int(b, 16)))
 ranges.sort()
@@ -48,7 +48,7 @@ for p in glob.glob(f"{REPO}/src/**/*.c*", recursive=True):
     for m in re.finditer(r"//\s*USA:\s*\w*?([0-9a-fA-F]{8})", t):
         sources[int(m.group(1), 16)] = p
 
-blob = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
+blob = open(f"{REPO}/extract/usa/arm9/arm9.bin", "rb").read()
 window = []
 committed, lab, raw = [], [], []
 for ins in md.disasm(blob, BASE):

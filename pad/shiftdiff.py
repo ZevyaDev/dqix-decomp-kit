@@ -34,10 +34,11 @@ with open(obj, "rb") as fh:
 os.remove(obj)
 if mod == "main":
     cfg = f"{REPO}/{buildcfg.config_root()}/delinks.txt"
-    blob = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
+    blob = open(f"{REPO}/{buildcfg.pristine('main')}", "rb").read()
 else:
-    cfg = f"{REPO}/{buildcfg.config_root()}/overlays/{mod}/delinks.txt"
-    blob = open(f"{REPO}/{buildcfg.extract_root()}/arm9_overlays/{mod}.bin", "rb").read()
+    num = mod[2:] if mod.startswith("ov") else mod
+    cfg = f"{REPO}/{buildcfg.config_dir(num)}/delinks.txt"
+    blob = open(f"{REPO}/{buildcfg.pristine(num)}", "rb").read()
 base = min(int(x, 16) for x in re.findall(r"start:0x([0-9a-fA-F]+)", open(cfg).read()))
 syms = open(cfg.replace("delinks.txt", "symbols.txt")).read()
 m = re.search(r"addr:0x%08x\b.*" % addr, syms)

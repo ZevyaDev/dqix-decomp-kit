@@ -15,7 +15,7 @@ import sys
 import capstone
 
 REPO = _kp.REPO
-blob = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
+blob = open(f"{REPO}/{buildcfg.pristine('main')}", "rb").read()
 BASE = 0x02000000
 
 start = int(sys.argv[1], 16)

@@ -27,7 +27,7 @@ for insn in md.disasm(data, 0):
 # also show pristine
 ADDR = int(sys.argv[2], 16)
 SLOT = int(sys.argv[3], 16)
-PRIST = open(f"{REPO}/{buildcfg.extract_root()}/arm9/arm9.bin", "rb").read()
+PRIST = open(f"{REPO}/{buildcfg.pristine('main')}", "rb").read()
 BASE = 0x02000000
 orig = PRIST[ADDR-BASE: ADDR-BASE+SLOT]
 print("\npristine:")

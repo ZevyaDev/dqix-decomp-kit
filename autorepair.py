@@ -35,7 +35,7 @@ def _symbols(module=None):
     """addr -> committed symbol name; overlays share addresses, so `module` and main win."""
     if module not in _SYMS:
         own = [] if module in (None, "main") else \
-              [f"{REPO}/{buildcfg.config_root()}/overlays/ov{module}/symbols.txt"]
+              [f"{REPO}/{buildcfg.config_dir(module)}/symbols.txt"]
         syms = {}
         for p in own + [f"{REPO}/{buildcfg.config_root()}/symbols.txt"] + \
                  sorted(glob.glob(f"{REPO}/{buildcfg.config_root()}/overlays/*/symbols.txt")):
@@ -73,7 +73,7 @@ def _addresses_in(name):
 def _code_section_for(module, addr):
     """Name of the delinks code section containing addr, or None."""
     cfg = f"{REPO}/{buildcfg.config_root()}" if module == "main" else \
-          f"{REPO}/{buildcfg.config_root()}/overlays/ov{module}"
+          f"{REPO}/{buildcfg.config_dir(module)}"
     try:
         head = open(f"{cfg}/delinks.txt", encoding="utf-8").read().split("\n\n")[0]
     except IOError:

@@ -7,7 +7,7 @@
 KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && { pwd -W 2>/dev/null || pwd; })"
 SP="$(python "$KIT/kitpaths.py" state)"
 REPO="$(python "$KIT/kitpaths.py" repo)"; cd "$REPO" || exit 2
-REGION=$(python "$KIT/buildcfg.py" --region)
+REGION=$(python "$KIT/kitpaths.py" region) || exit 2
 LOG="$SP/wlog/wgate_scratch.log"; : > "$LOG"
 hits=0; tried=0
 for f in "$SP"/w[0-9a-f]*.cpp; do
@@ -15,7 +15,16 @@ for f in "$SP"/w[0-9a-f]*.cpp; do
   [[ "$a" =~ ^[0-9a-f]{8}$ ]] || continue
   # skip anything already in the build
   grep -qi "\.text start:0x0*$a " "config/${REGION}/arm9/delinks.txt" config/${REGION}/arm9/overlays/*/delinks.txt 2>/dev/null && continue
-  m=$(python "$KIT/addr2mod.py" "$a")
+  # An address inside more than one overlay is normal. addr2mod.py prints nothing for those,
+  # which dropped most overlay candidates. Take main from its own symbols, else the first overlay
+  # symbols file that names the address, which is what this sweep did before.
+  if grep -q "addr:0x$a\b" "config/${REGION}/arm9/symbols.txt"; then
+    m=main
+  else
+    m=$(for sy in config/${REGION}/arm9/overlays/ov*/symbols.txt; do
+      grep -q "addr:0x$a\b" "$sy" && basename "$(dirname "$sy")" | sed 's/ov//' && break
+    done)
+  fi
   [ -z "$m" ] && continue
   tried=$((tried+1))
   if python "$KIT/wgate.py" "$m" "$a" "$f" 2>&1 | head -1 | grep -q '^MATCH'; then

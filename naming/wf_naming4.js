@@ -81,8 +81,8 @@ const results = await pipeline(
         `proposals are in ${res.out_path}.\n\n` +
         `Check each claim against the evidence yourself: read the decompiled body with ` +
         `"git -C ${LABEL} show labeling-pass:<path>", sample the callers in ` +
-        `config/${process.env.DQIX_REGION || "usa"}/arm9/relocs.txt across modules, and look at the game files under ` +
-        `${GAME}/extract/${process.env.DQIX_REGION || "usa"}/files/ where a count would settle something. ` +
+        `config/${ENV.DQIX_REGION ?? "usa"}/arm9/relocs.txt across modules, and look at the game files under ` +
+        `${GAME}/extract/${ENV.DQIX_REGION ?? "usa"}/files/ where a count would settle something. ` +
         `Reject a name that describes the code's shape rather than its game subject, that asserts ` +
         `more than the evidence supports, or whose comment states an inference as fact. Reject a ` +
         `field or parameter name that asserts a purpose nobody established — unknown<offset> is ` +
