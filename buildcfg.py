@@ -11,6 +11,8 @@ import os
 import re
 import sys
 
+import linuxenv as _le
+
 REPO = _kp.REPO
 _TOOLS = os.path.join(REPO, "tools")
 # usa, jpn, or eur. Unset stays usa, which is every current config/ and extract/ path.
@@ -55,8 +57,17 @@ _cfg = _load()
 
 MWCC_VERSION = _cfg.MWCC_VERSION
 DECOMP_ME_COMPILER = _cfg.DECOMP_ME_COMPILER
-CC = f"{REPO}/tools/mwccarm/{MWCC_VERSION}/mwccarm.exe"
-AS = f"{REPO}/tools/mwccarm/{MWCC_VERSION}/mwasmarm.exe"
+# The compiler is a Windows binary on every platform. On Windows the path IS the executable and
+# the twenty-odd `[CC] + FLAGS` call sites are correct as written; on Unix linuxenv hands back a
+# wrapper at a different path that execs the same binary through wibo/wine. Behaviour on
+# Windows is unchanged, so the one code path that decides what a match is keeps its exact
+# Windows semantics. See linuxenv.py for why this is a shim rather than a prefix.
+_CC_EXE = f"{REPO}/tools/mwccarm/{MWCC_VERSION}/mwccarm.exe"
+_AS_EXE = f"{REPO}/tools/mwccarm/{MWCC_VERSION}/mwasmarm.exe"
+CC_EXE = _CC_EXE
+AS_EXE = _AS_EXE
+CC = _le.shim_for(_CC_EXE)
+AS = _le.shim_for(_AS_EXE)
 AS_FLAGS = _cfg.AS_FLAGS.split()
 FLAGS = (_cfg.CC_FLAGS + " " + _cfg.CC_INCLUDES + " " + _mwcc_defines(_cfg)).split()
 CODEGEN_PRAGMA = re.compile(r"(?m)^[ \t]*#[ \t]*pragma[ \t]+(?!(?:define_section|section|once)\b)(\w+)")
@@ -79,7 +90,12 @@ def lcf_symbols():
 
 
 def cc_path(version):
-    return f"{REPO}/tools/mwccarm/{version}/mwccarm.exe" if version else CC
+    """The runnable compiler for a version override, or the project's own build."""
+    return _le.shim_for(f"{REPO}/tools/mwccarm/{version}/mwccarm.exe", version.replace("/", "-")) \
+        if version else CC
+
+
+
 
 
 if __name__ == "__main__":

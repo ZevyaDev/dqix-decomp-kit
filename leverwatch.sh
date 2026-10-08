@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && { pwd -W 2>/dev/null || pwd; })"
-SP="$(python "$KIT/kitpaths.py" state)"
+# kitenv resolves $PY: a stock Linux has python3 and no `python`, and a watcher that cannot find
+# its interpreter then sits in an infinite loop printing nothing, which is how this script timed
+# out in regress.py for 60s instead of firing.
+. "$KIT/kitenv.sh"
 ONCE=0
 [ "$1" = "--once" ] && { ONCE=1; shift; }
 INTERVAL="${1:-300}"
@@ -15,7 +18,7 @@ while :; do
     echo "$addr" >> "$SEEN"
     echo "LEVER NEEDS PROMOTING $addr: $text"
     fired=1
-  done < <(python "$KIT/levercheck.py" --keys 2>/dev/null)
+  done < <("$PY" "$KIT/levercheck.py" --keys 2>/dev/null)
   [ "$ONCE" = 1 ] && [ "$fired" = 1 ] && exit 0
   sleep "$INTERVAL"
 done

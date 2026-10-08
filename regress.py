@@ -1768,6 +1768,11 @@ def _finish_bulk_snapshot_behaviour():
                 out.write("// USA: func_" + addr + "\n")
         with open(os.path.join(q,".done_main"),"w") as out: out.write("02000000\n")
         body = 'cd "$1" || exit 99; SP="$1/state"; Q="$1/quarantine"; OV=main; TAGPRE=func_; SRCDIR="src/Combat/Main"; calls="$1/calls"\n'
+        # The block under test calls `python` for its NUL check. This test measures the snapshot
+        # logic, not whether the host has a binary by that name -- and a stock Linux has `python3`
+        # and no `python`, so the snippet would fail on the interpreter rather than on the thing
+        # being tested. Stub it the same way `mv` and `git` are stubbed below.
+        body += 'python() { ' + repr(sys.executable) + ' "$@"; }\n'
         # Record actual quarantine moves without changing their arguments or result.
         body += 'mv() { printf "%s\\n" "$1" >> "$SP/../moves"; command mv "$@"; }\n'
         body += 'git() { echo x >> "$calls"; '

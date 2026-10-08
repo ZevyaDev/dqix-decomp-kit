@@ -10,9 +10,12 @@ and lands matches through one serialized, gated path that commits to the decomp.
 
 ## Platform
 
-Tested on Windows 11, Git Bash, Python 3.10. The per-function tools are plain Python but run the
-decomp's `mwccarm.exe` directly; untested on any other system. The fleet scripts list processes with
-PowerShell `Get-CimInstance` and run only on Windows.
+Windows 11 (Git Bash) and Linux, including Ubuntu and Debian derivatives such as MX Linux, both on
+Python 3.10+. The kit's tools are plain Python and run the decomp's `mwccarm.exe`, a Windows
+binary, through wibo on Unix; that and three supporting files are the entire port, so no tool
+behaves differently on either platform. [docs/UNIX.md](docs/UNIX.md) is the Unix guide — setup,
+the Win32 runner, and the fleet script names that differ. `python3 linuxenv.py` prints what this
+machine is using.
 
 ## Quickstart
 
@@ -69,6 +72,8 @@ explains every step.
 
 | path | contents |
 |---|---|
+| `linuxenv.py` `procs.py` `kitenv.sh` | the platform layer: the Win32 runner and tool names, portable process listing, and `python`/`python3` resolution. Read before anything else on Unix |
+| `setup_unix.sh` `psql.sh` `fullstop_linux.sh` `killfleet_linux.sh` `health_linux.sh` | the Unix bootstrap and the fleet scripts that replace the PowerShell four; see [docs/UNIX.md](docs/UNIX.md) |
 | `wgate.py` `wdiff.py` `wlist.py` `scaffold.py` `residue.py` | the per-function gate, diff, listing and starting file |
 | `colorsweep.py` `presweep.py` `vtry.py` `symfix.py` `fixundef.py` `autorepair.py` | mechanical rewrites and repairs |
 | `claim.py` `poolsize.py` `nearmiss.py` `resumable.py` `sdkident.py` `dqtool.py` | choosing work |
@@ -93,6 +98,7 @@ explains every step.
 ## Docs
 
 - [docs/SETUP.md](docs/SETUP.md) — prerequisites, environment, reference decomps, Frida
+- [docs/UNIX.md](docs/UNIX.md) — Linux, Ubuntu, MX Linux, the BSDs and macOS: the Win32 runner, `$PY`, and which fleet scripts differ
 - [docs/WORKFLOW.md](docs/WORKFLOW.md) — one function from address to commit
 - [docs/IMPROVEMENT_LOOP.md](docs/IMPROVEMENT_LOOP.md) — how every crack becomes a rule or automation the next session gets for free
 - [docs/FLEET.md](docs/FLEET.md) — the autonomous pipeline, knobs, stopping, cost

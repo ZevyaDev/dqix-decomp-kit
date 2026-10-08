@@ -21,6 +21,23 @@ file that does not exist, nothing keys symbol lookups on the `func_` name, nothi
 | `prready.py kit\|decomp\|--hook` | last step before any pull request: fetches the published kit and `decomp-matching` and refuses (exit 1) a checkout behind either, a decomp change outside `src/`/`include/`/`config/`, conflict markers, an added source no `delinks.txt` names, a symbol renamed in one region but not another, a dead-end row for a matched address, a `core.md` citation of an unlanded address. `--hook` is the PreToolUse hook in `.claude/settings.json`: it blocks `gh pr create` (exit 2) until READY |
 | `kit_init.py [--refs] [--slow]` | check dependencies and the decomp checkout, create the state directories and `OPEN_WORK.md`, build the worker docs, copy the agent-neutral skills (`PORTABLE_SKILLS`) from `.claude/skills/` to `.agents/skills/` for Codex and other Agent Skills readers; `--refs` clones and indexes `refs/VERIFIED.txt`, `--slow` runs `regress.py --slow` |
 
+### Unix support
+
+Everything above runs on Linux, the BSDs and macOS as well as Windows. Three new files carry the
+platform knowledge, and six Unix-native scripts replace the fleet's PowerShell calls. The Windows
+scripts are untouched and remain the ones Windows runs.
+
+| file | job |
+|---|---|
+| `linuxenv.py [--tool NAME] [--runner]` | the ONLY module that asks what platform this is. Resolves the Win32 runner the decomp's `mwccarm.exe` needs (wibo, else wine; `DQIX_WINE` overrides, `DQIX_WINE=none` for a natively-executable `.exe`), names the decomp's tools per platform (`dsd.exe` vs `dsd`, `objdiff-cli` vs `objdiff-cli.exe`), and hands `buildcfg` a runnable compiler path: on Windows the `.exe` itself, on Unix a generated `exec` shim under `$SP/toolchain/`. `check_runner()` proves the runner can actually load the compiler, so a bad runner fails at init instead of as an unexplained `COMPILE-FAIL` in every gate. `--tool`/`--runner` print one bare value for shell scripts |
+| `procs.py [--match RE] [--kind work\|job] [--workers] [--count] [--list] [--pids] [--orphan-parent] [--verbose]` | live processes with full command lines, on every platform: `/proc/<pid>/cmdline` on Linux, `ps -axo` on BSD/macOS, CIM on Windows. Replaces `powershell.exe -NoProfile -Command "Get-CimInstance ..."`, which was the single thing making the fleet scripts Windows-only. Excludes the querying process and its ancestors BY PID, because a process listing itself by pattern text matches its own query — that defect made `psq.sh` answer "4 running" against an idle machine for 36 minutes. Also excludes unreaped zombies, which keep their `/proc` cmdline and would read as work that died as still running |
+| `kitenv.sh` | sourced, not run: resolves `$PY` (`python` on Windows, `python3` on a stock Debian/Ubuntu/MX, `DQIX_PY` overrides) and exports `KIT`/`SP`/`REPO`. A stock Linux has no `python` at all, which every kit script and doc calls by name |
+| `setup_unix.sh [--install] [--fast]` | one-shot platform bootstrap: checks python, the `python` name, git/ninja/gcc, capstone/pyelftools, the Win32 runner and the decomp checkout; `--install` runs `apt-get install` for what is missing. Prints the exact next command and never fetches a ROM |
+| `psql.sh [--list] [--kind work\|job]` | Unix `psq.sh`: the same question, asked of `procs.py` |
+| `fullstop_linux.sh [--hard] [--dry] [--monitors]` | Unix `fullstop.sh`: tier 1 kills token spenders and every driver, tier 2 reports CPU-only jobs (an integration killed mid-flight empties `src/`), tier 3 reaps watcher loops. SIGTERM then SIGKILL, and re-checks twice, because a driver killed while dispatching spawns one last worker |
+| `killfleet_linux.sh [--all] [--orphans] [--dry]` | Unix `killfleet.sh`. The Windows one exists because `kill -9` left a reparented `claude.exe` still spending, which only Windows enumeration can find; on Unix there is no such gap, so it collapses to one enumeration. Still matches the worker PROMPT, never the image name, so an interactive session is never a candidate |
+| `health_linux.sh [--once]` | Unix `health.sh`: the same six checks and the same alert text, measured from `procs.py` (kernel age and CPU, not a log line) |
+
 ---
 
 ## The autonomous pipeline

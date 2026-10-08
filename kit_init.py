@@ -17,6 +17,7 @@ import subprocess
 import sys
 
 import kitpaths
+import linuxenv
 
 SP = kitpaths.SP
 KIT = kitpaths.KIT
@@ -49,6 +50,13 @@ def check_python():
             ok = False
     if shutil.which("claude") is None:
         print("note  Claude Code CLI `claude` not on PATH; needed only for the worker fleet")
+    if not linuxenv.IS_WINDOWS and shutil.which("python") is None:
+        print("note  no `python` on PATH; the kit's shell scripts and docs call it by that name. "
+              "Install python-is-python3, or use kitenv.sh's $PY (the *_linux scripts do)")
+    for problem in linuxenv.check_runner():
+        print(f"FAIL  {problem}")
+        ok = False
+    print(f"ok    platform {linuxenv.describe()}")
     return ok
 
 
@@ -66,9 +74,14 @@ def check_repo():
     except Exception as e:
         print(f"FAIL  buildcfg could not read the build configuration: {e}")
         return False
-    if not os.path.exists(buildcfg.CC):
-        print(f"FAIL  compiler {buildcfg.CC} is missing; run `ninja check` in the decomp once to fetch the toolchain")
+    # CC is the RUNNABLE compiler: on Unix that is a shim under $SP/toolchain, so its existence
+    # says nothing about whether the real binary arrived. CC_EXE is the actual .exe.
+    if not os.path.exists(buildcfg.CC_EXE):
+        print(f"FAIL  compiler {buildcfg.CC_EXE} is missing; run `ninja check` in the decomp once "
+              "to fetch the toolchain")
         return False
+    if not os.path.exists(buildcfg.CC):
+        print(f"note  compiler wrapper {buildcfg.CC} not written; check $SP is writable")
     branch = subprocess.run(["git", "-C", REPO, "rev-parse", "--abbrev-ref", "HEAD"],
                             capture_output=True, text=True).stdout.strip()
     print(f"ok    decomp checkout {REPO} (branch {branch or '?'}), compiler {buildcfg.MWCC_VERSION}")

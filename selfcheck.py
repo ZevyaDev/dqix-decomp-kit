@@ -459,7 +459,13 @@ def _all_parse():
     # C:/ path -- every shell script then reports "does not parse". Use Git Bash explicitly, and if
     # no usable bash exists, check only the Python files rather than emit 18 false failures.
     shell = None
-    for cand in (r"C:\Program Files\Git\bin\bash.exe", r"C:\Program Files\Git\usr\bin\bash.exe", "bash"):
+    # Git Bash first on Windows: a bare "bash" there can resolve to WSL's, which cannot see the
+    # Windows filesystem paths we pass, and every script then reports "does not parse". On Unix
+    # the plain name is the only candidate and it is already correct.
+    cands = [r"C:\Program Files\Git\bin\bash.exe", r"C:\Program Files\Git\usr\bin\bash.exe"] \
+        if os.name == "nt" else []
+    cands.append("bash")
+    for cand in cands:
         try:
             probe = subprocess.run([cand, "-n", f"{KIT}/selfcheck.py"], capture_output=True, text=True)
             if "No such file or directory" not in (probe.stderr or ""):
@@ -1056,20 +1062,33 @@ def _fullstop_sees_watchers():
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         time.sleep(1.5)
-        # a bare "bash" resolves to WSL's, which cannot see the Windows filesystem paths we pass
-        sh = "C:/Program Files/Git/bin/bash.exe"
-        if not os.path.exists(sh):
-            sh = "bash"
-        out = subprocess.run([sh, f"{KIT}/fullstop.sh", "--dry"],
+        # Whichever stop script can actually run here, so the check tests the tiering rather than
+        # failing on a platform it was not written for.
+        stop = f"{KIT}/fullstop.sh" if os.name == "nt" else f"{KIT}/fullstop_linux.sh"
+        sh = "bash"
+        if os.name == "nt":
+            # a bare "bash" resolves to WSL's, which cannot see the Windows paths we pass
+            for cand in (r"C:\Program Files\Git\bin\bash.exe", r"C:/Program Files/Git/bin/bash.exe"):
+                if os.path.exists(cand):
+                    sh = cand
+                    break
+        out = subprocess.run([sh, stop, "--dry"],
                              capture_output=True, text=True, timeout=180).stdout
         tier3 = out.split("TIER 3")[-1]
         if "none running" in tier3 or "watcher process(es)" not in tier3:
-            return "fullstop --dry reports no watchers while a decoy tail on wlog/ is live"
+            return f"fullstop --dry reports no watchers while a decoy tail on wlog/ is live ({stop})"
     except subprocess.TimeoutExpired:
         return "fullstop --dry did not finish in 180s"
     finally:
-        subprocess.run(["taskkill", "/PID", str(decoy.pid), "/T", "/F"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/PID", str(decoy.pid), "/T", "/F"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            decoy.terminate()
+            try:
+                decoy.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                decoy.kill()
         try:
             os.remove(log)
         except OSError:

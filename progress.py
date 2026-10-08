@@ -16,6 +16,7 @@ OPEN_WORK.md, which this file links to rather than duplicates.
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import linuxenv
 import datetime
 import glob
 import json
@@ -108,9 +109,16 @@ def fleet():
     top of a live fleet, which is the one state this project must never reach. Ask Windows for the
     command lines instead.
     """
-    out = sh("powershell", "-NoProfile", "-Command",
-             "Get-CimInstance Win32_Process | ForEach-Object "
-             "{ \"$($_.ProcessId)|$($_.ParentProcessId)|$($_.CommandLine)\" }")
+    if linuxenv.IS_WINDOWS:
+        out = sh("powershell", "-NoProfile", "-Command",
+                 "Get-CimInstance Win32_Process | ForEach-Object "
+                 "{ \"$($_.ProcessId)|$($_.ParentProcessId)|$($_.CommandLine)\" }")
+    else:
+        # Same three fields, read from the kernel instead of from Windows. procs.py already
+        # excludes the querying process and its ancestors by pid, so the counts below cannot be
+        # inflated by this very command -- the same defect the PowerShell branch worked around
+        # with its " -c " and "ForEach-Object" filters, which stay for the Windows path.
+        out = sh(sys.executable, KIT + "/procs.py", "--no-exclude-self")
     if not out:
         return -1, -1                            # unknown, not zero -- never claim a false death
 

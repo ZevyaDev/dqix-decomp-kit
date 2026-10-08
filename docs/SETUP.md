@@ -4,14 +4,21 @@
 
 | component | tested | notes |
 |---|---|---|
-| OS | Windows 11 | fleet scripts list processes with PowerShell `Get-CimInstance`; Windows only |
-| shell | Git Bash | the `.sh` scripts are bash; most take Windows paths from `pwd -W`, with a POSIX fallback |
-| Python | 3.10 | `kit_init.py` requires 3.10 or newer; the decomp README asks for 3.11 or newer |
+| OS | Windows 11 (Git Bash), Ubuntu/Debian incl. **MX Linux** | every tool runs on both. See [UNIX.md](UNIX.md) for Linux, which is the porting guide |
+| shell | Git Bash, bash on Unix | the `.sh` scripts are bash; `pwd -W` is used where it exists, with a POSIX fallback |
+| Python | 3.10 | `kit_init.py` requires 3.10 or newer; the decomp README asks for 3.11 or newer. A stock Linux ships `python3` and no `python`: `kitenv.sh` resolves it, or install `python-is-python3` |
 | `git`, `ninja`, `bash` | on PATH | `kit_init.py` checks for them |
+| Win32 runner | wibo on Unix | only on Unix: the decomp's `mwccarm.exe` is a Windows binary and needs wibo or wine. The decomp fetches wibo with `ninja min`; `kit_init.py` fails with the fix if none is present |
 | Claude Code CLI `claude` | on PATH, logged in | needed for the fleet and the workflows; Codex and other agents read `AGENTS.md` and `.agents/skills/` instead |
 
-The per-function tools run `tools/mwccarm/<version>/mwccarm.exe` from the decomp directly. They are
-untested on anything but Windows.
+The per-function tools run `tools/mwccarm/<version>/mwccarm.exe` from the decomp. On Unix it goes
+through the runner described in [UNIX.md](UNIX.md); nothing about how a gate is decided changes.
+`python linuxenv.py` reports the platform, the runner, and whether that runner can actually load
+the compiler.
+
+On Unix the fleet's four process-inspecting scripts have Unix twins, because the originals list
+processes with PowerShell: `psql.sh` for `psq.sh`, and `fullstop_linux.sh`, `killfleet_linux.sh`
+and `health_linux.sh` for the rest. Everything else is POSIX bash already.
 
 ## Layout on disk
 
@@ -143,7 +150,8 @@ shape class.
     python -m pip install frida pyyaml
 
 These tools spawn the build's `mwccarm.exe` (2.0/sp2p2) under Frida and hook its backend while it
-compiles one source, so they need a system that runs the compiler natively.
+compiles one source, so they need a system that runs the compiler natively. **They do not work on
+Unix**: wibo is a loader, not a process Frida can attach to. Every other tool in the kit does.
 
 | tool | hooks |
 |---|---|

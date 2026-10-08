@@ -10,6 +10,15 @@ directory:
     export KIT="$(pwd -W 2>/dev/null || pwd)"
     export SP="$(python kitpaths.py state)"
 
+On Linux, the BSDs or macOS, source `kitenv.sh` instead — it resolves `$PY` (a stock Linux has
+`python3` and no `python`) and sets the same three:
+
+    . ./kitenv.sh          # exports KIT, SP, REPO, PY
+
+`docs/UNIX.md` is the Unix guide. The kit runs on both; nothing about how a gate is decided
+differs. The fleet's four process-inspecting scripts have Unix twins (`psql.sh`,
+`fullstop_linux.sh`, `killfleet_linux.sh`, `health_linux.sh`) because the originals use PowerShell.
+
 A session that runs from another directory sets `DQIX_KIT` to the checkout; skills and workflows
 read it.
 

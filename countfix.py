@@ -1,6 +1,7 @@
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
+import linuxenv
 import json
 import os
 import re
@@ -34,7 +35,10 @@ def function_locations():
 def diff_unit(unit):
     if os.path.exists(TMP):
         os.remove(TMP)
-    subprocess.run([f"{REPO}/objdiff-cli.exe", "diff", "-p", REPO, "-u", unit, "-o", TMP, "--format", "json"],
+    # The decomp names its tools for the platform: objdiff-cli.exe on Windows, objdiff-cli on
+    # Unix. Hardcoding the .exe made this report "no such file" on Linux while looking like it
+    # had simply found nothing to fix.
+    subprocess.run([linuxenv.TOOL("objdiff-cli"), "diff", "-p", REPO, "-u", unit, "-o", TMP, "--format", "json"],
                    capture_output=True, cwd=REPO)
     if not os.path.exists(TMP):
         return []
