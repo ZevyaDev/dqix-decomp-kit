@@ -435,6 +435,7 @@ way; bind it through an inline accessor instead (`Entry* e = obj->GetEntries();`
 Same for a compare operand: `signed char cv = cells[cur]; if (cv == n)` swaps the reloaded byte
 and `n`; field reads bound through inline accessors before the index load create the base temps in
 ROM order (`02169eec`).
+`((const volatile HistoryEntry020cdc7c*)entries)[current].first` before `entry = &entries[current]` closed the early-copy scratch swap (`main:020cdc7c`).
 The scheduler still emits the state read where the ROM does, UNLESS the store
 in between may alias it: a store into a non-const global does, and pins the read below it, so first
 make that object a static in an inline accessor (see "A CONSTANT HOISTED ABOVE A GLOBAL'S POOL
@@ -625,7 +626,7 @@ the listing shows a single load, stop hunting for a reload and promote instead (
 
 **To swap the pair WITHOUT moving any code, split the second one's DECLARATION off its definition
 and hoist just the declaration above the first** (`ov000:0215858c`, 4816B, 253 bytes of pure
-pair-swap). Two pointers each defined by an expression in source order give the first the higher
+pair-swap; `ov003:0217839c`; `ov005:021537bc`). Two pointers each defined by an expression in source order give the first the higher
 register; declaring the second uninitialised on the line above the first, and assigning it where it
 already was, reverses that pair for the whole function:
 
@@ -687,7 +688,7 @@ Declared scalars are numbered in reverse declaration order, and the busiest ones
 registers highest number first: declared earlier = lower register. `x++` inside an index
 (`ids[count++] = c;`) splits `x` into a new, late-numbered variable that is coloured after every
 declared one; write `ids[count] = c; count++;`. Two loops that share one counter share its register;
-if the ROM gives them different registers, give each loop its own counter (`02169b4c`). A flag
+if the ROM gives them different registers, give each loop its own counter (`02169b4c`, `ov006:02154138`). A flag
 accumulated alongside a call (`mask |= N;`) goes BEFORE the `Store(g, count++, ...)` call when the
 ROM sets it first; same for a local assigned in an arm before its call, and for two increments
 ahead of a call taking `&idx`: `count++; idx++;` puts the plain counter first (`02192700`). Hoist the block's
@@ -767,6 +768,7 @@ inlined — a helper that stores through a parameter emits a `bl`.
 A byte-typed local sourced from a `ldrb` changes which callee-saved pair mwcc picks. When the diff
 is register NUMBERS around a byte value, retype it before touching anything else:
 
+- A flag passed to a `bool` parameter is a `bool` local; an `int` converted at the call costs OVERGEN 16 (`ov005:021589f4`).
 - `int id = *ids;` instead of `unsigned char id` flipped an r8/sb callee-saved pair.
 - a parameter typed `int` (not `unsigned char`) -- with the callee declared `extern "C"` under its
   mangled name so the narrow-width prototype stops applying -- fixed the argument setup.
@@ -1278,6 +1280,7 @@ wrong and a byte-perfect function still fails the gate:
   plain C++ declarations, `func_` callees as `extern "C"`, in the same source.
 
 ## BIG OFFSETS AND ADDRESSING
+- Write a hardware port as its absolute address (`*(volatile u32*)0x04000504`), not a negative index off another port's pointer: OVERGEN 8 (`ov005:02155258`).
 - **fields past 4095** (`obj + 0x1000` region) MUST be plain nested-struct member chains
   (`obj->sub.f28`) — never a local `Sub*` and never an inline accessor. The 4095 immediate limit
   already forces an `add rX,base,#0x1000` split, so mwcc rematerialises the base per block; a named
