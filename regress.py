@@ -55,6 +55,60 @@ def load(mod):
     return m
 
 
+@check("native Bash discovery rejects WSL and its returned shell can read the kit",
+       "PATH-only selection chose System32/WindowsApps Bash under native Windows Python, "
+       "so staging and snapshot tests could not read the Windows kit paths")
+def _native_bash():
+    import subprocess
+    from types import SimpleNamespace
+    from unittest import mock
+
+    with tempfile.TemporaryDirectory() as d:
+        def file(*parts):
+            path = os.path.join(d, *parts)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w") as fh:
+                fh.write("discovery fixture\n")
+            return path
+
+        wsl = file("Windows", "System32", "bash.exe")
+        alias = file("User", "WindowsApps", "bash.exe")
+        program_files = os.path.join(d, "Program Files")
+        native = file("Program Files", "Git", "usr", "bin", "bash.exe")
+        portable_git = file("PortableGit", "cmd", "git.exe")
+        portable_bash = file("PortableGit", "usr", "bin", "bash.exe")
+        launcher = file("PortableGit", "bin", "bash.exe")
+        fallback = file("OtherShell", "bash.exe")
+        cases = [
+            ({"ProgramFiles": program_files}, None, wsl, native),
+            ({"ProgramFiles(x86)": program_files}, None, alias, native),
+            ({}, portable_git, wsl, portable_bash),
+            ({}, None, launcher, portable_bash),
+            ({}, None, fallback, fallback),
+            ({}, None, wsl, None),
+            ({}, None, alias, None),
+            ({}, None, None, None),
+        ]
+        for env, git, path_bash, expected in cases:
+            windows = SimpleNamespace(name="nt", environ=env, path=os.path)
+            lookup = lambda name: {"git": git, "bash": path_bash}.get(name)
+            with mock.patch.object(_kp, "os", windows), mock.patch.object(_kp.shutil, "which", side_effect=lookup):
+                try:
+                    actual = _kp.bash()
+                except FileNotFoundError:
+                    if expected is not None:
+                        return "refused discovered Git Bash: " + expected
+                else:
+                    if expected is None or os.path.normcase(actual) != os.path.normcase(expected):
+                        return "selected an unsafe or wrong shell: " + actual
+
+    native = _kp.bash()
+    result = subprocess.run([native, "--noprofile", "--norc", "-c", 'test -f "$1"',
+                             "bash-path-test", f"{KIT}/selfcheck.py"], capture_output=True, text=True, timeout=20)
+    if result.returncode:
+        return "returned Bash cannot read the kit: " + (result.stderr or result.stdout)[:200]
+
+
 # ---------------------------------------------------------------- resumable.py
 
 @check("distances() ignores hex tails and size deltas",
@@ -974,7 +1028,6 @@ def _r55():
        "landed evolve crack never reached the promotion gate, and an in-memory announced set re-fired "
        "the same lever on every re-arm")
 def _levercheck_boards():
-    import shutil
     import subprocess
     import tempfile
     d = tempfile.mkdtemp()
@@ -997,7 +1050,7 @@ def _levercheck_boards():
     keys = [ln.split()[0] for ln in r.stdout.splitlines() if ln.strip()]
     if keys != ["02011111"] or r.returncode != 1:
         return "levercheck --keys gave %s (exit %d); expected only the landed uncited 02011111" % (keys, r.returncode)
-    bash = shutil.which("bash") or "bash"
+    bash = _kp.bash()
     first = subprocess.run([bash, f"{KIT}/leverwatch.sh", "--once", "1"], capture_output=True, text=True,
                            env=env, timeout=60)
     if first.returncode != 0 or first.stdout.count("LEVER NEEDS PROMOTING") != 1 or "02011111" not in first.stdout:
@@ -1307,9 +1360,7 @@ def _staging_sweep_keeps_match():
         os.makedirs(os.path.join(d, "wip"))
         with open(os.path.join(d, "wip", "0201aaaa.cpp"), "w", encoding="utf-8") as fh:
             fh.write("// USA: func_0201aaaa\n")
-        bash = "C:/Program Files/Git/bin/bash.exe"
-        if not os.path.isfile(bash):
-            bash = "bash"
+        bash = _kp.bash()
         r = subprocess.run([bash, "-c", script], capture_output=True, text=True)
         if r.returncode != 0:
             return "sweep block failed to run: %s" % (r.stderr or "").strip()[:200]
@@ -1980,7 +2031,6 @@ def _tracked_snapshot_behaviour():
        "failed, unreadable or truncated snapshots could quarantine tracked source")
 def _finish_bulk_snapshot_behaviour():
     import subprocess
-    import shutil
     src = open(f"{KIT}/finish_wave.sh", encoding="utf-8").read()
     first = src.find("# BULK-TRACKED-BEGIN")
     last = src.find("# BULK-TRACKED-END")
@@ -1993,8 +2043,7 @@ def _finish_bulk_snapshot_behaviour():
     if addr_begin < 0 or addr_end < addr_begin: return "address reader missing"
     address_reader = src[addr_begin:addr_end]
     if 'git ls-files --error-unmatch "$f"' in src: return "per-file Git query remains"
-    bash = "C:/Program Files/Git/bin/bash.exe" if os.name == "nt" else shutil.which("bash")
-    if not bash: return "bash unavailable for behavioural snapshot test"
+    bash = _kp.bash()
     for mode in ("valid","empty","git-error","missing","unreadable","truncated","load-error"):
         os.makedirs(f"{SP}/handwork", exist_ok=True)
         root = tempfile.mkdtemp(prefix="fw_snapshot_",dir=f"{SP}/handwork").replace("\\","/")

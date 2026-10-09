@@ -10,11 +10,46 @@
     python kitpaths.py behind             commits the published kit is ahead of this checkout
 """
 import os
+import shutil
 import sys
 
 
 def _norm(p):
     return os.path.abspath(p).replace("\\", "/")
+
+
+def bash():
+    """Find native Bash; Windows prefers Git's executable over its launcher or WSL."""
+    found = shutil.which("bash")
+    if os.name != "nt":
+        if found:
+            return found
+        raise FileNotFoundError("Bash not found on PATH")
+
+    def usable(path):
+        parts = (os.path.abspath(path) + "/" + os.path.realpath(path)).replace("\\", "/").lower().split("/")
+        return not any(p in ("system32", "windowsapps") for p in parts) and os.path.isfile(path)
+
+    roots = [os.path.join(os.environ[key], "Git")
+             for key in ("ProgramFiles", "ProgramW6432", "ProgramFiles(x86)") if os.environ.get(key)]
+    if os.environ.get("LOCALAPPDATA"):
+        roots.append(os.path.join(os.environ["LOCALAPPDATA"], "Programs", "Git"))
+    for executable in (shutil.which("git"), found):
+        if not executable:
+            continue
+        folder = os.path.dirname(os.path.abspath(executable))
+        if os.path.basename(folder).lower() in ("cmd", "bin"):
+            root = os.path.dirname(folder)
+            if os.path.basename(root).lower() in ("usr", "mingw32", "mingw64"):
+                root = os.path.dirname(root)
+            roots.append(root)
+    for root in roots:
+        native = os.path.join(root, "usr", "bin", "bash.exe")
+        if usable(native):
+            return os.path.abspath(native)
+    if found and usable(found):
+        return os.path.abspath(found)
+    raise FileNotFoundError("No native Bash found; install Git for Windows or configure PATH")
 
 
 KIT = _norm(os.path.dirname(os.path.abspath(__file__)))
