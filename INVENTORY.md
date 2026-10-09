@@ -445,7 +445,7 @@ case, 193 in another, same configuration.
 
 | file | job | verified |
 |---|---|---|
-| `residue.py` | classify a residue into one fixed class: `NO-COMPILE OVERGEN UNDERGEN LOOP-SHAPE REGPERM SCHED OPERAND SHAPE`. `wgate`, `wdiff` and `blocker` all route through it, so there is one classifier, not three | `020b25c4` -> LOOP-SHAPE 47, `0205f9cc` -> SCHED 10, matching what both were documented as |
+| `residue.py` | classify a residue into one fixed class: `NO-COMPILE OVERGEN UNDERGEN LOOP-SHAPE REGPERM SCHED OPERAND SHAPE`. `wgate`, `wdiff` and `blocker` all route through it, so there is one classifier, not three. `parse_verdict` / `residue_score` are also THE verdict parser and scorer for `permorder.py`, `flagsweep.py` and `symfix.py` | `regress.py` "a residue verdict scores by its byte count" | `020b25c4` -> LOOP-SHAPE 47, `0205f9cc` -> SCHED 10, matching what both were documented as |
 | `gatelog.py` | per-address gate history (`wlog/gates/<mod>_<addr>.tsv`), and the phase-aware stall test over it. `python gatelog.py <mod> <addr> <session>` prints `STALL <phase> <n>` or `OK` | STOP fires on the 5th unchanged gate; a TIE is not an improvement (the first version scored ties as progress and could never stall) |
 | `blocker.py` | record what actually blocked a function, by re-gating its best file rather than believing the worker's prose. Appends to `wlog/blockers.tsv` | run on three real attempts; a missing file records `NO-ARTIFACT` |
 | `blockercheck.py` | rank classes by pending count and hold the dispatcher while one is over threshold. A class is ADDRESSED when `core.md` cites the address of one member — crack one, the family is free. Decline in `wlog/blockers_declined.txt` | holds at `BLOCKER_THRESH=1`, releases on a cited member |

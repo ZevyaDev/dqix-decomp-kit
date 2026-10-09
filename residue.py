@@ -9,6 +9,46 @@ import re
 CLASSES = ("MATCH", "NO-COMPILE", "OVERGEN", "UNDERGEN", "LOOP-SHAPE", "REGPERM",
            "SCHED", "OPERAND", "SHAPE", "NO-ARTIFACT", "RELOC-WRONG", "UNKNOWN")
 
+# The ONE parser for a residue headline. It has to exist because four tools grew their own copy and
+# all four were wrong the same way: `RESIDUE \w+` cannot match a HYPHENATED class, so LOOP-SHAPE --
+# a real, common class -- never parsed and every such result fell through to the "unparseable"
+# sentinel. Separately, `abs()` turned wgate's NO-COMPILE -1 into 1048576, which ranked above every
+# real residue and was printed as the best permutation.
+RESIDUE_LINE = re.compile(r"^RESIDUE\s+(\S+)\s+(-?\d+)\s*(.*)$", re.M)
+VERDICT_LINE = re.compile(r"^(MATCH|RESIDUE\s+\S+\s+-?\d+)")
+#: worse than any real byte count (the largest main slot is ~700), so an unparseable or
+#: not-compiled verdict can never be reported as a candidate improvement.
+UNSCORED = 1 << 20
+
+
+def parse_verdict(text):
+    """-> (ok, class, metric). One parser, so every tool scores a verdict identically."""
+    hit = RESIDUE_LINE.search(text)
+    if hit:
+        return True, hit.group(1), int(hit.group(2))
+    for line in text.replace("\r", "").split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        if line == "MATCH":
+            return True, "MATCH", 0
+        if VERDICT_LINE.match(line):
+            return False, "UNPARSED", 0
+    return False, "UNKNOWN", 0
+
+
+def residue_score(text):
+    """How much better this verdict is than nothing: 0 for MATCH, else the byte count.
+
+    A non-positive metric means "it did not compile", not "it is nearly right", so it is scored
+    UNSCORED rather than made small. abs() would have ranked NO-COMPILE -1 as 1.
+    """
+    ok, cls, metric = parse_verdict(text)
+    if not ok or cls == "MATCH":
+        return 0 if cls == "MATCH" else UNSCORED
+    return metric if metric > 0 else UNSCORED
+
+
 _REG = re.compile(r"\b(?:r\d+|sb|sl|fp|ip|lr|sp|pc)\b")
 _BRANCH = re.compile(r"^b(?:l|x|lx)?(?:eq|ne|cs|hs|cc|lo|mi|pl|vs|vc|hi|ls|ge|lt|gt|le|al)?$")
 _CALLEE_SAVED = re.compile(r"\b(?:r[4-9]|r1[01]|sl|fp)\b")

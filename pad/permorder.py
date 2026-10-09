@@ -15,6 +15,7 @@ a `@decls` line. Early-exits on MATCH.
 import os as _kpos, sys as _kpsys
 _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.dirname(_kpos.path.abspath(__file__))))
 import kitpaths as _kp
+import residue as _residue
 import itertools
 import os
 import re
@@ -31,18 +32,24 @@ def gate(mod, addr, path):
     env.pop("WGATE_SESSION", None)
     r = subprocess.run([sys.executable, f"{KIT}/wgate.py", mod, addr, path],
                        capture_output=True, text=True, cwd=REPO, env=env)
-    for line in ((r.stdout or "") + (r.stderr or "")).splitlines():
-        m = re.match(r"^(MATCH|RESIDUE \w+ -?\d+)", line)
-        if m:
-            return m.group(0)
-    return "?"
+    # ONE parser for the verdict (residue.py). These three copies each used `RESIDUE \w+`, which
+    # cannot match a HYPHENATED class: flagsweep's LOOP-SHAPE tier was unreachable and symfix
+    # refused every LOOP-SHAPE result as unparseable.
+    ok, cls, metric = _residue.parse_verdict((r.stdout or "") + (r.stderr or ""))
+    if not ok:
+        return "?"
+    return "MATCH" if cls == "MATCH" else f"RESIDUE {cls} {metric}"
 
 
 def score(v):
-    if v.startswith("MATCH"):
-        return -1
-    m = re.match(r"RESIDUE \w+ (-?\d+)", v)
-    return abs(int(m.group(1))) if m else 1 << 20
+    r"""Lower is better; residue.py owns the rule.
+
+    Two bugs lived here. `abs()` turned wgate's NO-COMPILE -1 into 1, so a permutation that did not
+    compile outranked every real residue and was printed as the best one. And the old
+    ``RESIDUE \w+`` could not match a hyphenated class, so every LOOP-SHAPE result scored as
+    unparseable instead of by its byte count.
+    """
+    return _residue.residue_score(v)
 
 
 def main():
