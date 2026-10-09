@@ -56,6 +56,7 @@ def create():
 
 def sync():
     if OFF:
+        bootstrap()
         return INTEG
     if not os.path.exists(f"{INTEG}/.git"):
         create()
@@ -66,7 +67,36 @@ def sync():
         if remote != tip and ancestor(tip, remote):
             tip = remote
     git("checkout", "-q", "-f", "--detach", head if ancestor(tip, head) else tip, cwd=INTEG)
+    bootstrap()
     return INTEG
+
+
+def bootstrap():
+    """Classification runs before the wave's build: prepare its stock tools first."""
+    env = dict(os.environ, DQIX_REPO=INTEG, DQIX_REGION=REGION)
+    compiler = subprocess.run([sys.executable, f"{_kp.KIT}/buildcfg.py", "--cc"],
+                              cwd=INTEG, env=env, stdout=subprocess.PIPE,
+                              text=True, check=True).stdout.strip()
+    if os.path.isfile(f"{INTEG}/build.ninja") and os.path.isfile(compiler):
+        return
+    # Cache only ignored tools, never replace an existing directory or symlink.
+    preinstalled = os.environ.get("DQIX_PREINSTALLED_COMPILER")
+    cache = preinstalled or f"{REPO}/tools/mwccarm"
+    if not os.path.isabs(cache):
+        cache = os.path.abspath(os.path.join(REPO, cache))
+    link_dir(cache, f"{INTEG}/tools/mwccarm")
+    command = [sys.executable, "tools/configure.py", REGION, "--no-extract"]
+    if preinstalled:
+        command += ["--compiler", cache]
+    # sync's stdout is captured as a path by both integration entry points.
+    subprocess.run(command, cwd=INTEG, env=env, stdout=sys.stderr, check=True)
+    if not os.path.isfile(f"{INTEG}/build.ninja"):
+        sys.exit("integration setup did not create build.ninja")
+    if not os.path.isfile(compiler):
+        target = os.path.relpath(compiler, INTEG).replace("\\", "/")
+        subprocess.run(["ninja", target], cwd=INTEG, env=env, stdout=sys.stderr, check=True)
+    if not os.path.isfile(compiler):
+        sys.exit(f"integration setup did not provide the configured compiler: {compiler}")
 
 
 def ancestor(older, newer):
@@ -117,7 +147,11 @@ if __name__ == "__main__":
     if cmd == "path":
         print(INTEG)
     elif cmd == "sync":
-        print(sync())
+        try:
+            print(sync())
+        except subprocess.CalledProcessError as error:
+            print(f"integration setup failed (exit {error.returncode}): {error.cmd}", file=sys.stderr)
+            sys.exit(error.returncode)
     elif cmd == "publish":
         sys.exit(publish())
     elif cmd == "report":

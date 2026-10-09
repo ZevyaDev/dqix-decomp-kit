@@ -1880,6 +1880,122 @@ def _rename_respects_region_blocks():
         return "rewrote a region block wrongly:\n" + out
 
 
+# ---------------------------------------------------------------- integ_tree.py
+
+@check("integration sync provisions cold tools before returning a path and leaves warm trees alone",
+       "a new integration worktree had extract links but no compiler/build graph; recovery classified "
+       "first, raised FileNotFoundError, and aborted before its later configure/build")
+def _integ_bootstrap():
+    import pathlib
+    import shutil
+    import subprocess
+    if not all(shutil.which(tool) for tool in ("git", "ninja")):
+        return "need Git and Ninja for the real startup subprocess fixture"
+    os.makedirs(f"{SP}/handwork", exist_ok=True)
+    # This exercises real Git worktree creation, configure and Ninja execution. The fixture's
+    # tool marker proves provisioning only: it is NEVER executed as a compiler or byte gate.
+    with tempfile.TemporaryDirectory(prefix="integ_bootstrap_", dir=f"{SP}/handwork") as directory:
+        root = pathlib.Path(directory)
+        repo, tree = root / "source repo", root / "integration tree"
+        (repo / "tools").mkdir(parents=True)
+        (repo / "extract").mkdir()
+        installer = ('from pathlib import Path\nimport os,sys\n'
+                     'root=Path.cwd()\n'
+                     'with (root/"events").open("a") as f: f.write("ninja\\n")\n'
+                     'if os.environ.get("BOOTSTRAP_NINJA_FAIL"): sys.exit(19)\n'
+                     'if os.environ.get("BOOTSTRAP_MISSING_TOOL"): sys.exit(0)\n'
+                     'p=Path(sys.argv[1]);p.parent.mkdir(parents=True,exist_ok=True)\n'
+                     'p.write_text("provisioning fixture only; never a compiler")\n')
+        (repo / "tools/install_fixture.py").write_text(installer, encoding="utf-8")
+        configure = ('import argparse,os,sys\nfrom pathlib import Path\n'
+                     'MWCC_VERSION="2.0/fixture"\nDECOMP_ME_COMPILER="fixture"\n'
+                     'CC_FLAGS=""\nCC_INCLUDES=""\nAS_FLAGS=""\n'
+                     'if __name__=="__main__":\n'
+                     ' p=argparse.ArgumentParser();p.add_argument("region");'
+                     'p.add_argument("--no-extract",action="store_true");p.add_argument("--compiler");a=p.parse_args()\n'
+                     ' assert a.no_extract\n'
+                     ' with Path("events").open("a") as f: f.write("configure:"+a.region+"\\n")\n'
+                     ' print("configure startup diagnostic")\n'
+                     ' if os.environ.get("BOOTSTRAP_CONFIG_FAIL"): sys.exit(17)\n'
+                     ' if os.environ.get("BOOTSTRAP_MISSING_GRAPH"): sys.exit(0)\n'
+                     ' target="tools/mwccarm/2.0/fixture/mwccarm.exe"\n'
+                     ' python=sys.executable.replace("$","$$")\n'
+                     ' Path("build.ninja").write_text("rule install\\n  command = \\\""+python+"\\\" tools/install_fixture.py $out\\n"'
+                     '+"build "+target+": install\\n",encoding="utf-8")\n')
+        (repo / "tools/configure.py").write_text(configure, encoding="utf-8")
+        subprocess.run(["git", "init", "-q", "-b", "decomp-matching", str(repo)], check=True)
+        subprocess.run(["git", "-C", str(repo), "add", "tools/"], check=True)
+        subprocess.run(["git", "-C", str(repo), "-c", "user.name=Bootstrap Fixture", "-c",
+                        "user.email=bootstrap@example.invalid", "commit", "-qm", "fixture"], check=True)
+        env = dict(os.environ, DQIX_REPO=str(repo), DQIX_MAIN_REPO=str(repo), DQIX_INTEG=str(tree),
+                   DQIX_PUBLISH="local", DQIX_REGION="jpn", DQIX_BRANCH="decomp-matching", DQIX_NO_FRESHNESS="1")
+        for key in ("DQIX_PREINSTALLED_COMPILER", "DQIX_MWCC", "BOOTSTRAP_CONFIG_FAIL",
+                    "BOOTSTRAP_NINJA_FAIL", "BOOTSTRAP_MISSING_TOOL", "BOOTSTRAP_MISSING_GRAPH"):
+            env.pop(key, None)
+        staged = root / "preserved_candidate.txt"
+        staged.write_text("candidate retained outside the worktree", encoding="utf-8")
+        def run(**extra):
+            return subprocess.run([sys.executable, f"{KIT}/integ_tree.py", "sync"], env=dict(env, **extra),
+                                  capture_output=True, text=True)
+        def events():
+            return (tree / "events").read_text().splitlines()
+        compiler = tree / "tools/mwccarm/2.0/fixture/mwccarm.exe"
+        cold = run()
+        if cold.returncode or cold.stdout.strip() != str(tree).replace("\\", "/"):
+            return "cold sync failed or polluted stdout: " + repr((cold.returncode, cold.stdout, cold.stderr[-500:]))
+        if not compiler.is_file() or not (tree / "build.ninja").is_file():
+            return "sync returned before the configured compiler/build graph existed"
+        if events() != ["configure:jpn", "ninja"] or "configure startup diagnostic" not in cold.stderr:
+            return "cold setup did not use the selected region or stderr diagnostics"
+        warm = run(BOOTSTRAP_CONFIG_FAIL="1", BOOTSTRAP_NINJA_FAIL="1")
+        if warm.returncode or events() != ["configure:jpn", "ninja"]:
+            return "warm sync configured before source self-healing"
+        # Existing tool directories are preserved, and a graph alone is not readiness.
+        sentinel = compiler.parent.parent / "keep.txt"
+        sentinel.write_text("preserve existing tools", encoding="utf-8")
+        compiler.unlink()
+        missing = run()
+        if missing.returncode or not compiler.is_file() or not sentinel.is_file():
+            return "build.ninja without compiler was accepted or existing tools were replaced"
+        compiler.unlink()
+        failed_config = run(BOOTSTRAP_CONFIG_FAIL="1")
+        if failed_config.returncode != 17 or failed_config.stdout.strip() or compiler.exists():
+            return "configure failure did not abort sync before a path/classifier"
+        failed_ninja = run(BOOTSTRAP_NINJA_FAIL="1")
+        if failed_ninja.returncode != 19 or failed_ninja.stdout.strip() or compiler.exists():
+            return "Ninja failure did not propagate without a path"
+        absent = run(BOOTSTRAP_MISSING_TOOL="1")
+        if absent.returncode == 0 or absent.stdout.strip() or compiler.exists():
+            return "successful setup without the compiler was reported ready"
+        if not sentinel.is_file() or staged.read_text() != "candidate retained outside the worktree":
+            return "failed setup lost an existing tool or candidate"
+        # The preinstalled/cache path serves the same compiler that buildcfg resolves locally.
+        cache, cached_tree = root / "preinstalled tools", root / "cached integration tree"
+        cached_compiler = cache / "2.0/fixture/mwccarm.exe"
+        cached_compiler.parent.mkdir(parents=True)
+        cached_compiler.write_text("provisioning fixture only; never a compiler", encoding="utf-8")
+        env.update(DQIX_INTEG=str(cached_tree), DQIX_PREINSTALLED_COMPILER=str(cache))
+        cached = run()
+        local_compiler = cached_tree / "tools/mwccarm/2.0/fixture/mwccarm.exe"
+        if cached.returncode or cached.stdout.strip() != str(cached_tree).replace("\\", "/"):
+            return "preinstalled compiler cache did not initialize: " + cached.stderr[-400:]
+        if not os.path.samefile(local_compiler, cached_compiler):
+            return "classifier's configured path does not reach the selected compiler cache"
+        if (cached_tree / "events").read_text().splitlines() != ["configure:jpn"]:
+            return "cache path unnecessarily downloaded or rebuilt tools"
+        (cached_tree / "build.ninja").unlink()
+        no_graph = run(BOOTSTRAP_MISSING_GRAPH="1")
+        if no_graph.returncode == 0 or no_graph.stdout.strip():
+            return "successful configure without build.ninja was reported ready"
+        env.update(DQIX_INTEG="off")
+        direct = run()
+        if direct.returncode or direct.stdout.strip().replace("\\", "/") != str(repo).replace("\\", "/"):
+            return "direct integration mode bypassed or failed bootstrap: " + repr((direct.returncode, direct.stdout, direct.stderr[-400:]))
+        if not (repo / "build.ninja").is_file() or not (repo / "tools/mwccarm/2.0/fixture/mwccarm.exe").is_file():
+            return "direct integration mode returned an unprepared checkout"
+    return None
+
+
 STAMP = f"{SP}/wlog/functional_stamp.txt"
 
 
