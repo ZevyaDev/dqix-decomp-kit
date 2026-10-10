@@ -773,6 +773,9 @@ is register NUMBERS around a byte value, retype it before touching anything else
 - SIGNEDNESS PICKS THE MNEMONIC. A struct field typed `int` rather than `unsigned int` makes
   `f >> 2` emit `asr` not `lsr`, and `f >= 0x38` emit `blt`/`bge` not `blo`/`bhs`. When the only
   wrong mnemonics are shift or compare flavours, retype the FIELD, not the local (`020c0a40`).
+- `ldrsh` then `lsl`/`lsr #0x10` into an `unsigned short` local is a `(short)` read of a u16 field:
+  `value = (short)p->field;`. The plain read emits a predicated `ldrh` and the function comes out
+  12 bytes short (`02155d54`).
 - Keep a packed value in an `int` local so only the genuinely narrow call site pays for the
   truncation; typing the local `unsigned short` emits `lsl`/`lsr #0x10` at every use (`020307d0`).
 - three separate `and rX,sl,#0xff` for ONE integer argument are per-call implicit conversions to an
