@@ -2,6 +2,8 @@
 !/.gitignore
 !/.gitattributes
 !/.claude/
+!/.codex/
+!/team/
 !/README.md
 !/CLAUDE.md
 !/AGENTS.md
@@ -32,6 +34,8 @@
 __pycache__/
 *.o
 *.pyc
+
+/.codex/config.toml
 
 /.claude/*
 !/.claude/skills/

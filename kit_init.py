@@ -28,7 +28,7 @@ REQUIRED = {"capstone": "capstone", "elftools": "pyelftools"}
 OPTIONAL = {"frida": "frida (only for frida/*.py and pad/renum/)", "yaml": "pyyaml (only for frida/schedforce.py)"}
 REPO_FILES = ["tools/configure.py", "config/usa/arm9/symbols.txt", "config/usa/arm9/delinks.txt",
               "build.ninja", "extract/usa/arm9/arm9.bin"]
-PORTABLE_SKILLS = ["dqix-hand-match", "dqix-status", "dqix-stop", "dqix-coordinate"]
+PORTABLE_SKILLS = ["dqix-hand-match", "dqix-status", "dqix-stop", "dqix-coordinate", "dqix-team", "dqix-worker"]
 
 
 def check_python():

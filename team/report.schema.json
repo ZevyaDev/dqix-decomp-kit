@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["functions"],
+  "properties": {
+    "functions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["module", "addr", "verdict", "residue", "size", "file", "description", "lever", "lever_bytes", "notes"],
+        "properties": {
+          "module": {"type": "string", "description": "main or the 3-digit overlay number, e.g. 017"},
+          "addr": {"type": "string", "description": "8 lowercase hex digits, no 0x"},
+          "verdict": {"type": "string", "enum": ["MATCH", "RESIDUE", "NOT_STARTED"]},
+          "residue": {"type": "string", "description": "the exact last wgate.py line when not MATCH, else empty"},
+          "size": {"type": "integer", "description": "function size in bytes"},
+          "file": {"type": "string", "description": "absolute path of the final source"},
+          "description": {"type": "string", "description": "3-8 word noun phrase for the PR table, e.g. 'Battle menu confirm handler'"},
+          "lever": {"type": "string", "description": "the source transformation that closed the last residue, named concretely; empty if the first natural source matched"},
+          "lever_bytes": {"type": "integer", "description": "the gate's byte difference just before that transformation; 0 when lever is empty"},
+          "notes": {"type": "string", "description": "anything the coordinator must know: guessed callee signatures, structs duplicating a header, symbol problems"}
+        }
+      }
+    }
+  }
+}

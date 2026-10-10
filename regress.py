@@ -2159,6 +2159,75 @@ def _external_gate_state():
     if 'os.replace(_tmp,' not in gate or 'ELFFile(io.BytesIO(_fh.read()))' not in diff:
         return "snapshot publication is not atomic or differ retains an open object handle"
 
+
+# ---------------------------------------------------------------- team/team.py
+
+def _team():
+    spec = importlib.util.spec_from_file_location("_r_team", f"{KIT}/team/team.py")
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+@check("team collect refuses a gated source a reviewer would send back",
+       "the maintainer stripped a `// __ptmf_null` comment from a landed file; collect must reject any "
+       "comment but the USA tag, asm, a codegen pragma or a non-register volatile, and must not "
+       "mistake `//` inside a string or a register define for one")
+def _team_quality():
+    import tempfile
+    q = _team().quality
+    d = tempfile.mkdtemp()
+    good = os.path.join(d, "good.cpp")
+    open(good, "w").write('#include <globaldefs.h>\n#define REG_POWCNT1 (*(volatile unsigned short*)0x04000304)\n'
+                          'const char* url = "http://x";\n// USA: func_ov000_02164d74\nvoid f() {}\n')
+    if q(good):
+        return "rejected a clean source: %s" % q(good)
+    for name, body in (("comment", "// helper\n"), ("asm", "void g() { asm { nop } }\n"),
+                       ("pragma", "#pragma optimize_for_size on\n"), ("volatile", "volatile int g;\n")):
+        bad = os.path.join(d, name + ".cpp")
+        open(bad, "w").write("#include <globaldefs.h>\n" + body + "// USA: func_x\nvoid f() {}\n")
+        if not q(bad):
+            return "accepted a source with %s" % name
+    return None
+
+
+@check("team collect records a worker's lever where levercheck reads it",
+       "about 600 team matches reached decomp-matching with no levers.tsv row, so levercheck saw "
+       "nothing to promote and every discovery stayed in worker reports")
+def _team_levers():
+    import subprocess
+    import tempfile
+    d = tempfile.mkdtemp()
+    tsv = os.path.join(d, "levers.tsv")
+    t = _team()
+    t.record_lever("02133333", 460, 2, "  (int) cast keeps the\tsigned gt  ", tsv=tsv)
+    t.record_lever("02133333", 460, 2, "(int) cast keeps the signed gt", tsv=tsv)
+    if len(open(tsv, encoding="utf-8").read().splitlines()) != 1:
+        return "the same lever was recorded twice"
+    cfg = os.path.join(d, "cfg")
+    os.makedirs(cfg)
+    open(os.path.join(cfg, "delinks.txt"), "w").write("    .text start:0x02133333 end:0x02133400\n")
+    doc = os.path.join(d, "core.md")
+    open(doc, "w").write("cites nothing\n")
+    env = {**os.environ, "LEVERCHECK_TSV": tsv, "LEVERCHECK_DOCS": doc, "LEVERCHECK_CFG": cfg,
+           "LEVERCHECK_DECLINED": os.path.join(d, "none.txt"), "LEVERCHECK_BOARDS": os.path.join(d, "none")}
+    r = subprocess.run([sys.executable, f"{KIT}/levercheck.py", "--keys"], capture_output=True, text=True, env=env)
+    if r.stdout.strip() != "02133333 (int) cast keeps the signed gt":
+        return "levercheck --keys read %r from the recorded row" % r.stdout.strip()
+    return None
+
+
+@check("team integrate gives its private state every directory finish_wave writes into",
+       "a fresh <state>-integ had no wlog/, so finish_wave's `tee $SP/wlog/rec_<mod>.log` failed, "
+       "ov_recover's output was lost and all eight modules of a 48-function batch reported FATAL")
+def _team_state_dirs():
+    dirs = set(_team().state_dirs())
+    fw = open(f"{KIT}/finish_wave.sh", encoding="utf-8").read()
+    made = set(re.findall(r'mkdir -p "\$SP/([a-z_]+)"', fw))
+    missing = sorted(set(re.findall(r'\$SP/([a-z_]+)/', fw)) - dirs - made)
+    return "finish_wave writes into $SP/%s, which team integrate does not create" % missing if missing else None
+
+
 if __name__ == "__main__":
     slow = "--slow" in sys.argv
     nbad = run_functional() if slow else 0

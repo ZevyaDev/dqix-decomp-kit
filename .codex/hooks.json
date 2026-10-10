@@ -1,0 +1,31 @@
+{
+  "description": "DQIX kit: update the kit at session start; refuse `gh pr create` until prready.py prints READY.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python kit_update.py",
+            "timeout": 900,
+            "statusMessage": "Updating the DQIX kit"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Shell|shell|PowerShell|exec_command|unified_exec",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python prready.py --hook",
+            "timeout": 180,
+            "statusMessage": "Checking PR readiness"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -97,6 +97,7 @@ explains every step.
 - [docs/IMPROVEMENT_LOOP.md](docs/IMPROVEMENT_LOOP.md) — how every crack becomes a rule or automation the next session gets for free
 - [docs/FLEET.md](docs/FLEET.md) — the autonomous pipeline, knobs, stopping, cost
 - [docs/NATIVE_AGENTS.md](docs/NATIVE_AGENTS.md) — native-agent coordination and bounded crack/evolve procedures for hosts such as Codex
+- [docs/TEAM.md](docs/TEAM.md) — batch matching with a team of subagent workers (`team/team.py`, the `dqix-team` skill)
 - [docs/LESSONS.md](docs/LESSONS.md) — compiler facts and pipeline rules learned the hard way
 - [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) — sending matches and tool fixes back
 

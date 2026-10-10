@@ -3,7 +3,8 @@
 This is a coordinator-operated adaptation of the Claude dynamic workflows for Codex and
 other hosts with native subagents. Read [AGENTS.md](../AGENTS.md),
 [WORKFLOW.md](WORKFLOW.md), [FLEET.md](FLEET.md), and
-[IMPROVEMENT_LOOP.md](IMPROVEMENT_LOOP.md) first. Start with `dqix-coordinate`.
+[IMPROVEMENT_LOOP.md](IMPROVEMENT_LOOP.md) first. Start with `dqix-coordinate`. For batch matching
+with subagent workers, [TEAM.md](TEAM.md) and the `dqix-team` skill automate the bookkeeping.
 
 ## Session and ownership
 

@@ -86,6 +86,8 @@ the copy.
 | `dqix-status` | where things are: fleet, coverage, what moved, what needs a decision | all |
 | `dqix-stop` | stop everything now and verify nothing survived | all |
 | `dqix-coordinate` | coordinate native agents, bounded crack/evolve experiments, and shared findings | native-agent hosts |
+| `dqix-team` | run a team of subagent workers from reservation to published pull request (`team/team.py`, [docs/TEAM.md](docs/TEAM.md)) | all |
+| `dqix-worker` | match an assigned group as a team worker (`team/WORKER.md`) | all |
 | `dqix-plan` | run the standing plan: one function at a time, gate it, land it or record why | Claude Code |
 | `dqix-continue` | a fresh session after a limit, a crash or a long session | Claude Code |
 
@@ -95,7 +97,8 @@ the user asks.
 
 For a coordinator-operated adaptation using Codex or another host's native agents, see
 [docs/NATIVE_AGENTS.md](docs/NATIVE_AGENTS.md). It does not run the Claude workflow JavaScript or
-start a background fleet. Keep the same reservation, gate, integration and promotion rules.
+start a background fleet. Keep the same reservation, gate, integration and promotion rules. For
+batch matching with subagents (Codex or Claude Code), use `dqix-team`.
 
 ## Hard rules
 
