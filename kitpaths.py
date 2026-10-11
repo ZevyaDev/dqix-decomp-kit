@@ -68,6 +68,29 @@ KIT_URL = os.environ.get("DQIX_KIT_URL", "https://github.com/ZevyaDev/dqix-decom
 KIT_BRANCH = os.environ.get("DQIX_KIT_BRANCH", "main")
 DECOMP_URL = os.environ.get("DQIX_DECOMP_URL", "https://github.com/ZevyaDev/dqix-decomp.git")
 DECOMP_BRANCH = os.environ.get("DQIX_DECOMP_BRANCH", "decomp-matching")
+
+
+def module_label(mod):
+    """Normalise a module label to the ``main`` / ``ovNNN`` form the config paths use.
+
+    Two conventions coexist on purpose of history, not design: the gate family
+    (``wgate``/``wdiff``/``wlist``/``pad/evo_score.py``, and the module-baked ``gate.sh``) takes the
+    bare directory label (``006``), while ``frida/`` and ``pad/renum/`` take the ``ov``-prefixed form.
+    A worker that had just watched ``gate.sh`` accept ``006`` reasonably passed the same string to
+    the next tool and got a bare ``FileNotFoundError`` on ``.../overlays/006/delinks.txt``.
+
+    Accept either everywhere, so the form a tool takes is never a trap. ``main`` passes through;
+    anything that is not a recognisable label is returned unchanged rather than raising here, so the
+    caller's own error still names the value it was given.
+    """
+    m = str(mod).strip()
+    if m == "main":
+        return "main"
+    if m.isdigit():
+        return "ov%03d" % int(m)
+    if m[:2].lower() == "ov" and m[2:].isdigit():
+        return "ov%03d" % int(m[2:])
+    return m
 BUSY = ("pull_all.pid", "wave.lock", "claims/INTEGRATING")
 FRESH_EVERY = 600
 

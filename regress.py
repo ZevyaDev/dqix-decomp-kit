@@ -2787,6 +2787,27 @@ def _forcing_size_arg():
     return None
 
 
+@check("the forcing tools accept both the bare and the ov-prefixed module label",
+       "wgate/wdiff/wlist/evo_score/gate.sh take the bare label (006) while frida/ and pad/renum/ "
+       "took ov006, and nothing said so; passing the label the module-baked gate.sh had just "
+       "accepted died as a bare FileNotFoundError on .../overlays/006/delinks.txt. Three workers "
+       "in one tranche lost a run each to it")
+def _forcing_module_forms():
+    import kitpaths as _kp
+    for bare, want in (("006", "ov006"), ("ov006", "ov006"), ("main", "main"), ("15", "ov015")):
+        if _kp.module_label(bare) != want:
+            return ("module_label(%r) is %r, expected %r -- the two module conventions are still "
+                    "a trap somewhere" % (bare, _kp.module_label(bare), want))
+    tools = ("frida/schedforce.py", "frida/colorforce.py", "pad/renum/renum.py",
+             "pad/cf_multi.py", "pad/shiftdiff.py")
+    for t in tools:
+        src = open(f"{KIT}/{t}", encoding="utf-8", errors="replace").read()
+        if "module_label(" not in src:
+            return ("%s does not normalise its module argument through module_label(), so it still "
+                    "accepts only one of the two forms" % t)
+    return None
+
+
 @check("landpr refreshes the build report after it publishes",
        "landpr.py never ran `ninja report`, so after a pull-request landing cov.py and health kept "
        "the previous wave's count while CI showed the new one")
