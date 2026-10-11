@@ -1231,6 +1231,11 @@ together. A switch arm that does only what "no arm" does should not be written.
   (`0201d638`, 2452B).
 - **one `||` condition, not two ifs** (`02003ddc`): `handler == (fn)1 || (handler == 0 && slot == 1)`
   gives the shared `mov r0,#0; pop` then-block plus the cmp/cmpeq fold.
+- **name the field at each compare of ADJACENT constants** (`02160f4c`): with the field bound to a
+  local, `s == 0x54 || s == 0x55` becomes a range check (`sub #0x54`, a shift pair, `cmp #1`,
+  `ldrls/orrls/strls`), five instructions too long (OVERGEN 20). Reading
+  `*(short *)(self + 0x484)` in both compares keeps the target's two `cmp`. The negated
+  `if (s != 0x54 && s != 0x55) {} else` also matches.
 - **switch instead of if/else** (`0223c308`) to stop mwcc hoisting a shared constant above the `bne`.
 - **order the diamond** (`020ba264`): make the block the target falls through to the if-body and the
   other the else (56 -> 22 bytes).
