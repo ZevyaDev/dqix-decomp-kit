@@ -1123,7 +1123,7 @@ arguments are always set up in argument order, so a later argument's load issuin
 simple argument means the block was under 14 live, the calls sat in separate blocks, or that load
 was its base's last use. Declaration order, temps and argument spelling cannot change it. A block
 also splits at a named label, a C++ exception-region change, or after ~100 pcodes (`02157d40`,
-`02165490`). Tools: `pad/renum/pressforce.py`, `schedrule.py`, `splitforce.py`, `irdump.py`. In pass 2 two constant moves tie and IR order decides:
+`02165490`). Tools: `pad/renum/pressforce.py`, `pad/renum/schedwhy.py`, `pad/renum/renum.py`. In pass 2 two constant moves tie and IR order decides:
 when the ROM sets `r5final = 0` before `kind = 0xf`, the variable whose value is used FIRST in IR is
 created first; there the else-arm loops were counting with `r5final` (`0216033c`).
 

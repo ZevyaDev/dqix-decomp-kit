@@ -2787,6 +2787,23 @@ def _forcing_size_arg():
     return None
 
 
+@check("every .py the worker guide names actually exists in the kit",
+       "core.md's register-pressure recipe named pad/renum/pressforce.py, schedrule.py, "
+       "splitforce.py and irdump.py, and three of the four have never existed in this repository "
+       "-- no deletion in history. core.md is the one document guaranteed in every worker's "
+       "context and WORKFLOW.md tells them to grep it for their symptom, so a recipe pointing at "
+       "tools that cannot be run reads as authoritative and costs turns before it is found out")
+def _coremd_tools_exist():
+    import re as _re
+    text = open(f"{KIT}/worker_src/core.md", encoding="utf-8", errors="replace").read()
+    names = set(_re.findall(r"`([a-z_0-9/]+\.py)`", text))
+    missing = sorted(n for n in names if not os.path.exists(f"{KIT}/{n}"))
+    if missing:
+        return ("core.md names %d .py that do not exist: %s -- a worker following that recipe "
+                "chases a tool that was never written" % (len(missing), ", ".join(missing)))
+    return None
+
+
 @check("landpr refreshes the build report after it publishes",
        "landpr.py never ran `ninja report`, so after a pull-request landing cov.py and health kept "
        "the previous wave's count while CI showed the new one")
