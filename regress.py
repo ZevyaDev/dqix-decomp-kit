@@ -67,6 +67,92 @@ def _decomment_keeps_markers():
     return None
 
 
+# ---------------------------------------------------------------- pad/evo_score.py
+
+def _evo_score(sites_list):
+    """Load pad/evo_score.py with wdiff stubbed, so sites() really runs and no compiler is needed.
+
+    The stub reproduces wdiff under WDIFF_CTX=0 -- one printed line per differing instruction --
+    and honours WDIFF_MAXRUNS the way wdiff does: only the first N runs are printed, the rest are
+    announced as suppressed, and N defaults to wdiff's own default of 12.
+    """
+    class _R:
+        def __init__(self, stdout):
+            self.stdout = stdout
+
+    argv, sys.argv = sys.argv, ["evo_score.py", "main", "02011b68"]
+    try:
+        es = load("pad/evo_score")
+
+        def fake_run(cmd, **kw):
+            n = int((kw.get("env") or {}).get("WDIFF_MAXRUNS") or 12)
+            kept = sites_list[:n]
+            lost = len(sites_list) - len(kept)
+            return _R("BYTEDIFF %d bytes in %d run(s), slot=0x44c isa=thumb\n"
+                      % (len(sites_list), len(sites_list)) + "".join(kept)
+                      + (" ... %d more run(s) suppressed (raise WDIFF_MAXRUNS)\n" % lost if lost else ""))
+
+        es.subprocess = type("_sub", (), {"run": staticmethod(fake_run)})
+        return es
+    finally:
+        sys.argv = argv
+
+
+def _site(off, target, ours):
+    return " *0x%04x  %-34s| %s\n" % (off, target, ours)
+
+
+# sites 0x48 apart, so each is its own run under wdiff's merge rule and sig's alike
+_HEAD = [_site(o, "ldr r%d,[r3]" % i, "ldr r%d,[r4]" % i)
+         for i, o in enumerate((0x0048, 0x0090, 0x0118, 0x012c, 0x0150, 0x0164, 0x0190,
+                                0x01b0, 0x01d0, 0x01f0, 0x0210, 0x0230, 0x0250, 0x0270))]
+
+
+@check("evo_score's sig separates candidates that are wrong in the same places",
+       "sig was built from the OFFSETS of the differing runs and never from what differs there, so "
+       "c_frameorder.cpp and c_splitframe.cpp scored the same fitness 126 and the same sig "
+       "LOOP-SHAPE@48,90-c4,118,12c-130,150,164-170+3 while emitting different code (the frame "
+       "slots permute: recBase 0->8, fresh 8->0). dqix-evolve.js select() keeps one file per "
+       "signature, so the second residue was discarded unmeasured")
+def _evo_sig_separates_same_offsets():
+    a = _HEAD[:2]
+    b = [_HEAD[0], _site(0x0090, "ldr r0,[r3]", "ldr r0,[r5]")]
+    sa = _evo_score(a).sites("x.cpp")[0]
+    sb = _evo_score(b).sites("x.cpp")[0]
+    if sa == sb:
+        return "same offsets, different instructions, same sig: %s" % sa
+    return None
+
+
+@check("evo_score's sig separates candidates that differ only past the sixth site",
+       "sig named the first 6 differing runs and folded the rest into `+N` -- a count with no "
+       "position and no content -- and wdiff prints only WDIFF_MAXRUNS (12) runs, so two "
+       "candidates wrong in the same first six places but differently after that were one "
+       "signature")
+def _evo_sig_covers_every_site():
+    a = _evo_score(_HEAD).sites("x.cpp")[0]
+    b = _evo_score(_HEAD[:-1] + [_site(0x0270, "ldr r13,[r3]", "ldr r13,[r5]")]).sites("x.cpp")[0]
+    if a == b:
+        return "differing site 14 of 14, sig does not: %s" % a
+    return None
+
+
+@check("evo_score's sig keeps the readable offset prefix boards already carry",
+       "sig is a required field of dqix-evolve.js's scored-file schema and workers' board.tsv "
+       "files hold sigs in the old form; a replacement format would leave every one of them "
+       "unreadable")
+def _evo_sig_keeps_prefix():
+    sig, nbytes = _evo_score(_HEAD).sites("x.cpp")
+    old = "48,90,118,12c,150,164+8"          # the offset list in the format boards already carry
+    if not sig.startswith(old + "~"):
+        return "readable prefix %r lost or reworded: %s" % (old, sig)
+    if not re.fullmatch(r"[0-9a-f]{8}", sig[len(old) + 1:]):
+        return "disambiguator is not a short hex tail: %s" % sig
+    if nbytes != 14:
+        return "BYTEDIFF not parsed: %r" % nbytes
+    return None
+
+
 # ---------------------------------------------------------------- resumable.py
 
 @check("distances() ignores hex tails and size deltas",
