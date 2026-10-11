@@ -2787,6 +2787,38 @@ def _forcing_size_arg():
     return None
 
 
+@check("plausible flags a zero-negation that only exists to emit rsb padding",
+       "`zero = 0 - zero;` was invisible to plausible.py, so a candidate whose .text is only exactly "
+       "the slot size because of the invented padding assignment scored fitness 11 with no "
+       "implausible key and no +200 penalty. evo_score's fitness is the selection function for "
+       "every evolve run, so a construct the scorer cannot see is one evolve will select and breed "
+       "from. Live on ov008 02186388, where the honest source scores 985 and the padded one 11")
+def _plausible_zero_negate():
+    p = load("plausible")
+
+    def kinds(src):
+        return [k for _l, k, _w in p.findings(src)]
+
+    head = '// USA: func_ov008_02186388\nextern "C" ARM void f(S* s) {\n'
+    pad = head + "    int zero = 0;\n    zero = 0 - zero;\n    s->out = zero;\n}\n"
+    if "ZERO-NEGATE-PAD" not in kinds(pad):
+        return ("plausible did not flag `zero = 0 - zero;` immediately after `int zero = 0;` "
+                "(got %r): a self-negation of a provably-zero local has no meaning outside the "
+                "`rsb reg, reg, #0` it emits" % kinds(pad))
+
+    # x = 0 - x is how C89 writes unsigned negation. Two shapes must stay clean or the rule is a
+    # false-positive machine rather than a check.
+    real = head + "    unsigned int m = s->m;\n    m = 0u - m;\n    s->out = m;\n}\n"
+    if kinds(real):
+        return ("plausible flagged legitimate unsigned negation of a live value (got %r): "
+                "`0u - m` on a non-constant is ordinary C89 code" % kinds(real))
+    gap = head + "    int v = 0;\n    g();\n    v = 0 - v;\n    s->out = v;\n}\n"
+    if kinds(gap):
+        return ("plausible flagged a negation whose variable may have changed since it was zeroed "
+                "(got %r): the check must require the zero to still hold" % kinds(gap))
+    return None
+
+
 @check("landpr refreshes the build report after it publishes",
        "landpr.py never ran `ninja report`, so after a pull-request landing cov.py and health kept "
        "the previous wave's count while CI showed the new one")
