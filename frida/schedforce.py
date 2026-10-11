@@ -307,9 +307,20 @@ def main():
     cfg_of = {tag: cfg for cfg, tag, desc in jobs}
     combo, combo_real = {"picks": [], "edges": []}, base_real
     tags = []
+    # Try every ranked flip ON TOP OF THE RUNNING COMBO. The loop used to stop at the first
+    # flip whose STANDALONE score was no better than the baseline, which meant that once one
+    # improving flip had landed, every combination that needed a second, individually-neutral
+    # flip was never compiled -- and the tool reported that as a finished search. A combination
+    # can beat both of its parts, so standalone rank is not a valid prune. On ov008 0218aa24
+    # pick_193 (real 5) closed site B alone and pick_95..99 (all real 8) each attacked the
+    # separate site A; 8 >= 7 ended the loop before pick_193+pick_95 was ever built.
+    # SF_COMBO bounds the extra compiles; 0 means "try all of ranked".
+    budget = int(os.environ.get("SF_COMBO", "0")) or len(ranked)
+    tried = 0
     for tag, desc, real, info in ranked:
-        if len(real) >= len(base_real) or exact:
+        if exact or tried >= budget:
             break
+        tried += 1
         trial = {k: combo[k] + cfg_of[tag].get(k, []) for k in combo}
         res = one(({"mode": "flip", **trial}, "combo", ""))
         if res[2] is not None and len(res[2]) < len(combo_real):
@@ -320,6 +331,7 @@ def main():
             if not combo_real:
                 exact.append("+".join(tags))
                 break
+    print("combo: tried %d/%d ranked flips on top of the running combo" % (tried, len(ranked)))
     print("flips %d; exact: %s" % (len(results), " ".join(exact) or "none"))
 
 

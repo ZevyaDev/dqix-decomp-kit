@@ -2787,6 +2787,27 @@ def _forcing_size_arg():
     return None
 
 
+@check("schedforce's combo search is not pruned by a flip's standalone score",
+       "the combo loop broke on `len(real) >= len(base_real)`, comparing each flip's score ON ITS "
+       "OWN to the BASELINE, so once one improving flip landed every combination needing a second, "
+       "individually-neutral flip was never compiled -- and the tool reported a finished search. "
+       "On ov008 0218aa24 pick_193 (real 5) closed site B and pick_95..99 (all real 8) each "
+       "attacked site A; 8 >= 7 ended the loop before pick_193+pick_95 was built")
+def _schedforce_combo_not_pruned():
+    src = open(f"{KIT}/frida/schedforce.py", encoding="utf-8").read()
+    i = src.find("combo_real = ")
+    if i < 0:
+        return "schedforce.py no longer initialises combo_real; the combo search moved"
+    body = src[i:i + 2000]
+    for bad in ("len(real) >= len(base_real)", ">= len(base_real)"):
+        if bad in body:
+            return ("the combo loop still prunes on the baseline (%r): a flip that only helps in "
+                    "combination is skipped, and the search reports itself complete" % bad)
+    if "SF_COMBO" not in body:
+        return "the combo loop has no cost bound; add SF_COMBO to cap the extra compiles"
+    return None
+
+
 @check("landpr refreshes the build report after it publishes",
        "landpr.py never ran `ninja report`, so after a pull-request landing cov.py and health kept "
        "the previous wave's count while CI showed the new one")
