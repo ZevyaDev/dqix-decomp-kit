@@ -52,7 +52,7 @@ else:
 # The `// USA:` tag matcher. The overlay pattern is byte-identical to the old hardcoded one; main only
 # adds \b so `func_<8hex>` can never swallow a 9th hex digit. The two can never cross-match: after
 # `// USA: func_` an overlay tag continues `ov...`, and `o` is not a hex digit.
-TAGRE = rf'// {TAG}: {TAGPRE}({HEXC}{{8}})' + (r'\b' if MAIN else '')
+TAGRE = rf'// (?:SCRATCH-)?{TAG}: {TAGPRE}({HEXC}{{8}})' + (r'\b' if MAIN else '')
 def tag_addr(txt):
     m = re.search(TAGRE, txt)
     return m.group(1).lower() if m else None       # .lower() is a no-op on the overlay class

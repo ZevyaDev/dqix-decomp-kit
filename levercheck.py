@@ -12,9 +12,16 @@ TSV = os.environ.get("LEVERCHECK_TSV", f"{SP}/wlog/levers.tsv")
 
 
 def doc_paths(kit=None):
-    if kit is None and os.environ.get("LEVERCHECK_DOCS"):
-        return [p for p in os.environ["LEVERCHECK_DOCS"].split(os.pathsep) if p]
+    # A RELATIVE entry in LEVERCHECK_DOCS IS RELATIVE TO THE KIT, NOT TO THE CWD. env.sh lists
+    # `worker_src/core.md` and `../dqix-kit-state/wlog/levers_promoted.md`, and pull_all.sh invokes
+    # this script with an ABSOLUTE path from whatever directory the dispatcher happens to be in.
+    # Returning the entries verbatim made them cwd-relative, so every promoted lever read as
+    # unpromoted unless the caller happened to be sitting in $KIT -- and pull_all.sh's HOLD then
+    # latched and never cleared, because claim.py:515 refuses to serve the pool while it is set.
     root = kit or KIT
+    if kit is None and os.environ.get("LEVERCHECK_DOCS"):
+        return [p if os.path.isabs(p) else os.path.normpath(os.path.join(root, p))
+                for p in os.environ["LEVERCHECK_DOCS"].split(os.pathsep) if p]
     return [os.path.join(root, "worker_src", "core.md"), os.path.join(root, "worker_src", "deadends.md")]
 
 
