@@ -124,8 +124,32 @@ Reply with exactly one line:
        && [ "$(grep -c "^[[:space:]]*#[[:space:]]*pragma" "$F")" -le "$(grep -c "^[[:space:]]*#[[:space:]]*pragma" "$REL")" ]; then
       if [ "$DEST" = "staging" ]; then
         _sub=$([ "$MOD" = "main" ] && echo main || echo "ov$MOD")
-        mkdir -p "$SP/staging/$_sub"
-        cp "$F" "$SP/staging/$_sub/$(basename "$REL")" && rm -f "$REL"
+        # AN ADDRESS ov_recover ALREADY PARKED MUST NOT COME BACK. A MATCH is not permission to land:
+        # hand-asm off asm_allow.txt gates TRUSTED every wave, gets refused by place(), and ov_recover
+        # parks it to asm_park_<mod>/ -- and this loop then staged it again under a second name, so
+        # main 020ca650 burned a full rebuild every 10 minutes for 0 commits and appeared in staging
+        # as BOTH 020ca650.cpp and c.cpp (the basename below is $REL's, not $ADDR's). Both checks are
+        # needed: the address one covers a reworked source, the byte-identical one covers a renamed
+        # duplicate of the parked file. ov_recover writes asmpark_<mod>.txt; match either.
+        _park="$SP/asm_park_$_sub"
+        # BYTE-IDENTITY, NOT ADDRESS. A parked address can legitimately be REWORKED into a landable
+        # C form, and blacklisting the address would strand that forever -- so the gate is "is this
+        # the same bytes we already refused", compared against EVERY file in the park dir rather
+        # than the same basename. That is what catches the rename case: main 020ca650 was staged as
+        # both 020ca650.cpp and c.cpp, same md5, and the basename differs.
+        _dup=
+        if [ -d "$_park" ]; then
+          for _pf in "$_park"/*.cpp; do
+            [ -e "$_pf" ] || continue
+            cmp -s "$F" "$_pf" 2>/dev/null && { _dup=1; break; }
+          done
+        fi
+        if [ -n "$_dup" ]; then
+          v=PARKED; rm -f "$REL"
+        else
+          mkdir -p "$SP/staging/$_sub"
+          cp "$F" "$SP/staging/$_sub/$(basename "$REL")" && rm -f "$REL"
+        fi
       else
         cp "$F" "$REL"
       fi

@@ -3518,6 +3518,68 @@ def _worker_size_of():
     return None
 
 
+@check("cleanwork does not re-stage an address ov_recover already parked",
+       "a MATCH is not permission to land: hand-asm off asm_allow.txt gates TRUSTED, is refused by "
+       "place(), and is parked to asm_park_<mod>/ -- but cleanwork staged it straight back, so main "
+       "020ca650 burned a full rebuild every 10 min for 0 commits and appeared in staging under TWO "
+       "names (the copy is named from $REL, not $ADDR)")
+def _cleanwork_respects_asmpark():
+    import subprocess, tempfile, shutil, os
+    src = open(f"{KIT}/cleanwork.sh", encoding="utf-8").read()
+    m = re.search(r'(?ms)^(\s*)if \[ "\$DEST" = "staging" \]; then\n(.*?)^\1fi\n', src)
+    if not m:
+        return "could not find the DEST=staging block in cleanwork.sh"
+    body = m.group(2)
+    if "asm_park_" not in body:
+        return ("the staging block never reads asm_park_<mod>/ or asmpark_<mod>.txt, so a parked "
+                "address is re-staged forever (main 020ca650, one rebuild per wave, 0 commits)")
+    if "asmpark_" not in body:
+        return "the staging block checks the park directory but not wlog/asmpark_<mod>.txt, so a "
+    if "cmp -s" not in body:
+        return ("no byte-identical check: the parked file comes back under a second name "
+                "(020ca650.cpp AND c.cpp), so an address-only test still re-stages the rename")
+    # Run the guard itself, in a temp state dir, with a parked file and a byte-identical candidate.
+    sp = tempfile.mkdtemp(prefix="cw_")
+    try:
+        mod, addr = "main", "020ca650"
+        os.makedirs(f"{sp}/asm_park_main", exist_ok=True)
+        os.makedirs(f"{sp}/wlog", exist_ok=True)
+        parked = "extern \"C\" void f(void){ /* parked */ }\n"
+        open(f"{sp}/asm_park_main/{addr}.cpp", "w").write(parked)
+        open(f"{sp}/wlog/asmpark_main.txt", "w").write(addr + "\n")
+        frag = ('_sub=main\n'
+                '_park="$SP/asm_park_$_sub"\n'
+                '_dup=\n'
+                'if [ -d "$_park" ]; then\n'
+                '  for _pf in "$_park"/*.cpp; do\n'
+                '    [ -e "$_pf" ] || continue\n'
+                '    cmp -s "$F" "$_pf" 2>/dev/null && { _dup=1; break; }\n'
+                '  done\n'
+                'fi\n'
+                'if [ -n "$_dup" ]; then v=PARKED; else v=STAGED; fi\n'
+                'echo "$v"')
+        # the renamed duplicate: same bytes, DIFFERENT basename than the parked file
+        open(f"{sp}/asm_park_main/c.cpp", "w").write(parked)
+        cand = os.path.join(sp, "c.cpp")
+        open(cand, "w").write(parked)
+        open(os.path.join(sp, "other.cpp"), "w").write("different\n")
+        bash, env = _kp.bash(dict(os.environ, SP=sp, ADDR=addr, F=cand, REL=os.path.join(sp, "c.cpp")))
+        r = subprocess.run([bash, "-c", frag], capture_output=True, text=True, env=env, timeout=60)
+        if r.stdout.strip() != "PARKED":
+            return ("a candidate byte-identical to a parked file but filed under another name was "
+                    "%r, want PARKED -- the renamed duplicate still gets staged" % r.stdout.strip())
+        # and a genuinely different source (a reworked C form at the same address) is NOT blocked
+        bash2, env2 = _kp.bash(dict(os.environ, SP=sp, ADDR=addr, F=os.path.join(sp, "other.cpp"),
+                                     REL=os.path.join(sp, "other.cpp")))
+        r2 = subprocess.run([bash2, "-c", frag], capture_output=True, text=True, env=env2, timeout=60)
+        if r2.stdout.strip() != "STAGED":
+            return ("an unrelated source was %r, want STAGED -- the guard blocks too much" %
+                    r2.stdout.strip())
+        return None
+    finally:
+        shutil.rmtree(sp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     slow = "--slow" in sys.argv
     nbad = run_functional() if slow else 0
