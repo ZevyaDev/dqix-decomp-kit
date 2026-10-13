@@ -127,7 +127,11 @@ while :; do
     # touched, the dispatcher exits, and nothing restarts it. So the exit code is read BEFORE
     # concluding the pool is drained -- an empty result with a non-zero exit means SERVING NOTHING,
     # which must never stop the fleet.
-    MOD=$(python "$KIT/claim.py" --best 2>/dev/null | tr -d '\r\n '); _rc=$?
+    # `$?` AFTER A PIPELINE IS THE LAST STAGE'S STATUS, and there is no `set -o pipefail` here, so
+    # `$(claim.py | tr); _rc=$?` reads TR's status -- always 0 -- and silently reintroduces the exact
+    # bug this block exists to fix. Capture claim.py's own status FIRST, then clean the value.
+    MOD=$(python "$KIT/claim.py" --best 2>/dev/null); _rc=$?
+    MOD=$(printf '%s' "$MOD" | tr -d '\r\n ')
     if [ "$_rc" -eq 0 ] && [ -z "$MOD" ]; then
       echo "$(date '+%H:%M') every pool drained -- nothing left to claim" >> "$LOG"
       touch "$SP/STOP_PULL"; break
