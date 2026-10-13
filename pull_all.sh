@@ -51,7 +51,8 @@ last_sweep=$SECONDS
 last_state=0                      # 0, not $SECONDS: write STATE.md on the very first loop
 last_claimed=""
 sweep_pid=""
-update_wait=""; update_blocked=""; last_kitcheck=$((SECONDS - 600))
+update_wait=""; update_blocked=""; last_kitcheck=$((SECONDS - 600)); update_since=0
+claim_held=""; last_claimnote=$((SECONDS - 600))
 rm -f "$SP/claims/UPDATE_WAITING"
 
 while :; do
@@ -109,6 +110,7 @@ while :; do
     _behind=$(python "$KIT/kitpaths.py" behind 2>/dev/null | tr -dc '0-9')
     if [ "${_behind:-0}" -gt 0 ]; then
       update_wait=1
+      update_since=$SECONDS
       mkdir -p "$SP/claims"; date > "$SP/claims/UPDATE_WAITING"
       echo "$(date '+%H:%M') KIT UPDATE WAITING ($_behind commit(s)): no new claims; updating once running work finishes" >> "$LOG"
     fi
@@ -118,11 +120,28 @@ while :; do
   for ((s=1; s<=SLOTS; s++)); do
     [ -n "$hold_claims" ] && break
     [ -n "${slot_pid[$s]}" ] && continue
-    MOD=$(python "$KIT/claim.py" --best 2>/dev/null | tr -d '\r\n ')
-    if [ -z "$MOD" ]; then
+    # claim.py EXITS 3 AND PRINTS NOTHING WHEN IT IS SERVING BY REFUSAL, NOT BECAUSE THE POOL IS
+    # EMPTY. That is documented (AGENTS.md: "hands out no new work (exit 3) until you update") and it
+    # happens on a stale kit, on a blocker, and on the lever gate. Reading that empty stdout as
+    # "every pool drained" is what turns any transient refusal into a dead fleet: STOP_PULL is
+    # touched, the dispatcher exits, and nothing restarts it. So the exit code is read BEFORE
+    # concluding the pool is drained -- an empty result with a non-zero exit means SERVING NOTHING,
+    # which must never stop the fleet.
+    MOD=$(python "$KIT/claim.py" --best 2>/dev/null | tr -d '\r\n '); _rc=$?
+    if [ "$_rc" -eq 0 ] && [ -z "$MOD" ]; then
       echo "$(date '+%H:%M') every pool drained -- nothing left to claim" >> "$LOG"
       touch "$SP/STOP_PULL"; break
     fi
+    if [ "$_rc" -ne 0 ] || [ -z "$MOD" ]; then
+      # Refusal, not exhaustion. Log it once per cooldown and leave the slots unfilled so the next
+      # iteration retries; a fleet that stops asking because it was told "no" never recovers.
+      if [ -z "$claim_held" ] || [ $((SECONDS - last_claimnote)) -ge "${CLAIM_NOTE_EVERY:-300}" ]; then
+        echo "$(date '+%H:%M') claim.py refusing (exit $_rc) -- not drained, retrying in ${CLAIM_NOTE_EVERY:-300}s" >> "$LOG"
+        last_claimnote=$SECONDS; claim_held=1
+      fi
+      break
+    fi
+    claim_held=""
     bash "$KIT/pull_worker.sh" "$MOD" "$s" "$BUDGET" &
     slot_pid[$s]=$!
     echo "$(date '+%H:%M') slot $s -> $MOD \$$BUDGET (pid ${slot_pid[$s]})" >> "$LOG"
@@ -201,16 +220,53 @@ while :; do
     python "$KIT/progress.py" >/dev/null 2>&1 || true
   fi
 
-  if [ -n "$update_wait" ] && [ ${#slot_pid[@]} -eq 0 ] && [ -z "$integ_pid" ] && [ -z "$sweep_pid" ]; then
+  # A KIT UPDATE MUST NOT BE ABLE TO LATCH THE FLEET OFF FOREVER.
+  #
+  # Two ways this used to strand the whole fleet, both observed on 2026-10-13:
+  #
+  #   1. EXIT 3 SET `update_blocked` AND NOTHING EVER CLEARED IT. `update_blocked` gates the kitcheck
+  #      above, so once it was set the kit could never be retried -- while claim.py serves nothing at
+  #      all while the kit is behind (exit 3, per AGENTS.md). A transient uncommitted-kit moment
+  #      therefore became a PERMANENT stall: every slot asked claim.py for work, got nothing, and
+  #      `claim.py --best` returning empty reads as "every pool drained", which touches STOP_PULL and
+  #      ends the dispatcher. A latched flag plus a fail-closed claim server is a deadlock with no
+  #      way out but a hand edit.
+  #
+  #   2. THE DISPATCH CONDITION REQUIRED EVERY SLOT TO BE EMPTY, WITH NO DEADLINE. A worker that
+  #      runs long (they are budgeted in dollars, not seconds) keeps `${#slot_pid[@]}` non-zero, so
+  #      `update_wait` never cleared and claiming stayed held for as long as that worker lived.
+  #
+  # The fix for both is the same shape as the levercheck fix: a gate that RECHecks rather than
+  # latching. Blocked now gets a bounded cooldown and then retries on its own; the wait gets a
+  # deadline after which we stop waiting for a clean tree and update anyway, because running on a
+  # kit that is N commits behind is strictly better than running on no work at all.
+  if [ -n "$update_blocked" ] && [ $((SECONDS - update_blocked)) -ge "${UPDATE_BLOCKED_RETRY:-900}" ]; then
+    echo "$(date '+%H:%M') kit update retrying after block (${UPDATE_BLOCKED_RETRY:-900}s)" >> "$LOG"
+    update_blocked=""
+  fi
+
+  # A slot that will not drain must not hold the fleet off. Past the deadline, proceed regardless:
+  # kit_update.py --dispatcher is itself serialised against the wave lock, so attempting it while a
+  # worker runs is safe -- it declines rather than racing.
+  _slots_busy=${#slot_pid[@]}
+  if [ -n "$update_wait" ] && [ $((SECONDS - update_since)) -ge "${UPDATE_WAIT_MAX:-1800}" ]; then
+    echo "$(date '+%H:%M') KIT UPDATE WAITING exceeded ${UPDATE_WAIT_MAX:-1800}s ($_slots_busy slot(s) still running) -- updating anyway" >> "$LOG"
+    update_wait=""
+  fi
+
+  if [ -n "$update_wait" ] && { { [ "$_slots_busy" -eq 0 ] && [ -z "$integ_pid" ] && [ -z "$sweep_pid" ]; } \
+       || [ $((SECONDS - update_since)) -ge "${UPDATE_WAIT_MAX:-1800}" ]; }; then
     python "$KIT/kit_update.py" --dispatcher >> "$LOG" 2>&1
     case $? in
       0) echo "$(date '+%H:%M') kit updated -- restarting the dispatcher on the new code" >> "$LOG"
          rm -f "$SP/claims/UPDATE_WAITING"
          exec bash "$KIT/pull_all.sh" ;;
-      3) echo "$(date '+%H:%M') KIT UPDATE BLOCKED by local kit changes -- running on, fix with kit_update.py" >> "$LOG"
-         update_blocked=1 ;;
+      3) echo "$(date '+%H:%M') KIT UPDATE BLOCKED by local kit changes -- retrying in ${UPDATE_BLOCKED_RETRY:-900}s, claiming stays OPEN" >> "$LOG"
+         # NOT a claim hold: claiming continues, so a blocked kit costs throughput but cannot stop it.
+         # Without the retry this flag was write-once and the fleet could never recover unattended.
+         update_blocked=$SECONDS ;;
     esac
-    update_wait=""; rm -f "$SP/claims/UPDATE_WAITING"
+    update_wait=""; update_since=0; rm -f "$SP/claims/UPDATE_WAITING"
   fi
 
   sleep 30
