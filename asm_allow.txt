@@ -46,3 +46,4 @@
 020c98f0  ResetSystemAndBoot020c98f0       NitroSDK OS_ResetSystem tail is inline asm: mov sp to the IRQ stack bottom, bl into ITCM; mov sp has no C form
 020c8bd4  func_020c8bd4                    NitroSDK OSi_DisplayExContext wraps its handler call in inline asm: mrs/msr cpsr, mov sp, ldr lr,=label (pokeheartgold os_exception.c:123)
 0200ae40  _d2f                             CW runtime soft-float, hand-written asm: andseq, cmn+bhs, subs+bls and an unfolded mov #0xff000000 have no C form (pokediamond RUNTIME_d_dtof.s)
+0200d8a8  func_0200d8a8                    MSL semihosting SYS_READC (mov r0,#7; swi 0x123456): a swi has no C form; neighbours func_0200d894 and sys_exit 0200d8bc are delinked as the same asm
