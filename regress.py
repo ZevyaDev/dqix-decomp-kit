@@ -3557,6 +3557,13 @@ def _worker_size_of():
     return None
 
 
+@check("identical link inputs reuse all outputs and delink checks reparse only changed ELF files",
+       "regenerated objects.txt reruns a whole mwld link; absent check stamps reparse every "
+       "unchanged ELF on each ninja check")
+def _build_cache_proofs():
+    return load("regress_fixtures/build_cache_test").prove()
+
+
 if __name__ == "__main__":
     slow = "--slow" in sys.argv
     nbad = run_functional() if slow else 0

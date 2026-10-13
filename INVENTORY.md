@@ -72,6 +72,8 @@ constructs developers would not write; the evo_score penalty).
 | `classify.py` | pre-gate verdicts so one bad function cannot red a wave; SIZE/BYTEDIFF (never COMPILE, which a crashed compiler also reports) are cached in `wlog/classify_cache.tsv` by source, compiler, flags, committed headers and classify.py itself (no cache while `include/` or `libs/` is dirty) | TRUSTED on two committed matches, SIZE on a mutation |
 | `wgate.py` | THE gate: compile, byte-compare, verify relocations | MATCH on a committed function; no longer leaks objects |
 | `buildcfg.py` | the compiler and flags read out of `tools/configure.py`, so no gate can measure on a toolchain the ROM is not built with | prints `2.0/sp2p2` and the build's own flag line |
+| `cached_build.py <region> [configure options]`, `cached_build.py build <region> -- <Ninja targets>` | opt-in adapter for the existing decomp configure/Ninja graph; content probes reuse identical link/check inputs and rebuild dependent objects on same-mtime source/header changes; normal configure restores the original graph | `regress.py` cache proofs |
+| `build_cache.py <spec> -- <original command>` | hashes ordered inputs, tools and options, atomically caches verified outputs and checks unchanged delinked ELF files individually; `DQIX_CACHE_COLD=1` executes the real commands | `regress.py` cache proofs |
 | `pragmas.py` | the codegen-`#pragma` pattern `buildcfg.py`, `wgate.py`, `selfcheck.py` and `prready.py` share, importable without a decomp tree | `regress.py` prready case |
 | `srcdir.py` | where a module's new work goes, read out of its `delinks.txt` | resolves ov033 to `src/Filesystem/Overlay_33` |
 | `wdiff.py` | decoded diff of only the diverging instructions | used continuously this session |
