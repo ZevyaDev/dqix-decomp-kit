@@ -3557,6 +3557,67 @@ def _worker_size_of():
     return None
 
 
+def _asmparked_src(src):
+    """The asmparked() function text, up to the next top-level def/class.
+
+    A trailing `^\\S` grab takes the first character of the following line instead of stopping at the
+    blank lines before it, which splices a stray letter into the extracted source.
+    """
+    m = re.search(r'(?ms)^def asmparked\(.*?(?=^\S|\Z)', src)
+    return m.group(0) if m else ""
+
+
+@check("repairsweep does not rescue a gated hand-asm file ov_recover already parked",
+       "gated/ keeps the file after ov_recover parks it to asm_park_<mod>/, and rescue_gated() copied "
+       "anything that gated MATCH into staging/ -- so main 0200c0e4, 0200c14c and 020ca650 went round "
+       "rescue -> wave refuses on asm policy -> re-park -> rescue every wave, one full rebuild each "
+       "for 0 commits. cleanwork.sh had the same guard; this was the second path into staging/")
+def _repairsweep_respects_asmpark():
+    import subprocess, tempfile, shutil, os
+    src = open(f"{KIT}/repairsweep.py", encoding="utf-8").read()
+    if "def asmparked(" not in src:
+        return "repairsweep.py has no asmparked() helper"
+    helper = _asmparked_src(src)
+    if not helper or "asmpark_" not in helper:
+        return ("asmparked() never reads wlog/asmpark_<mod>.txt, so a parked hand-asm address is "
+                "rescued from gated/ into staging/ on the MATCH verdict alone (main 020ca650, one "
+                "rebuild per wave, 0 commits)")
+    body = re.search(r'(?ms)^def rescue_gated\(\):\n(.*?)^\S', src)
+    if not body:
+        return "could not find rescue_gated() in repairsweep.py"
+    if "asmparked(" not in body.group(1):
+        return "rescue_gated() never calls asmparked(), so it promotes parked hand-asm from gated/"
+    if "parked.get(" not in body.group(1):
+        return "rescue_gated() loads asmpark but never consults it for the address it is copying"
+
+    # Exercise the real helper against a temp state dir: the listed address must be reported parked,
+    # and an unlisted one must not be. repairsweep.py is a SCRIPT (module level driver code), so it
+    # cannot be imported; extract asmparked() and exec just that, with SP pointed at the fixture.
+    sp = tempfile.mkdtemp(prefix="rs_")
+    try:
+        os.makedirs(f"{sp}/wlog", exist_ok=True)
+        listed, unlisted = "020ca650", "0216dbf0"
+        open(f"{sp}/wlog/asmpark_main.txt", "w").write(listed + "\n")
+        fn = _asmparked_src(src)
+        # Built by concatenation, not %%: fn is the real source and contains % signs in prose.
+        prog = ("SP = " + repr(sp) + "\n" + fn + "\n" +
+                'p = asmparked({"main"})\n'
+                'print("LISTED" if ' + repr(listed) + ' in p.get("main", ()) else "MISSING")\n'
+                'print("LEAKED" if ' + repr(unlisted) + ' in p.get("main", ()) else "CLEAN")\n')
+        r = subprocess.run([sys.executable, "-c", prog], capture_output=True, text=True,
+                           env=dict(os.environ, SP=sp, DQIX_STATE=sp), timeout=120)
+        out = r.stdout.split()
+        if "LISTED" not in out:
+            return ("asmparked() did not report %s as parked (stdout=%r stderr=%r) -- the rescue "
+                    "guard would promote it" % (listed, r.stdout.strip(), r.stderr.strip()[-200:]))
+        if "CLEAN" not in out:
+            return ("asmparked() reported %s as parked, but it is not in asmpark_main.txt -- the "
+                    "guard would block a landable match" % unlisted)
+        return None
+    finally:
+        shutil.rmtree(sp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     slow = "--slow" in sys.argv
     nbad = run_functional() if slow else 0
