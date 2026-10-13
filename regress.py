@@ -1153,6 +1153,56 @@ def _placement():
     return None
 
 
+@check("wgate refuses a hand-asm body unless the address is on asm_allow.txt",
+       "wgate gates a source that reaches the bytes with an asm body as MATCH. The worker session is "
+       "then paid in full, and place() refuses the file at integration and parks it in "
+       "asm_park_<mod>/ -- which nothing re-reads (#285), so the same money is spent again every wave "
+       "for 0 commits. main 020c8aac (132 B) and 0200bbe0 (152 B, a clone of the already-landed _dgr) "
+       "both gated MATCH this way. The allowlist has to stay a SKIP, not a ban: #223 and #275 are "
+       "addresses whose only form is asm, and a blanket refusal would break exactly those.")
+def _wgate_refuses_hand_asm():
+    src = open(f"{KIT}/wgate.py", encoding="utf-8").read()
+    fns = {}
+    for fn in ("hand_asm", "asm_allowed"):
+        m = re.search(rf"(?ms)^def {fn}\(.*?(?=^\S|\Z)", src)
+        if not m:
+            return f"wgate.py has no {fn}(), so the gate cannot be deciding anything about asm"
+        fns[fn] = m.group(0)
+    if "RESIDUE HAND-ASM" not in src:
+        return "wgate.py never reports HAND-ASM, so a refused candidate has no residue to be held on"
+    class _K:
+        KIT = KIT
+    ns = {"re": re, "_kp": _K}
+    for fn in ("hand_asm", "asm_allowed"):
+        exec(fns[fn], ns)
+    has, allow = ns["hand_asm"], ns["asm_allowed"]
+    # the shape that actually cost us money: a whole-function ARM asm body
+    if not has('extern "C" ARM asm int func_0200bbe0(double a, double b) {\n    nop\n}\n'):
+        return "a whole-function `ARM asm` body is not detected, so it still gates MATCH"
+    if not has("extern \"C\" void f(void) { __asm { nop } }"):
+        return "an inline `__asm` block is not detected, so inline asm still gates MATCH"
+    if has("extern \"C\" int func(int a) { return a + 1; }"):
+        return "plain C is misdetected as asm, so every real match would be refused"
+    # prose must never trip it: the recipes in core.md are full of asm mnemonics
+    if has("// the ROM assembles mov r0,r0 to a nop\nint f(void) { return 0; }\n"):
+        return "a COMMENT mentioning asm trips the gate, so any recipe quoting a mnemonic is refused"
+    if has("/* ARM asm void g(void) {} */\nint f(void) { return 0; }\n"):
+        return "a block COMMENT mentioning asm trips the gate"
+    allow_txt = open(f"{KIT}/asm_allow.txt", encoding="utf-8").read()
+    listed = [l.split('#', 1)[0].split()[0] for l in allow_txt.splitlines() if l.split('#', 1)[0].strip()]
+    if not listed:
+        return "asm_allow.txt is empty, so the skip path is untestable"
+    if not allow(listed[0]):
+        return f"{listed[0]} is on asm_allow.txt but asm_allowed() says no, so a real asm match is refused"
+    if not allow(listed[0].upper()):
+        return "asm_allowed() is case-sensitive on the hex address"
+    if allow("020fffff"):
+        return "an address that is not on the allowlist is reported allowed"
+    if not os.path.isfile(f"{KIT}/asm_allow.txt"):
+        return "asm_allow.txt is gone, so refusal is all-or-nothing again"
+    return None
+
+
 # ---------------------------------------------------------------- autorepair.py
 
 @check("autorepair drops extern \"C\" on a callee the ROM mangles, and reverts only the renames",

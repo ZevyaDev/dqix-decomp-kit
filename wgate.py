@@ -55,6 +55,28 @@ def flags_for(path):
     return _FLAG_OVR.get(os.path.basename(str(path)), [])
 
 
+def hand_asm(text):
+    """True when the source carries hand-written assembly -- a whole `ARM asm` body or an inline
+    `__asm` block. Comments are stripped FIRST: prose ABOUT assembly must never trip this, or every
+    recipe that mentions an asm mnemonic would be refused."""
+    t = re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
+    t = re.sub(r"//[^\n]*", " ", t)
+    return bool(re.search(r"\bARM\s+asm\b|\b__asm\b|\basm\s*\{", t))
+
+
+def asm_allowed(addr):
+    """True when `addr` is on asm_allow.txt. The same parse integrate.py's place() uses, so the gate
+    and the integrator can never disagree about what is allowlisted."""
+    try:
+        for _l in open(f"{_kp.KIT}/asm_allow.txt", encoding="utf-8").read().splitlines():
+            _l = _l.split("#", 1)[0].strip()
+            if _l and _l.split()[0].lower() == str(addr).lower():
+                return True
+    except OSError:
+        pass
+    return False
+
+
 _extra = os.environ.get("WGATE_FLAGS", "").split()
 if _extra:
     FLAGS = FLAGS + _extra
@@ -63,13 +85,29 @@ OV, ADDR, SRC = sys.argv[1], sys.argv[2], sys.argv[3]
 # optional 4th arg: the SECTION this func belongs to (.text default, .init for static-initializer
 # funcs). A correct .init function has NO .text at all, so measuring '.text' would report SIZE 0x0.
 SEC = sys.argv[4] if len(sys.argv) > 4 else None   # None => auto-detect from the address below
+_SRC = open(SRC, encoding="utf-8", errors="replace").read() if os.path.isfile(SRC) else ""
 _pragmas = [] if (os.environ.get("WGATE_ALLOW_COMMITTED") or os.environ.get("WGATE_ALLOW_PRAGMA")
-                  or not os.path.isfile(SRC)) else \
-    sorted(set(buildcfg.CODEGEN_PRAGMA.findall(open(SRC, encoding="utf-8", errors="replace").read())))
+                  or not _SRC) else \
+    sorted(set(buildcfg.CODEGEN_PRAGMA.findall(_SRC)))
 if _pragmas:
     print("RESIDUE PRAGMA 1 " + " ".join(_pragmas))
     print("PRAGMA: the ROM was built with every pass on, so a codegen #pragma is a diagnosis, never a "
           "match. Delete it and write the source that pass cannot reorder (core.md, PRAGMAS ARE A DIAGNOSIS).")
+    sys.exit(1)
+# AN ASM BODY REACHES THE BYTES BY DEFINITION, so it is not a match -- it is the question restated.
+# Until this existed, wgate gated such a source MATCH, the session was paid in full, and place()
+# refused it at integration and moved it to asm_park_<mod>/, which nothing re-reads (kit issue #285):
+# the same money, then a rebuild per wave, for zero commits. Refuse HERE, where a worker can still
+# be told to write BLOCKED. The allowlist stays a skip, not a ban -- #223 and #275 are both real
+# addresses whose only form is asm, and a blanket refusal would break exactly those.
+if not (os.environ.get("WGATE_ALLOW_COMMITTED") or os.environ.get("WGATE_ALLOW_PRAGMA")) \
+        and _SRC and hand_asm(_SRC) and not asm_allowed(ADDR):
+    print("RESIDUE HAND-ASM 1 " + ADDR)
+    print("HAND-ASM: this source reaches the bytes with an asm body, which is not a match. place() "
+          "refuses it at integration and parks it, so the session is paid for a result that cannot "
+          f"land. {ADDR} is not on asm_allow.txt. Write BLOCKED {ADDR} HAND-ASM and stop, or -- if the "
+          "address really is one of the allowed asm routines -- get an asm_allow.txt line first "
+          "(worker_src/core.md, NEVER WRITE HAND ASSEMBLY. STOP INSTEAD.).")
     sys.exit(1)
 # AUTO-DETECT THE SECTION. Passing the wrong section makes a perfectly correct .init function
 # report "0 .text total=0x0" and look broken; that cost a full integration pass. The delinks
