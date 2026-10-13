@@ -20,12 +20,17 @@ parser.add_argument("--no-output", action="store_true")
 parser.add_argument("--interrupt", action="store_true")
 parser.add_argument("--source", default="source.cpp")
 parser.add_argument("--header", default="include/shared.h")
+parser.add_argument("--reference")
 args = parser.parse_args()
 with Path("calls.txt").open("a", encoding="utf-8") as stream:
     stream.write(args.stage + "\n")
 time.sleep(args.delay)
 if args.fail:
     sys.exit(1)
+if args.stage == "modules" and args.reference:
+    if Path(args.o).read_bytes() != Path(args.reference).read_bytes():
+        print("NON_MATCH: built output differs from the fixed reference")
+        sys.exit(1)
 if args.stage == "compile":
     output = hashlib.sha256(Path(args.source).read_bytes() + Path(args.header).read_bytes()).digest()
     Path(args.o).write_bytes(output)

@@ -44,7 +44,9 @@ def main():
         n = ninja_syntax.Writer(stream)
         n.rule("mwld", f'"{WINE}" {LD} link -nostdlib {globals().get("LD_FLAGS", "")}')
         n.rule("mwcc", f'"{WINE}" {LD} compile -o a.o --delay 0.1', depfile="a.d")
-        n.rule("check_modules", f'"{WINE}" {DSD} modules')
+        reference = "config/usa/arm9/expected.bin"
+        check_args = " --reference " + reference if Path(reference).is_file() else ""
+        n.rule("check_modules", f'"{WINE}" {DSD} modules{check_args}')
         n.rule("check_symbols", f'"{WINE}" {DSD} symbols')
         n.rule("check_delinks", f'"{WINE}" tools/check_delinks.py objects.txt')
         n.build("a.o", "mwcc", "source.cpp", variables={"basefile": "a"})

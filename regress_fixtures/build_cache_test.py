@@ -198,7 +198,7 @@ class CacheProofs(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             cache.execute(self.spec, command)
 
-    def test_original_ninja_relinks_but_adapter_reuses(self):
+    def make_ninja_project(self):
         repo = Path(os.environ["DQIX_REPO"])
         Path("tools").mkdir()
         for source, target in [(KIT / "regress_fixtures/cache_configure.py", "tools/configure.py"),
@@ -208,12 +208,62 @@ class CacheProofs(unittest.TestCase):
             shutil.copyfile(source, target)
         Path("config/usa/arm9").mkdir(parents=True)
         Path("config/usa/arm9/symbols.txt").write_text("f=0", encoding="utf-8")
-        Path("base.nds").write_bytes(b"private ROM fixture")
+        Path("base.nds").write_bytes(b"synthetic ROM identity fixture")
         Path("rom.yaml").write_text("rom: base.nds", encoding="utf-8")
         Path("delink.yaml").write_text("generated objects", encoding="utf-8")
         Path("include").mkdir()
         Path("include/shared.h").write_text("header v1", encoding="utf-8")
         Path("source.cpp").write_text("source v1", encoding="utf-8")
+
+    def test_changed_source_non_match_agrees_with_normal_cold_build(self):
+        # All inputs are generated fixtures. No commercial tools or game ROM.
+        self.make_ninja_project()
+        env = dict(os.environ, DQIX_REPO=str(self.root), DQIX_STATE=str(self.root / "state"),
+                   DQIX_NO_FRESHNESS="1")
+        def command(*args, expected=0):
+            result = subprocess.run(args, capture_output=True, text=True, env=env)
+            self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+            return result.stdout + result.stderr
+        adapter = [sys.executable, str(KIT / "cached_build.py")]
+        build = adapter + ["build", "usa", "--", "-j1", "check"]
+        command(*adapter, "usa")
+        command(*build)
+        reference = Path("arm9.o").read_bytes()
+        Path("config/usa/arm9/expected.bin").write_bytes(reference)
+        # Establish a successful cached validation with the fixed reference.
+        command(*build)
+        before = self.calls().count("compile")
+        stamp = Path("source.cpp").stat()
+        Path("source.cpp").write_text("source v2 deliberately does not match", encoding="utf-8")
+        os.utime("source.cpp", ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
+        # Reproduce the old false match: ordinary Ninja misses the same-mtime edit.
+        command(sys.executable, "tools/configure.py", "usa")
+        command("ninja", "-j1", "check")
+        self.assertEqual(Path("arm9.o").read_bytes(), reference)
+        self.assertEqual(self.calls().count("compile"), before)
+        log = command(*build, expected=1)
+        bad = Path("arm9.o").read_bytes()
+        self.assertIn("NON_MATCH", log)
+        self.assertNotEqual(bad, reference)
+        self.assertEqual(self.calls().count("compile"), before + 1)
+        # Repeating the bad source may reuse its link, but must still fail the check.
+        links = self.calls().count("link")
+        self.assertIn("NON_MATCH", command(*build, expected=1))
+        self.assertEqual(self.calls().count("link"), links)
+        # Rebuild the same bad source through the unmodified Ninja graph.
+        command(sys.executable, "tools/configure.py", "usa")
+        Path("a.o").unlink()
+        Path("arm9.o").unlink()
+        self.assertIn("NON_MATCH", command("ninja", "-j1", "check", expected=1))
+        self.assertEqual(Path("arm9.o").read_bytes(), bad)
+        # Restoring the original source is the only way back to the known match.
+        Path("source.cpp").write_text("source v1", encoding="utf-8")
+        os.utime("source.cpp", ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
+        command(*build)
+        self.assertEqual(Path("arm9.o").read_bytes(), reference)
+
+    def test_original_ninja_relinks_but_adapter_reuses(self):
+        self.make_ninja_project()
         def command(*args, env=None):
             result = subprocess.run(args, capture_output=True, text=True, env=env)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
