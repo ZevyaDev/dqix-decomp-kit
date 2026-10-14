@@ -121,3 +121,4 @@
 020cd594  SaveDivSqrtState                   NitroSDK CP_SaveContext is asm in cp_context.c (SonicRush 94%; SDK version differs)
 020cd5d4  func_020cd5d4                      NitroSDK CPi_RestoreContext is asm in cp_context.c (SonicRush 93%; SDK version differs)
 020c19b8  Mat4x3_WriteRotationZ              NitroSDK MTX_RotZ43_ is asm in fx_mtx43.c (SonicRush fx_mtx43.c:101)
+02000ab0  func_02000ab0                      mrc/mcr p15 have no C form: NitroSDK crt0 CP15 setup (MPU regions, caches, TCM), asm in the SDK
