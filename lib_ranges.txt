@@ -16,6 +16,9 @@ jpn main 020b0994 020b0cd8 sdk either
 jpn main 020b0cd8 020d5440 sdk
 jpn main 020d5828 020d8608 sdk
 jpn main 020d8608 020d8614 sdk either
+usa 027 021d8a40 021dd8b8 sdk
+eur 027 021d8a40 021dd8b8 sdk
+jpn 027 021d9300 021de178 sdk
 usa 031 02200160 02242c54 network
 usa 031 02242c54 02243144 network either
 eur 031 02200160 02242c54 network
