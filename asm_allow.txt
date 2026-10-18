@@ -164,6 +164,7 @@
 020ca4b4  func_020ca4b4                      NitroSDK MIi_CpuCopyFast, asm void (SonicRush mi_memory.c)
 020ca650  VectorizedInvertedMemcpy           NitroSDK MI_CpuCopy8, asm void (SonicRush mi_memory.c)
 020ca7d0  func_020ca7d0                      NitroSDK MI_Zero36B, asm void (SonicRush mi_memory.c)
+020caa10  DecompressA                        NitroSDK MI_ReadUncompLZ8: every output byte is a swpb, saves r4-r11 and never uses ip
 020cab94  DecompressB                        NitroSDK MI_ReadUncompHuffman: saves r4-r12, which mwcc never does
 020cf864  func_020cf864                      NitroSDK RtcWaitBusy, static asm in rtc_external.c (pokediamond RTC_external.s)
 0219000c  func_ov016_0219000c                ov016 codec middleware: entry branches to +0x810, private register ABI between ~14 internal routines, data words inside the body
