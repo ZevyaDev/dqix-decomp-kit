@@ -9,3 +9,5 @@
 021d9e9c ov027 NitroSDK MB_ReadSegment, exact only with optimize_for_size off (speed-build spill choice), pinned until the decomp maintainers answer the compiler-flag question
 021583a8 ov004 function statics need the whole TU 021570f0..0215de9c in one file, whose .bss order only -ipa file reproduces ($SP/handwork/tu387/EAKEYS_IPA.md), pinned until the decomp maintainers answer the compiler-flag question
 0215b7f8 ov004 its string literal lives in TU 021570f0..0215de9c's pool, whose .bss order only -ipa file reproduces ($SP/handwork/tu387/EAKEYS_IPA.md), pinned until the decomp maintainers answer the compiler-flag question
+022212c4 ov031 rijndaelKeySetupEnc: the reference source matches only at -O3,p/-O4,p (kit #474), pinned until the decomp maintainers answer the compiler-flag question
+02216360 ov031 plain array-index loop matches only at -O3,p/-O4,p, -O2,p needs a hand strength-reduced offset (kit #474), pinned until the decomp maintainers answer the compiler-flag question
