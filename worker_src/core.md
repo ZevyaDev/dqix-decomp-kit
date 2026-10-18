@@ -1039,6 +1039,11 @@ When the target RE-LOADS a value you are holding in a register:
 
 ## CONTROL-FLOW SHAPE — the lever for predication, tail-sharing, and branch order
 
+- When a short-circuit prefix check advances its cursor before the last byte comparison,
+  consume the prefix with `*p++ == A && *p++ == B && ...`, then continue parsing from `p`.
+  Indexed checks followed by `p += N` in the success arm sink the advance past that comparison
+  (`ov031:02204368`, 11 bytes to MATCH).
+
 - **One soft-float conversion after a branch means the arms produce a float** (`main:02017d90`).
   Assign each arm's rounded value to one `float` local, then cast that local to `int` after the
   branch. Casting and storing inside each arm duplicates `_ffix` setup and OVERGENs by 4 bytes;
@@ -1240,6 +1245,9 @@ A `while` emits a `b` to a bottom test; it will never become the target's top-te
 the form directly:
 - guarded do-while `if (n != 0) { do { ... } while (n != 0); }` for a top-tested loop (`022378e4` —
   both loops).
+- An unsigned cursor's entry guard picks the branch: for `unsigned int offset = 0;`, keep
+  `if (offset < size) do { ... } while (offset < size);` when the ROM skips entry with `bls`;
+  `if (size != 0)` selects `beq` and leaves a one-byte residue (`ov031:022227ec`).
 - `while (y < h) { ...; if (count >= max) break; }` plus an explicit `max == 0` early return
   (`020e1438`).
 - A SIZE gap of a few bytes spread over several loops is usually this and nothing else: rewriting
