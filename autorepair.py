@@ -97,6 +97,9 @@ def repair(path, module, addr, _no_rename=False):
     applied = []
     syms = _symbols(module)
     own = syms.get(addr.lower())
+    # A .c source already has C linkage and has no `extern "C"`: probe it as C, never insert the keyword.
+    ext = ".c" if path.lower().endswith(".c") else ".cpp"
+    ec = "" if ext == ".c" else 'extern "C" '
 
     # 1. reconcile callee names ------------------------------------------------
     # ONLY identifiers used as callees. An address also shows up inside type names
@@ -127,7 +130,7 @@ def repair(path, module, addr, _no_rename=False):
     lines = out.split("\n")
     for i, line in enumerate(lines):
         for new in set(renames.values()):
-            if new in line and 'extern "C"' not in line and _declaration_line(line, new):
+            if ec and new in line and 'extern "C"' not in line and _declaration_line(line, new):
                 lines[i] = re.sub(r'^(\s*)', r'\1extern "C" ', line, count=1)
                 fixed_decls += 1
                 break
@@ -143,7 +146,7 @@ def repair(path, module, addr, _no_rename=False):
         i = out.index(f"// {REGION_TAG}:")
         head, tail = out[:i], out[i:]
         tail, n = re.subn(r'(?m)^(extern "C" )?(ARM|THUMB)\b',
-                          lambda m: 'extern "C" __declspec(initcode) ' + m.group(2), tail, count=1)
+                          lambda m: ec + '__declspec(initcode) ' + m.group(2), tail, count=1)
         if n:
             out = head + tail
             applied.append("added initcode pragma")
@@ -168,11 +171,11 @@ def repair(path, module, addr, _no_rename=False):
         # So: compile what we have and ask what symbol it actually defines. Rename only if that is
         # not already the ROM symbol, and force extern "C" when renaming so the name is literal.
         m = re.search(r'(\b(?:ARM|THUMB)\b[^\n;{]*?\b)(\w+)(\s*\()', out)
-        if m and m.group(2) != own and not _text_emits(out, own):
+        if m and m.group(2) != own and not _text_emits(out, own, ext):
             line_start = out.rfind("\n", 0, m.start(1)) + 1
             already_ec = 'extern "C"' in out[line_start:m.start(3)]
             out = out[:m.start(2)] + own + out[m.end(2):]
-            if not already_ec:
+            if ec and not already_ec:
                 out = out[:line_start] + 'extern "C" ' + out[line_start:]
             applied.append('renamed definition to the ROM symbol (extern "C")')
 
@@ -183,13 +186,13 @@ def repair(path, module, addr, _no_rename=False):
     # to a raw `func_` tag, so there is nothing to preserve here -- rename and force extern "C".
     # This fires on exactly the candidates a sweep is closing: r25 adds a parameter, which remangles.
     if (own and re.fullmatch(r"func_(?:ov\d+_)?[0-9a-fA-F]{8}", own)
-            and not _text_emits(out, own)):
+            and not _text_emits(out, own, ext)):
         m = re.search(r'(\b(?:ARM|THUMB)\b[^\n;{]*?\b)(\w+)(\s*\()', out)
         if m and m.group(2) != own:
             line_start = out.rfind("\n", 0, m.start(1)) + 1
             already_ec = 'extern "C"' in out[line_start:m.start(3)]
             out = out[:m.start(2)] + own + out[m.end(2):]
-            if not already_ec:
+            if ec and not already_ec:
                 out = out[:line_start] + 'extern "C" ' + out[line_start:]
             applied.append("renamed definition to the raw ROM tag (extern \"C\")")
 
@@ -201,9 +204,9 @@ def repair(path, module, addr, _no_rename=False):
     # 5 of 7 WRONG-SYMBOL candidates in the scratchpad pools were exactly this, and every one is a
     # finished function held back by a linkage keyword.
     if (own and "_Z" not in own and re.fullmatch(r"[A-Za-z_]\w*", own)
-            and not _text_emits(out, own)):
+            and not _text_emits(out, own, ext)):
         m = re.search(r'(?m)^([^\n=;{}]*?\b)(%s)(\s*\([^;{}]*\)\s*\{?)' % re.escape(own), out)
-        if m and 'extern "C"' not in m.group(1):
+        if m and ec and 'extern "C"' not in m.group(1):
             line_start = out.rfind("\n", 0, m.start(1)) + 1
             out = out[:line_start] + 'extern "C" ' + out[line_start:]
             applied.append('extern "C" on the definition (name was right, linkage was not)')
@@ -321,7 +324,7 @@ def _emits_symbol(path, want):
     obj = os.path.join(tempfile.gettempdir(), f"autorepair_{os.getpid()}.o")
     try:
         r = subprocess.run(buildcfg.tool_command(buildcfg.build_cc(build)) + buildcfg.build_flags(build)
-                           + ["-c", path, "-o", obj],
+                           + buildcfg.lang_flags(path) + ["-c", path, "-o", obj],
                            capture_output=True, text=True, cwd=REPO, stdin=subprocess.DEVNULL)
         if r.returncode != 0:
             return False, "repair did not compile"
@@ -349,10 +352,11 @@ def _compiles(path):
     return ok
 
 
-def _text_emits(text, want):
-    """Does this source text already define `want`? Compiles a scratch copy to find out."""
+def _text_emits(text, want, ext=".cpp"):
+    """Does this source text already define `want`? Compiles a scratch copy, in the source's own
+    language, to find out."""
     import tempfile
-    tmp = os.path.join(tempfile.gettempdir(), f"autorepair_probe_{os.getpid()}.cpp")
+    tmp = os.path.join(tempfile.gettempdir(), f"autorepair_probe_{os.getpid()}{ext}")
     try:
         with open(tmp, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(text)
