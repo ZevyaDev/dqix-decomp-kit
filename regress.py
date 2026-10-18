@@ -1423,6 +1423,11 @@ def _autorepair_keeps_c_definition():
         out = open(path, encoding="utf-8").read()
     if 'extern "C"' in out:
         return "autorepair wrote C++ linkage into a .c source: %r" % [l for l in out.splitlines() if 'extern "C"' in l]
+    # integrate.py's definition rename forces `extern "C"` unless it sees linkage already; a .c has it
+    src = open(f"{KIT}/integrate.py", encoding="utf-8").read()
+    m = re.search(r'(?m)^\s*has_ec = (.*(?:\n\s+.*)*?)$\n\s*cf = f', src)
+    if not m or 'endswith(".c")' not in m.group(1):
+        return "integrate.py would force extern \"C\" onto a .c definition (has_ec ignores the .c extension)"
     return None
 
 
