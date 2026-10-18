@@ -140,3 +140,30 @@
 0200bdb4  func_0200bdb4                      CW runtime _dls, double compare returning flags through mrs/msr, no C form (pokediamond RUNTIME_f_cmp.s)
 0200cf24  func_0200cf24                      CW runtime _ll_mul, the helper the compiler calls for a 64-bit `*`, asm in every ref (pokediamond RUNTIME_ll_mul.s)
 0200f2ec  func_0200f2ec                      CW runtime __TransferControl: loads callee-saved regs and sp from the throw context and jumps, asm void in the original (TWEWY ExceptionHandler.cpp)
+02000800  Entry                              NitroSDK crt0 _start: msr cpsr, mcr p15, stack setup, asm in crt0.c (pokediamond crt0.s)
+02000954  func_02000954                      NitroSDK crt0 INITi_CpuClear32, asm in crt0.c
+02000970  func_02000970                      NitroSDK crt0 MIi_UncompressBackward, asm in crt0.c (pmd-sky crt0.s)
+02000a1c  func_02000a1c                      NitroSDK crt0 do_autoload, asm in crt0.c (pmd-sky crt0.s)
+0200ab28  _dadd                              CW runtime _dadd, runtime .s (pokediamond RUNTIME_d_add.s)
+0200af90  func_0200af90                      CW runtime _dfixu, double->u32 the compiler calls for the cast, runtime .s
+0200b608  _dsub                              CW runtime _dsub, runtime .s (pokediamond RUNTIME_d_sub.s)
+0200b9bc  _fadd                              CW runtime _fadd, runtime .s
+0200c1c0  _fdiv                              CW runtime _fdiv with an inline reciprocal table (pokediamond RUNTIME_f_div.s)
+0200c9b4  func_0200c9b4                      CW runtime _fsqrt, float twin of the allowed _dsqrt 0200b454
+0200caa4  _fsub                              CW runtime _fsub, runtime .s
+0200cedc  _ll_udiv                           CW runtime _ll_udiv, enters _ull_mod's shared divide body (pokediamond RUNTIME_ll_div.s)
+0200cee8  _ull_mod                           CW runtime _ull_mod, shared 64-bit divide body (pokediamond RUNTIME_ll_div.s)
+0200d34c  _ddiv                              CW runtime _ddiv with an inline reciprocal table (pokediamond RUNTIME_d_div.s)
+020b20b0  func_020b20b0                      NitroSystem NNS_G2dArrangeOBJ1D: C with the SDK's inline-asm clz (MATH_CountLeadingZerosInline), like 020b1ec0
+020c0e9c  func_020c0e9c                      libdgt DGTi_hash2_arm4_small SHA-1 block transform, .s (pokediamond DGT_sha1s_arm4cw.s)
+020c129c  Mat3x3_WriteRotationZ              NitroSDK MTX_RotZ33_, asm void (SonicRush fx_mtx33.c)
+020c199c  Mat4x3_WriteRotationY              NitroSDK MTX_RotY43_, asm void (SonicRush fx_mtx43.c)
+020c8aac  func_020c8aac                      NitroSDK OSi_ExceptionHandler, asm void in os_exception.c (pmd-sky os_exception.s)
+020ca3ec  func_020ca3ec                      NitroSDK MIi_CpuClear32, asm void (SonicRush mi_memory.c)
+020ca458  func_020ca458                      NitroSDK MIi_CpuClearFast, asm void (SonicRush mi_memory.c)
+020ca4b4  func_020ca4b4                      NitroSDK MIi_CpuCopyFast, asm void (SonicRush mi_memory.c)
+020ca650  VectorizedInvertedMemcpy           NitroSDK MI_CpuCopy8, asm void (SonicRush mi_memory.c)
+020ca7d0  func_020ca7d0                      NitroSDK MI_Zero36B, asm void (SonicRush mi_memory.c)
+020cab94  DecompressB                        NitroSDK MI_ReadUncompHuffman: saves r4-r12, which mwcc never does
+020cf864  func_020cf864                      NitroSDK RtcWaitBusy, static asm in rtc_external.c (pokediamond RTC_external.s)
+0219000c  func_ov016_0219000c                ov016 codec middleware: entry branches to +0x810, private register ABI between ~14 internal routines, data words inside the body
