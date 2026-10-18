@@ -20,7 +20,7 @@ import delinked
 import gitread
 import kitpaths
 import plausible
-from pragmas import CODEGEN_PRAGMA
+from pragmas import codegen_pragmas
 
 KIT, REPO = kitpaths.KIT, kitpaths.REPO
 MATCH_PATHS = ("src/", "include/", "config/")
@@ -190,8 +190,8 @@ def decomp(decomp_tip):
                             f"(worker_src/core.md, NATURAL FORMS THAT MATCH WHERE A TRICK DID)")
     for path in changed:
         if path.startswith("src/"):
-            gained = (len(CODEGEN_PRAGMA.findall("\n".join(plus(path))))
-                      - len(CODEGEN_PRAGMA.findall("\n".join(minus(path)))))
+            gained = (len(codegen_pragmas("\n".join(plus(path)), path))
+                      - len(codegen_pragmas("\n".join(minus(path)), path)))
             if gained > 0:
                 problems.append(f"CODEGEN PRAGMA {path}: adds {gained}; a match never lands behind one "
                                 f"(AGENTS.md rule 8): remove it and find what the source lacks")

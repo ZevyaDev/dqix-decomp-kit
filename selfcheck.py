@@ -1143,12 +1143,13 @@ def _wgate_refuses_pragma():
        "every pragma in src/ is a residue papered over; wlog/pragma_ceiling.txt ratchets down with it")
 def _pragma_ratchet():
     import subprocess
-    import buildcfg
-    res = subprocess.run(["git", "-C", REPO, "grep", "-hE", r"^\s*#\s*pragma", "HEAD", "--", "src"],
+    import pragmas
+    res = subprocess.run(["git", "-C", REPO, "grep", "-E", r"^\s*#\s*pragma", "HEAD", "--", "src"],
                          capture_output=True, text=True)
     if res.returncode != 0 or not res.stdout:
         return f"git grep failed (rc={res.returncode}): {res.stderr.strip()[:120]}"
-    n = len(buildcfg.CODEGEN_PRAGMA.findall(res.stdout))
+    n = sum(len(pragmas.codegen_pragmas(line.split(":", 2)[2], line.split(":", 2)[1]))
+            for line in res.stdout.splitlines() if line.count(":") >= 2)
     path = f"{SP}/wlog/pragma_ceiling.txt"
     try:
         ceiling = int(open(path).read().split()[0])

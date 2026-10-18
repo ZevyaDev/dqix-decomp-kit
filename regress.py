@@ -2168,6 +2168,7 @@ def _prready():
                         "config/jpn/arm9/delinks.txt": "src/Untagged.cpp:\n    complete\n"
                                                        "    .text start:0x02000020 end:0x02000030\n",
                         "src/A.cpp": "#pragma optimize_for_size off\nvoid Foo() {}\n#pragma optimize_for_size reset\n",
+                        "src/B.cpp": "#pragma ipa file\nvoid Baz() {}\n",
                         "config/usa/arm9/symbols.txt": "Bar kind:function(arm,size=0x10) addr:0x02000010\n"
                                                        "data_02000030 kind:data(any) addr:0x02000030\n"
                                                        "data_02000040 kind:data(any) addr:0x02000040\n",
@@ -2175,7 +2176,8 @@ def _prready():
                         "config/usa/arm9/overlays/ov001/symbols.txt": "_Z3Bazv kind:function(arm,size=0x100) addr:0x02150000\n",
                         "config/usa/arm9/overlays/ov002/symbols.txt":
                             "_Z19Qux_ov002_02150010v kind:function(arm,size=0x10) addr:0x02150010\n"})
-        commit(kit, {"worker_src/deadends.md": "# dead ends\n02000010\tstale\n02000040\topen\n",
+        commit(kit, {"pragma_allow.txt": "src/B.cpp  ipa  Eakeys  whole-TU data layout\n",
+                     "worker_src/deadends.md": "# dead ends\n02000010\tstale\n02000040\topen\n",
                      "worker_src/core.md": "# core\nrule (02000010)\nrule (02000400)\nrule (02150010)\n"})
         commit(pub_decomp, {"src/A.cpp": "void Foo() { }\n"})
         commit(pub_kit, {"README.md": "x\n"})
@@ -2195,6 +2197,8 @@ def _prready():
                 return f"prready.py decomp flagged a region port taking the USA name: {out.strip()[-400:]}"
             if mode == "decomp" and "Qux_ov002_02150010" in out:
                 return f"prready.py decomp flagged a name that carries its address: {out.strip()[-400:]}"
+            if mode == "decomp" and "CODEGEN PRAGMA src/B.cpp" in out:
+                return f"prready.py decomp refused a pragma pragma_allow.txt lists for that file: {out.strip()[-400:]}"
         code, out = prready("--hook", stdin=json.dumps({"tool_input": {"command": "gh pr create -R ZevyaDev/dqix-decomp"}}))
         if code != 2 or "HALF RENAME" not in out:
             return f"the hook let gh pr create through on a stale decomp: exit {code}"

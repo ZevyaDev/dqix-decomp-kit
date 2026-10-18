@@ -5,14 +5,24 @@ CODEGEN_PRAGMA = re.compile(r"(?m)^[ \t]*#[ \t]*pragma[ \t]+(?!(?:define_section
 HAND_ASM = re.compile(r'(?m)^\s*asm\b|\basm\s+(?:void|int|unsigned|char|long|short)\b')
 ASM_SITE = re.compile(r"(?m)^\s*asm\b|\basm\s+(?:void|int|unsigned|char|long|short)\b|\b__asm\b|\basm\s*[({]")
 ASM_ALLOW_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "asm_allow.txt")
+PRAGMA_ALLOW_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pragma_allow.txt")
 
 
-def _allow_rows():
+def _allow_rows(path=ASM_ALLOW_PATH):
     try:
-        lines = open(ASM_ALLOW_PATH, encoding="utf-8").read().splitlines()
+        lines = open(path, encoding="utf-8").read().splitlines()
     except OSError:
         return []
     return [parts for parts in (line.split("#", 1)[0].split() for line in lines) if parts]
+
+
+def pragma_allow():
+    return {(parts[0].replace("\\", "/"), parts[1]) for parts in _allow_rows(PRAGMA_ALLOW_PATH) if len(parts) >= 2}
+
+
+def codegen_pragmas(text, path=None):
+    allowed = {name for src, name in pragma_allow() if path and src == path.replace("\\", "/")}
+    return [name for name in CODEGEN_PRAGMA.findall(text) if name not in allowed]
 
 
 def asm_allow():

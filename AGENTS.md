@@ -114,7 +114,8 @@ start a background fleet. Keep the same reservation, gate, integration and promo
 7. Integrations run in their own worktree (`python integ_tree.py path`) from the tip of
    `decomp-matching`, then fast-forward the decomp checkout. Uncommitted edits in the checkout are
    not part of them: commit what a match needs first.
-8. No hand assembly except addresses in `asm_allow.txt`. No codegen `#pragma`. Nothing in
+8. No hand assembly except addresses in `asm_allow.txt`. No codegen `#pragma` except a file and
+   pragma a maintainer approved in `pragma_allow.txt`. Nothing in
    `tools/cc_overrides.txt` or `tools/cc_flag_overrides.txt`. A match that needs one of these is a
    diagnosis: find what the source has that the ROM's did not.
 9. Route on the `RESIDUE <CLASS>` line `wgate.py` prints. Run `colorsweep.py` before calling a

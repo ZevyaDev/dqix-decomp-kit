@@ -101,7 +101,8 @@ the whole function.
   function addresses resolve to mangled symbols. `python symfix.py "$F"` rewrites callee
   declarations that cannot resolve to the committed symbol, gating before and after.
 - Not allowed: assembly (except addresses in `asm_allow.txt`), codegen `#pragma` (only
-  `define_section`, `section`, `once` pass the gate), entries in `tools/cc_overrides.txt` or
+  `define_section`, `section`, `once` pass the gate; `pragma_allow.txt` lists the few files a
+  maintainer approved), entries in `tools/cc_overrides.txt` or
   `tools/cc_flag_overrides.txt`, and a `0x<hex>` token in any function name you invent.
 - A function in an `.init` section: `#pragma define_section initcode ".init" RX` and
   `__declspec(initcode)` on the definition.

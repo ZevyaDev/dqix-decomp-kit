@@ -52,7 +52,7 @@ A pull request is accepted when:
 - each function is byte-exact and wired into `symbols.txt` / `delinks.txt` (`integrate.py` does this
   through the landing scripts)
 - definitions export the names `symbols.txt` binds, and each carries its `// USA:` tag
-- there is no hand assembly outside `asm_allow.txt`, no codegen `#pragma`, and nothing added to
+- there is no hand assembly outside `asm_allow.txt`, no codegen `#pragma` outside `pragma_allow.txt`, and nothing added to
   `tools/cc_overrides.txt` or `tools/cc_flag_overrides.txt`
 - the source reads like code a developer wrote: typed structs and members, no comments beyond the
   `// USA:` tag unless a line needs one

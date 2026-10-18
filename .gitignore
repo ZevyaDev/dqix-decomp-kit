@@ -25,6 +25,7 @@
 !/REGALLOC_FINDINGS.md
 !/worker_sdkport.md
 !/asm_allow.txt
+!/pragma_allow.txt
 !/skiplist_main.txt
 !/skiplist_ov.txt
 !/lib_ranges.txt
