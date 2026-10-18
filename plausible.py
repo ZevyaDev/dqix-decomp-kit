@@ -890,12 +890,14 @@ CAST_OF = re.compile(r"(?:\(\s*(?:const\s+)?(?:struct\s+|class\s+)?([A-Za-z_]\w*
 
 def _repeated_cast(src, out):
     seen = {}
+    spans = [(f["open"], f["close"]) for f in src.funcs]
     for m in CAST_OF.finditer(src.code):
         target = m.group(1) or m.group(2)
         if target in BUILTIN or target in SCALAR_TYPEDEFS:
             continue
         what = re.sub(r"\s+", "", m.group(3))
-        key = (target, what)
+        owner = next((k for k, (a, b) in enumerate(spans) if a < m.start() < b), None)
+        key = (owner, target, what)
         seen.setdefault(key, []).append(m.start())
         if len(seen[key]) == 2:
             _hit(out, src.line(m.start()), "REPEATED-CAST",

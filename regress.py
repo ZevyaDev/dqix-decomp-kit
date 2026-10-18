@@ -3673,6 +3673,9 @@ def _plausible_casts():
     once = "void f(S* s) {\n    g(static_cast<MapEntryList*>(s->list));\n    h((Other*)s->list);\n}\n"
     if [k for _, k, _ in P.findings(once) if k == "REPEATED-CAST"]:
         return "plausible.py flagged two different casts as a repeat"
+    apart = "void f() {\n    ((Entry*)Lookup(1))->a = 0;\n}\nvoid g() {\n    ((Entry*)Lookup(2))->b = 0;\n}\n"
+    if [k for _, k, _ in P.findings(apart) if k == "REPEATED-CAST"]:
+        return "plausible.py flagged one cast in each of two functions as a repeat"
     return None
 
 
