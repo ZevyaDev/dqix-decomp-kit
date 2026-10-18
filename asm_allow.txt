@@ -168,3 +168,4 @@
 020cab94  DecompressB                        NitroSDK MI_ReadUncompHuffman: saves r4-r12, which mwcc never does
 020cf864  func_020cf864                      NitroSDK RtcWaitBusy, static asm in rtc_external.c (pokediamond RTC_external.s)
 0219000c  func_ov016_0219000c                ov016 codec middleware: entry branches to +0x810, private register ABI between ~14 internal routines, data words inside the body
+021d90ec  __sinit_ov029_021d90ec             ov029 decryptor stub: {block, 0x021dbb48} table inline in .text after the code, addressed with add r0, pc; saves only {lr}
