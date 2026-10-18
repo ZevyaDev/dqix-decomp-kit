@@ -1408,6 +1408,28 @@ def _autorepair_keeps_cxx_callee():
     return None
 
 
+@check("autorepair leaves a correct .c definition alone instead of adding extern \"C\"",
+       "ov031 02226e08 gated MATCH as a .c, but the wave's autorepair probed the text as C++, saw a "
+       "mangled symbol, and wrote `extern \"C\"` onto the definition; mwcc -lang=c then refused the file "
+       "(\"')' expected\") and the wave integrated nothing")
+def _autorepair_keeps_c_definition():
+    import autorepair
+    text = open(f"{KIT}/regress_fixtures/MinusDec_02009edc.c", encoding="utf-8").read()
+    with tempfile.TemporaryDirectory(dir=f"{SP}/handwork", ignore_cleanup_errors=True) as d:
+        path = os.path.join(d, "func_02009edc.c")
+        with open(path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(text)
+        autorepair.repair(path, "main", "02009edc")
+        out = open(path, encoding="utf-8").read()
+    if 'extern "C"' in out:
+        return "autorepair wrote C++ linkage into a .c source: %r" % [l for l in out.splitlines() if 'extern "C"' in l]
+    src =open(f"{KIT}/integrate.py", encoding="utf-8").read()
+    m = re.search(r'(?m)^\s*has_ec = (.*(?:\n\s+.*)*?)$\n\s*cf = f', src)
+    if not m or 'endswith(".c")' not in m.group(1):
+        return "integrate.py would force extern \"C\" onto a .c definition (has_ec ignores the .c extension)"
+    return None
+
+
 # ---------------------------------------------------------------- finish_wave.sh
 
 @check("finish_wave refuses a malformed module instead of reporting green",

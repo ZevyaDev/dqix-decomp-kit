@@ -399,8 +399,8 @@ for f, addr in pending:
         fails.append((f, addr))
         continue
     sem = m.group(4) if m else None
-    has_ec = True if m is None else ('extern "C"' in m.group(2)) or ('extern "C"' in m.group(3)) \
-        or ('extern "C"' in ftxt[max(0, m.start(3) - 24):m.start(3)])
+    has_ec = True if m is None or f.lower().endswith(".c") else ('extern "C"' in m.group(2)) \
+        or ('extern "C"' in m.group(3)) or ('extern "C"' in ftxt[max(0, m.start(3) - 24):m.start(3)])
     cf = f
     if m and not keepname and (sem != want or not has_ec):
         # Force `extern "C" ARM|THUMB <want>(`. A symbol name never affects codegen, so this is
