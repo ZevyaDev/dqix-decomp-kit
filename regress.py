@@ -131,6 +131,33 @@ def _decomment_keeps_markers():
     return None
 
 
+@check("regionsync restores only the modules a delink or link error names, not the whole port",
+       "an ov029 header error and an ov027 .data range error named no `Check` line, so landpr's EUR port of "
+       "33 files was restored whole and EUR got none of #254-#267's matches")
+def _regionsync_names_error_modules():
+    R = load("regionsync")
+    log = ("[WARN ] No module for relocation from 0x02216c94 in overlay 31 to 0x02249b54\n"
+           "Error: config\\eur\\arm9\\overlays/ov029/delinks.txt:7: section .text does not exist in this file's header:\n"
+           "Error: Last symbol '@wstringBase0' in section '.data' of file 'src/NitroSDK/Overlay_27/f.cpp' has the range\n"
+           "[ERROR] Imported symbol @73 at 0x022460dc in overlay 30 is local, it cannot be used in relocation\n"
+           "Error: Failed to delink 'main_26', see errors above\n")
+    cwd = os.getcwd()
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        os.makedirs(os.path.join(d, "config/eur/arm9/overlays/ov027"))
+        with open(os.path.join(d, "config/eur/arm9/overlays/ov027/delinks.txt"), "w", encoding="utf-8") as fh:
+            fh.write("src/NitroSDK/Overlay_27/f.cpp:\n    complete\n    .text start:0x021dc680 end:0x021dc864\n")
+        os.chdir(d)
+        try:
+            got = R.failed_folders(log, "eur")
+        finally:
+            os.chdir(cwd)
+    want = {"config/eur/arm9/overlays/ov029", "config/eur/arm9/overlays/ov027", "config/eur/arm9/overlays/ov030",
+            "config/eur/arm9"}
+    if got != want:
+        return "named %r, want %r" % (sorted(got), sorted(want))
+    return None
+
+
 @check("landpr strips contribution comments from assembly sources too",
        "#259 and #265 carried 146 comment lines in .s files that landpr's .c/.cpp-only strip let through")
 def _landpr_strips_asm():

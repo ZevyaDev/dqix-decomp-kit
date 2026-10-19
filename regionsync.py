@@ -41,6 +41,10 @@ PORTS = {"eur": "tools/port_eur_config.py", "jpn": "tools/port_jpn_config.py"}
 READS_OBJECTS = {"jpn"}
 HOME = "usa"
 FAILED_CHECK = re.compile(r"Check (ARM9 main|ITCM|DTCM|overlay (\d+)): (?!OK)")
+ERROR_LINE = re.compile(r"(?m)^\s*(?:\[ERROR\]|Error:).*$")
+FAILED_CONFIG = re.compile(r"config[\\/]\w+[\\/]arm9[\\/](?:overlays[\\/]ov(\d{3})[\\/])?\w+\.txt")
+FAILED_MODULE = re.compile(r"Failed to delink '(?:ov(\d{3})|main)_\d+'|in overlay (\d+)\b|in (ARM9 main)\b")
+FAILED_FILE = re.compile(r"file '(src/[^']+)'")
 PORTED_FILE = re.compile(r"^\+[^+\s].*:\r?$", re.M)
 BLOCK = re.compile(r"(?m)^(src/\S+):[ \t]*\r?\n((?:[ \t]+\S.*(?:\r?\n|$))*)")
 TEXT = re.compile(r"\.text\s+start:0x([0-9a-fA-F]+)\s+end:0x([0-9a-fA-F]+)")
@@ -194,8 +198,20 @@ def ported(region):
 
 def failed_folders(log, region):
     root = f"config/{region}/arm9"
-    return {root if m[1] == "ARM9 main" else f"{root}/overlays/ov{int(m[2]):03d}" if m[2] else f"{root}/{m[1].lower()}"
-            for m in FAILED_CHECK.finditer(log)}
+    folders = {root if m[1] == "ARM9 main" else f"{root}/overlays/ov{int(m[2]):03d}" if m[2] else f"{root}/{m[1].lower()}"
+               for m in FAILED_CHECK.finditer(log)}
+    errors = "\n".join(ERROR_LINE.findall(log))
+    for m in FAILED_CONFIG.finditer(errors):
+        folders.add(f"{root}/overlays/ov{m[1]}" if m[1] else root)
+    for m in FAILED_MODULE.finditer(errors):
+        overlay = m[1] or m[2]
+        folders.add(f"{root}/overlays/ov{int(overlay):03d}" if overlay else root)
+    sources = set(FAILED_FILE.findall(errors))
+    for path in glob.glob(f"{root}/**/delinks.txt", recursive=True) if sources else ():
+        text = read(path)
+        if any(re.search(rf"(?m)^{re.escape(src)}:", text) for src in sources):
+            folders.add(os.path.dirname(path).replace("\\", "/"))
+    return folders
 
 
 def failed_modules(log, region):
