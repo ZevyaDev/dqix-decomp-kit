@@ -110,6 +110,8 @@
 020c832c  _Z31InvalidateInstructionCacheRangePKvj mcr has no C form (SonicRushAdventure-Decomp/os_cache.c 100%)
 020c6fb4  ReleaseGBABus                      NitroSDK OS_UnLockCartridge-style tail jump ldr r1,=f; bx r1, asm in the SDK (pokediamond OS_spinLock.c)
 020c7078  leadZeroCount                      inline clz: this compiler has no CLZ intrinsic, the SDK writes it as asm (khdays OsCountZeroBits)
+020c7080  _Z19GenerateLockOwnerIDv           NitroSDK OS_GetLockID: two clz (no CLZ intrinsic); movne/bxeq appear as branch-over-branch sequences in the ROM, asm in the SDK (pokediamond OS_spinLock.c; SonicRushAdventure os_spinLock.c)
+020c70e8  _Z18ReleaseLockOwnerIDt            NitroSDK OS_ReleaseLockID: addpl/subpl/submi off one cmp appear as branch-over-branch sequences in the ROM, asm in the SDK (pokediamond OS_spinLock.c; SonicRushAdventure os_spinLock.c)
 020b1ec0  Clz                                inline clz: this compiler has no CLZ intrinsic, the SDK writes it as asm (khdays OsCountZeroBits)
 0202cddc  func_0202cddc                      inline clz: this compiler has no CLZ intrinsic, the SDK writes it as asm (khdays OsCountZeroBits)
 020c9188  Timer1OverflowInterruptRoutine     interrupt wrapper push r0/lr; bl; pop; bx lr: mwcc returns through pc, so no C form
