@@ -10,7 +10,7 @@ import re
 import sys
 
 REPO = _kp.REPO
-RANGE = re.compile(r"(?m)^\s*\.text\s+start:0x([0-9a-fA-F]+)\s+end:0x([0-9a-fA-F]+)[ \t]*\r?$")
+RANGE = re.compile(r"(?m)^\s*\.(?:text|init)\s+start:0x([0-9a-fA-F]+)\s+end:0x([0-9a-fA-F]+)[ \t]*\r?$")
 
 
 def files(mod=None):

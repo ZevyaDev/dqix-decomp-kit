@@ -158,6 +158,17 @@ def _regionsync_names_error_modules():
     return None
 
 
+@check("delinked.py counts a function delinked in .init, not only in .text",
+       "the landed __sinit_020e660c read as not delinked, so #265 dropped a byte-exact __sinit_020e66a0 as dead (kit #509)")
+def _delinked_reads_init():
+    D = load("delinked")
+    texts = ["    .init       start:0x020e5920 end:0x020e692c kind:code align:4\n\n"
+             "src/Combat/Main/__sinit_020e660c.cpp:\n    complete\n    .init start:0x020e660c end:0x020e66a0\n"]
+    if not D.covers(0x020e660c, texts) or D.covers(0x020e5920, texts):
+        return "covers(020e660c)=%r covers(020e5920)=%r" % (D.covers(0x020e660c, texts), D.covers(0x020e5920, texts))
+    return None
+
+
 @check("landpr strips contribution comments from assembly sources too",
        "#259 and #265 carried 146 comment lines in .s files that landpr's .c/.cpp-only strip let through")
 def _landpr_strips_asm():
