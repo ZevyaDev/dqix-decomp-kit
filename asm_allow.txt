@@ -116,6 +116,7 @@
 020c7080  _Z19GenerateLockOwnerIDv           NitroSDK OS_GetLockID: two clz (no CLZ intrinsic); movne/bxeq appear as branch-over-branch sequences in the ROM, asm in the SDK (pokediamond OS_spinLock.c; SonicRushAdventure os_spinLock.c)
 020c70e8  _Z18ReleaseLockOwnerIDt            NitroSDK OS_ReleaseLockID: addpl/subpl/submi off one cmp appear as branch-over-branch sequences in the ROM, asm in the SDK (pokediamond OS_spinLock.c; SonicRushAdventure os_spinLock.c)
 020b1ec0  Clz                                inline clz: this compiler has no CLZ intrinsic, the SDK writes it as asm (khdays OsCountZeroBits)
+020b10b4  func_020b10b4                      C with the SDK's inline-asm clz (clzlt at +0xb8 and +0xcc), like 020b1ec0
 0202cddc  func_0202cddc                      inline clz: this compiler has no CLZ intrinsic, the SDK writes it as asm (khdays OsCountZeroBits)
 020c9188  Timer1OverflowInterruptRoutine     interrupt wrapper push r0/lr; bl; pop; bx lr: mwcc returns through pc, so no C form
 020ca390  func_020ca390                      NitroSDK mi_memory.c writes the MIi_Cpu* routines as asm (pmd-sky MTi_CpuClear16 83%; SDK version differs)
