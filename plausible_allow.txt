@@ -4,3 +4,4 @@
 021b0bc0 EXTERN-C-MANGLED ZevyaDev PR #153: mangled names contradict the ROM's argument widths; waits for a symbol rename
 02166070 EXTERN-C-MANGLED ZevyaDev PR #155: Object3D setters mangled unsigned short, the ROM passes unnarrowed; waits for a symbol rename
 0218dbec EXTERN-C-MANGLED ZevyaDev PR #155: Object3D setter mangled unsigned short, the ROM passes unnarrowed; waits for a symbol rename
+020e66a0 EXTERN-C-MANGLED fuzzyassassin: hand-written __sinit_020e66a0 calls KeyManager's constructor and registers its destructor; C++ cannot take a destructor's address, and placement new adds a null check; same idiom as upstream __sinit_020e6790
