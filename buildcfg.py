@@ -161,6 +161,24 @@ def lang_flags(path):
     return ["-lang=c"] if str(path).lower().endswith(".c") else []
 
 
+SOURCE_EXTS = (".cpp", ".c", ".s")
+
+
+def is_asm(path):
+    return str(path).lower().endswith(".s")
+
+
+def source_ext(path):
+    ext = os.path.splitext(str(path))[1].lower()
+    return ext if ext in SOURCE_EXTS else ".cpp"
+
+
+def compile_command(src, obj, cc, flags):
+    if is_asm(src):
+        return tool_command(AS) + AS_FLAGS + ["-o", obj, src]
+    return tool_command(cc) + list(flags) + ["-c", src, "-o", obj]
+
+
 def builds_for(mod, addr, path=None):
     own = path_build(path) if path is not None else "game"
     if own != "game":
@@ -247,6 +265,8 @@ if __name__ == "__main__":
         print(" ".join(FLAGS))
     elif "--region" in sys.argv:
         print(REGION)
+    elif "--source-exts" in sys.argv:
+        print("|".join(e.lstrip(".") for e in SOURCE_EXTS))
     elif "--compiler-root" in sys.argv:
         print(COMPILER_ROOT.replace("\\", "/"))
     elif "--config-dir" in sys.argv:

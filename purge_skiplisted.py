@@ -18,6 +18,8 @@ _kpsys.path.insert(0, _kpos.path.dirname(_kpos.path.abspath(__file__)))
 import kitpaths as _kp
 import glob, os, re, shutil, subprocess, sys
 
+import buildcfg
+
 SP = _kp.SP
 KIT = _kp.KIT
 REPO = _kp.REPO
@@ -37,10 +39,10 @@ for name in ("skiplist_main.txt", "skiplist_ov.txt"):
 # Every directory an integrator reads: staging/<mod>/ for integrate_fast, and untracked src/ for
 # both. hold_*/ and quarantine/ are deliberately NOT purged -- ov_recover filters those during
 # gather(), and they exist to preserve attempts.
-targets = sorted(glob.glob(f"{SP}/staging/*/*.cpp") + glob.glob(f"{SP}/staging/*/*.c"))
+targets = sorted(p for ext in buildcfg.SOURCE_EXTS for p in glob.glob(f"{SP}/staging/*/*{ext}"))
 untracked = subprocess.run(["git", "ls-files", "--others", "--exclude-standard", "--", "src"],
                            capture_output=True, text=True).stdout.split()
-targets += [f for f in untracked if f.endswith((".cpp", ".c"))]
+targets += [f for f in untracked if f.endswith(buildcfg.SOURCE_EXTS)]
 
 TAG = re.compile(r"// USA: func_(?:ov\d+_)?([0-9a-fA-F]{8})\b")
 moved = 0

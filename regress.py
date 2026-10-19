@@ -2002,6 +2002,7 @@ def _retag_bound_name():
 def _ov_recover_commit_leaves_ports():
     import ast
     import subprocess
+    import buildcfg
     src = open(f"{KIT}/ov_recover.py", encoding="utf-8").read()
     wanted = {"sh", "commit", "consistent", "dirty_tracked", "unstage_foreign", "committed_addrs", "tag_addr"}
     nodes = [n for n in ast.parse(src).body if isinstance(n, ast.FunctionDef) and n.name in wanted]
@@ -2030,7 +2031,7 @@ def _ov_recover_commit_leaves_ports():
               "_INDEX_MUTATORS": frozenset(("add", "reset", "checkout", "commit")), "REPO": root,
               "CFG": "config/usa/arm9", "HEXC": "[0-9a-fA-F]", "TAGRE": r"// USA: func_([0-9a-fA-F]{8})\b",
               "MSG": "Match {n}", "AUTH": [], "NOCOMMIT": False, "_DIRTY_BASE": set(),
-              "OTHER_CONFIGS": ["config/jpn"]}
+              "OTHER_CONFIGS": ["config/jpn"], "buildcfg": buildcfg}
         exec(compile(ast.Module(body=nodes, type_ignores=[]), "commit-regression", "exec"), ns)
         cwd = os.getcwd()
         os.chdir(root)
@@ -2554,6 +2555,8 @@ def _tracked_snapshot_behaviour():
        "failed, unreadable or truncated snapshots could quarantine tracked source")
 def _finish_bulk_snapshot_behaviour():
     import subprocess
+    import buildcfg
+    exts = "|".join(e.lstrip(".") for e in buildcfg.SOURCE_EXTS)
     src = open(f"{KIT}/finish_wave.sh", encoding="utf-8").read()
     first = src.find("# BULK-TRACKED-BEGIN")
     last = src.find("# BULK-TRACKED-END")
@@ -2579,6 +2582,7 @@ def _finish_bulk_snapshot_behaviour():
                 out.write("// USA: func_" + addr + "\n")
         with open(os.path.join(q,".done_main"),"w") as out: out.write("02000000\n")
         body = 'cd "$1" || exit 99; SP="$1/state"; Q="$1/quarantine"; OV=main; REGION_TAG=USA; TAGPRE=func_; SRCDIR="src/Combat/Main"; OWNDIRS=("$SRCDIR"); calls="$1/calls"\n'
+        body += 'SRC_EXTS="%s"; shopt -s extglob; SRC_GLOB="@($SRC_EXTS)"\n' % exts
         # Record actual quarantine moves without changing their arguments or result.
         body += 'mv() { printf "%s\\n" "$1" >> "$SP/../moves"; command mv "$@"; }\n'
         body += 'git() { echo x >> "$calls"; '
@@ -3096,6 +3100,7 @@ def _regionsync_builds_home_with_ports():
 def _regionsync_once_per_integrate_all():
     import shutil
     import subprocess
+    import buildcfg
     fw = open(f"{KIT}/finish_wave.sh", encoding="utf-8").read()
     if '[ "${DQIX_REGIONSYNC:-}" = defer ] || python "$KIT/regionsync.py"' not in fw:
         return "finish_wave runs regionsync.py even when its caller defers it"
@@ -3113,6 +3118,7 @@ def _regionsync_once_per_integrate_all():
             shutil.copyfile(f"{KIT}/integrate_all.sh", f"{kit}/integrate_all.sh")
             files = {
                 f"{kit}/kitpaths.py": f"import sys\nprint({{'state': {sp!r}, 'repo': {repo!r}}}[sys.argv[1]])\n",
+                f"{kit}/buildcfg.py": "print(%r)\n" % "|".join(e.lstrip(".") for e in buildcfg.SOURCE_EXTS),
                 f"{kit}/cov.py": "",
                 f"{kit}/finish_wave.sh": (f'echo "$1 ${{DQIX_REGIONSYNC:-inline}}" >> "{root}/calls"\n'
                                           f'case " {moves} " in *" $1 "*) git -C "{repo}" commit -q --allow-empty -m "$1";; esac\n'),
@@ -4546,8 +4552,9 @@ def _region_functions(script, root, region):
     import functools
     import glob
     from types import SimpleNamespace
+    import buildcfg
     cfg = SimpleNamespace(
-        REGION=region,
+        REGION=region, SOURCE_EXTS=buildcfg.SOURCE_EXTS,
         config_dir=lambda mod: "config/%s/arm9%s" % (
             region, "" if mod == "main" else "/overlays/ov" + mod),
         pristine=lambda mod: "extract/%s/%s" % (
@@ -6396,21 +6403,24 @@ def _recover_places_sdk():
         return "placed %r" % got
 
 
-def _run_place(cand_ext):
+def _run_place(cand_ext, texts=None, allow=()):
     import ast
+    import buildcfg
     src = open(f"{KIT}/ov_recover.py", encoding="utf-8").read()
-    node = next(n for n in ast.parse(src).body if isinstance(n, ast.FunctionDef) and n.name == "place")
+    nodes = [n for n in ast.parse(src).body if isinstance(n, ast.FunctionDef) and n.name in ("place", "hand_asm")]
     with tempfile.TemporaryDirectory() as root:
         game, sdk = (os.path.join(root, d).replace("\\", "/") for d in ("game", "sdk"))
         text = {a: '// USA: func_%s\nextern "C" ARM void func_%s() {}\n' % (a, a) for a in ("020d3160", "02000c9c")}
+        text.update(texts or {})
         from types import SimpleNamespace
         ns = {"re": re, "os": os, "cands": text, "_build": {"020d3160": "sdk", "02000c9c": "game"},
               "cand_ext": cand_ext,
-              "buildcfg": SimpleNamespace(lib_dir=lambda mod, b: {"sdk": sdk}[b]), "MOD": "main",
+              "buildcfg": SimpleNamespace(lib_dir=lambda mod, b: {"sdk": sdk}[b], is_asm=buildcfg.is_asm,
+                                          SOURCE_EXTS=buildcfg.SOURCE_EXTS), "MOD": "main",
               "SRCDIR": game, "TAG": "USA", "TAGPRE": "func_", "_FOREIGN_STEMS": set(),
               "tracked": lambda p: False, "sanitize": lambda t, a: ("func_" + a, t),
-              "ASMPAT": re.compile("(?!)"), "ASM_ALLOW": set(), "carry_cc_override": lambda a, p: None}
-        exec(compile(ast.Module(body=[node], type_ignores=[]), "place", "exec"), ns)
+              "ASMPAT": re.compile("(?!)"), "ASM_ALLOW": set(allow), "carry_cc_override": lambda a, p: None}
+        exec(compile(ast.Module(body=nodes, type_ignores=[]), "place", "exec"), ns)
         ns["place"](["020d3160", "02000c9c"])
         return sorted(os.path.relpath(os.path.join(d, f), root).replace("\\", "/")
                       for d, _s, fs in os.walk(root) for f in fs)
@@ -6455,6 +6465,191 @@ def _c_sources_compile_as_c():
     placed = _run_place({"02000c9c": ".c"})
     if placed != ["game/func_02000c9c.c", "sdk/func_020d3160.cpp"]:
         return "place() with a .c candidate wrote %r" % placed
+    return None
+
+
+def _arm_functions(mod, undelinked):
+    import buildcfg
+    cfg = f"{_kp.REPO}/{buildcfg.config_dir(mod)}"
+    symtxt = open(f"{cfg}/symbols.txt", encoding="utf-8").read()
+    delinks = open(f"{cfg}/delinks.txt", encoding="utf-8").read()
+    text = [(int(s, 16), int(e, 16)) for s, e in
+            re.findall(r"\.text\s+start:0x([0-9a-fA-F]+)\s+end:0x([0-9a-fA-F]+)\s+kind:code", delinks)]
+    spans = [(int(s, 16), int(e, 16)) for s, e in
+             re.findall(r"(?m)^\s*\.\w+\s+start:0x([0-9a-fA-F]+)\s+end:0x([0-9a-fA-F]+)[ \t]*$", delinks)]
+    for name, size, addr in re.findall(r"(?m)^(\S+) kind:function\(arm,size=0x([0-9a-fA-F]+)\) "
+                                       r"addr:0x([0-9a-fA-F]{8})\b", symtxt):
+        a = int(addr, 16)
+        if any(s <= a < e for s, e in text) and not (undelinked and any(s <= a < e for s, e in spans)):
+            yield name, "%08x" % a, int(size, 16)
+
+
+def _asm_source(mod, name, addr, size):
+    import buildcfg
+    delinks = open(f"{_kp.REPO}/{buildcfg.config_dir(mod)}/delinks.txt", encoding="utf-8").read()
+    base = min(int(s, 16) for s in re.findall(r"start:0x([0-9a-fA-F]+)\s+end:0x[0-9a-fA-F]+\s+kind:", delinks))
+    at = int(addr, 16) - base
+    blob = open(f"{_kp.REPO}/{buildcfg.pristine(mod)}", "rb").read()[at:at + size]
+    words = "".join("\t.word 0x%08x\n" % int.from_bytes(blob[i:i + 4], "little") for i in range(0, size, 4))
+    tag = "func_" if mod == "main" else "func_ov%s_" % mod
+    return "\t.section .text\n\t.arm\n\n\t.global %s\n\n// USA: %s%s\n%s:\n%s" % (name, tag, addr, name, words)
+
+
+@check("a .s source assembles in the gate, wdiff, shiftdiff and classify, and the wave places it as .s "
+       "only when asm_allow.txt names it",
+       "wdiff, pad/shiftdiff.py and classify handed a .s to mwccarm, so an allowlisted assembly source that "
+       "gated MATCH diffed COMPILE-FAIL and classified COMPILE, and no wave could land it (kit issue #512)")
+def _asm_sources_assemble():
+    import subprocess
+    name, addr, size = next(f for f in _arm_functions("main", False) if f[2] <= 0x40)
+    text = _asm_source("main", name, addr, size)
+    os.makedirs(f"{SP}/handwork", exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=f"{SP}/handwork", ignore_cleanup_errors=True) as d:
+        src = os.path.join(d, "%s.s" % addr).replace("\\", "/")
+        with open(src, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(text)
+        env = {**os.environ, "DQIX_STATE": d, "DQIX_NO_FRESHNESS": "1", "WGATE_SESSION": "regress",
+               "WGATE_ALLOW_COMMITTED": "1"}
+        r = subprocess.run([sys.executable, f"{KIT}/wgate.py", "main", addr, src], capture_output=True,
+                           text=True, cwd=_kp.REPO, env=env)
+        if r.stdout.strip().splitlines()[-1:] != ["MATCH"]:
+            return "wgate on a .s for %s: %s" % (addr, (r.stdout + r.stderr).strip()[-300:])
+        W = load("wdiff")
+        W.SCR = d
+        out = []
+        if W.diff("main", addr, src, out=out) != 0 or out[-1:] != ["MATCH"]:
+            return "wdiff on a .s for %s: %r" % (addr, out[-3:])
+        r = subprocess.run([sys.executable, f"{KIT}/pad/shiftdiff.py", "main", addr, src], capture_output=True,
+                           text=True, env=env)
+        if r.returncode != 0 or not r.stdout.strip().endswith("rows 0, rom 0x%x ours 0x%x" % (size, size)):
+            return "shiftdiff on a .s for %s: exit %d %s" % (addr, r.returncode, (r.stdout + r.stderr)[-300:])
+        C = load("classify")
+        C.SP = d
+        got = C.classify("main", {addr: text}, workdir=d, names={addr: os.path.basename(src)}).get(addr)
+        if got != "TRUSTED":
+            return "classify on a .s for %s: %r" % (addr, got)
+    asm = "\t.section .text\n\t.arm\n\n\t.global func_02000c9c\n\n// USA: func_02000c9c\nfunc_02000c9c:\n\tbx lr\n"
+    placed = _run_place({"02000c9c": ".s"}, {"02000c9c": asm}, {"02000c9c"})
+    if placed != ["game/func_02000c9c.s", "sdk/func_020d3160.cpp"]:
+        return "place() with an allowlisted .s candidate wrote %r" % placed
+    placed = _run_place({"02000c9c": ".s"}, {"02000c9c": asm})
+    if placed != ["sdk/func_020d3160.cpp"]:
+        return "place() wrote a .s that asm_allow.txt does not name: %r" % placed
+    return None
+
+
+@check("integrate.py wires a staged .s that asm_allow.txt names and refuses one it does not",
+       "integrate.py gathered only *.cpp and *.c, so an allowlisted .s that gated MATCH reported "
+       "`0 pending files` and was never delinked (kit issue #512)")
+def _integrate_wires_asm():
+    import subprocess
+    import buildcfg
+    import pragmas
+    allow = pragmas.asm_allow()
+    overlays = f"{_kp.REPO}/{buildcfg.config_dir('main')}/overlays"
+    picks = {}
+    for mod in ["main"] + sorted(d[2:] for d in os.listdir(overlays) if re.fullmatch(r"ov\d+", d)):
+        for name, addr, size in _arm_functions(mod, True):
+            picks.setdefault(addr in allow, (mod, name, addr, size))
+        if len(picks) == 2:
+            break
+    if len(picks) != 2:
+        return "no undelinked ARM function is left %s asm_allow.txt to build the fixture from" % (
+            "off" if True in picks else "on")
+    os.makedirs(f"{SP}/handwork", exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=f"{SP}/handwork", ignore_cleanup_errors=True) as d:
+        root = d.replace("\\", "/")
+        out = {}
+        for allowed, (mod, name, addr, size) in picks.items():
+            path = f"{root}/{int(allowed)}/{addr}.s"
+            os.makedirs(os.path.dirname(path))
+            with open(path, "w", encoding="utf-8", newline="\n") as fh:
+                fh.write(_asm_source(mod, name, addr, size))
+            r = subprocess.run([sys.executable, f"{KIT}/integrate.py", mod, f"--srcdir={os.path.dirname(path)}"],
+                               capture_output=True, text=True, encoding="utf-8", errors="replace",
+                               env={**os.environ, "DQIX_STATE": f"{root}/sp", "DQIX_NO_FRESHNESS": "1"})
+            out[allowed] = (path, r.returncode, (r.stdout + r.stderr).replace("\r\n", "\n"))
+        path, rc, log = out[True]
+        mod, _name, addr, size = picks[True]
+        wired = "+%s:\n+    complete\n+    .text start:0x%s end:0x%08x\n" % (path, addr, int(addr, 16) + size)
+        if rc != 0 or wired not in log or "integrated 1;" not in log:
+            return "integrate.py %s did not wire the allowlisted .s for %s: %s" % (mod, addr, log.strip()[-400:])
+        path, rc, log = out[False]
+        mod, _name, addr, _size = picks[False]
+        if "ASM-SKIP %s @0x%s" % (path, addr) not in log or "integrated 0;" not in log:
+            return "integrate.py %s did not refuse the .s for %s, which asm_allow.txt does not name: %s" % (
+                mod, addr, log.strip()[-400:])
+    return None
+
+
+def _fake_kit(root, sp, files):
+    import buildcfg
+    exts = "|".join(e.lstrip(".") for e in buildcfg.SOURCE_EXTS)
+    base = {f"{root}/kit/kitpaths.py": f"import sys\nprint({{'state': {sp!r}, 'repo': {root + '/repo'!r}}}[sys.argv[1]])\n",
+            f"{root}/kit/buildcfg.py": f"print({exts!r})\n",
+            f"{root}/kit/finish_wave.sh": f'echo "$1" >> "{root}/calls"\n'}
+    for path, text in {**base, **files}.items():
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(text)
+
+
+@check("integrate_fast, finish_wave, integrate_all, land_harvest and gate_staging take staged .s sources",
+       "every landing script globbed staging/ for *.cpp and *.c only, so a staged .s gave integrate_fast "
+       "`nothing staged` and exit 0, and finish_wave never copied it into src/ (kit issue #512)")
+def _landing_scripts_take_asm():
+    import shutil
+    import subprocess
+    bash, benv = _kp.bash()
+    asm = "// USA: func_0200cedc\n_ll_udiv:\n"
+    fast = open(f"{KIT}/integrate_fast.sh", encoding="utf-8").read()
+    wave = open(f"{KIT}/finish_wave.sh", encoding="utf-8").read()
+    os.makedirs(f"{SP}/handwork", exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=f"{SP}/handwork", ignore_cleanup_errors=True) as d:
+        root = d.replace("\\", "/")
+        sp = f"{root}/sp"
+        for folder in (f"{sp}/staging/main", f"{sp}/staging/ov017", f"{sp}/wlog", f"{root}/src", f"{root}/q",
+                       f"{root}/repo"):
+            os.makedirs(folder)
+        for path, text in ((f"{sp}/staging/main/0200006a.s", "// USA: func_0200006a\n"),
+                           (f"{sp}/staging/main/0200cedc.s", asm),
+                           (f"{sp}/staging/ov017/021b0000.s", "// USA: func_ov017_021b0000\n"),
+                           (f"{root}/q/.done_main", "")):
+            with open(path, "w", encoding="utf-8", newline="\n") as fh:
+                fh.write(text)
+        head = 'KIT="%s"; SP="%s"; REGION=usa\n' % (KIT, sp)
+        start = fast.index('REGION_TAG="${REGION^^}"')
+        body = head + fast[start:fast.index("\n", fast.index("\nn=$(", start) + 1) + 1] + \
+            'echo "n=$n"; staged && echo staged\n'
+        r = subprocess.run([bash, "--noprofile", "--norc", "-c", body], capture_output=True, text=True, env=benv)
+        if r.stdout.split() != ["n=3", "staged"]:
+            return "integrate_fast counted staged .s sources as %r %s" % (r.stdout.split(), r.stderr[-200:])
+        start = wave.index('REGION_TAG="${REGION^^}"')
+        body = head + 'OV=main; LBL=main; TAGPRE=func_; Q="%s/q"; SRCDIR="%s/src"\n' % (root, root) + \
+            wave[start:wave.index("\nCFG=", start) + 1] + \
+            wave[wave.index("addr_of() {"):wave.index("# 4. QUARANTINE")] + \
+            wave[wave.index("# 5. STAGING"):wave.index("# ===== end preflight")]
+        r = subprocess.run([bash, "--noprofile", "--norc", "-c", body], capture_output=True, text=True, env=benv)
+        if "staging: main took 0200cedc.s" not in r.stdout or not os.path.isfile(f"{root}/src/0200cedc.s"):
+            return "finish_wave did not copy a staged .s into src/: %s" % (r.stdout + r.stderr)[-300:]
+        _fake_kit(root, sp, {f"{root}/kit/cov.py": "", f"{root}/kit/regionsync.sh": "",
+                             f"{root}/kit/wgate.py": "print('MATCH')\n"})
+        for script in ("integrate_all.sh", "land_harvest.sh", "gate_staging.sh"):
+            shutil.copyfile(f"{KIT}/{script}", f"{root}/kit/{script}")
+        subprocess.run(["git", "-C", f"{root}/repo", "init", "-q", "-b", "decomp-matching"], capture_output=True)
+        r = subprocess.run([bash, f"{root}/kit/gate_staging.sh", "main"], capture_output=True, text=True, env=benv)
+        if "== main: 2 match, 0 rejected" not in r.stdout:
+            return "gate_staging gated staged .s sources as: %s" % (r.stdout + r.stderr)[-300:]
+        subprocess.run([bash, f"{root}/kit/integrate_all.sh"], capture_output=True, text=True, env=benv)
+        calls = open(f"{root}/calls").read().split() if os.path.exists(f"{root}/calls") else []
+        if sorted(calls) != ["017", "main"]:
+            return "integrate_all ran finish_wave for %r with only .s staged" % calls
+        os.remove(f"{root}/calls")
+        subprocess.run([bash, f"{root}/kit/land_harvest.sh"], capture_output=True, text=True, env=benv)
+        calls = open(f"{root}/calls").read().split() if os.path.exists(f"{root}/calls") else []
+        if calls != ["017", "main", "main"] or os.listdir(f"{sp}/secure_queue"):
+            return "land_harvest ran finish_wave for %r and left %r in secure_queue" % (
+                calls, os.listdir(f"{sp}/secure_queue"))
     return None
 
 

@@ -202,8 +202,7 @@ def tracked(f):
 # could not land either -- staging copies over the tracked path, the glob then reports "0 pending
 # files", and the rollback reverts the copy (0205f9cc, 9 such files at the time of the fix).
 pending = []
-for f in sorted(glob.glob(f"{SRCDIR}/**/*.cpp", recursive=True)
-                + glob.glob(f"{SRCDIR}/**/*.c", recursive=True)):
+for f in sorted(f for ext in buildcfg.SOURCE_EXTS for f in glob.glob(f"{SRCDIR}/**/*{ext}", recursive=True)):
     fn = f.replace("\\", "/")
     txt = open(f, encoding="utf-8", errors="ignore").read()
     if tracked(fn) and all(a.lower() in DELINKED for a in
@@ -329,6 +328,11 @@ os.makedirs(f"{SP}/wlog", exist_ok=True)
 from pragmas import HAND_ASM as ASMPAT, asm_allow
 ASM_ALLOW = asm_allow()
 
+
+def hand_asm(f):
+    return buildcfg.is_asm(f) or bool(ASMPAT.search(open(f, encoding="utf-8", errors="ignore").read()))
+
+
 ORIGINAL = {}
 for f, addr in pending:
     if f not in ORIGINAL:
@@ -352,7 +356,7 @@ for f, addr in pending:
     # src/, so anything place() refused could still walk in here from another tool and land as
     # assembly -- which is how eleven secure-area stubs entered a combined build nobody intended
     # to batch. The allowlist is the single control point for both integrators.
-    if addr not in ASM_ALLOW and ASMPAT.search(open(f, encoding="utf-8", errors="ignore").read()):
+    if addr not in ASM_ALLOW and hand_asm(f):
         print(f"ASM-SKIP {f} @0x{addr}: hand-asm and not on the asm allowlist — SKIP")
         fails.append((f, addr))
         continue
@@ -372,7 +376,7 @@ for f, addr in pending:
 
     # Fix the mechanical faults (uncommitted callee names, a missing .init pragma) BEFORE judging.
     try:
-        fixes = _autorepair.repair(f, MOD, addr)
+        fixes = [] if buildcfg.is_asm(f) else _autorepair.repair(f, MOD, addr)
         if fixes:
             print(f"REPAIR {f} @0x{addr}: " + ", ".join(fixes))
     except Exception as e:
@@ -382,7 +386,7 @@ for f, addr in pending:
     ftxt = open(f, encoding="utf-8", errors="ignore").read()
     # A hand-written C++ member function has no `ARM name(` to rewrite -- its linked symbol IS the
     # mangled name -- so it carries `// KEEP-NAME` and is delinked under its own symbol.
-    keepname = "// KEEP-NAME" in ftxt
+    keepname = "// KEEP-NAME" in ftxt or buildcfg.is_asm(f)
     cfg = cfg_name(addr)
     want = cfg or raw               # `raw` finds the definition; `want` is the symbol to emit
     if cfg:
@@ -428,7 +432,7 @@ for f, addr in pending:
             open(f, "w", encoding="utf-8", newline="\n").write(ftxt)
 
     obj = f"{SP}/_int_{LBL}_{os.getpid()}.o"
-    r = subprocess.run(buildcfg.tool_command(cc_for(f)) + flags_for(f) + buildcfg.lang_flags(f) + ["-c", cf, "-o", obj], capture_output=True, text=True)
+    r = subprocess.run(buildcfg.compile_command(cf, obj, cc_for(f), flags_for(f) + buildcfg.lang_flags(f)), capture_output=True, text=True)
     if r.returncode != 0:
         verdicts.append(("COMPILE", addr))
         print("COMPILE FAIL", f, (r.stdout + r.stderr)[-300:])
@@ -495,8 +499,9 @@ for f, addr in pending:
         fails.append((f, addr))
         continue
 
+    func_types = ("STT_FUNC", "STT_NOTYPE") if buildcfg.is_asm(f) else ("STT_FUNC",)
     names = [s.name for s in symtab.iter_symbols()
-             if s["st_info"]["type"] == "STT_FUNC" and s["st_info"]["bind"] == "STB_GLOBAL"
+             if s["st_info"]["type"] in func_types and s["st_info"]["bind"] == "STB_GLOBAL"
              and s["st_shndx"] != "SHN_UNDEF"]
     if len(names) != 1:
         verdicts.append(("MULTI", addr))
@@ -567,7 +572,7 @@ for f, addrs in sorted(TU.items()):
     if any(x in matched for x in addrs):
         tu_fail(f, addrs, "DUP-ADDR", "another file already claimed one of these addresses")
         continue
-    if not all(x in ASM_ALLOW for x in addrs) and ASMPAT.search(open(f, encoding="utf-8", errors="ignore").read()):
+    if not all(x in ASM_ALLOW for x in addrs) and hand_asm(f):
         tu_fail(f, addrs, "ASM-SKIP", "hand-asm and not on the asm allowlist")
         continue
     held = _plausible.hold(f, MOD, addrs[0])
@@ -596,7 +601,7 @@ for f, addrs in sorted(TU.items()):
     at = len(keep) if at is None else at
 
     obj = f"{SP}/_int_{LBL}_{os.getpid()}.o"
-    r = subprocess.run(buildcfg.tool_command(cc_for(f)) + flags_for(f) + ["-c", f, "-o", obj], capture_output=True, text=True)
+    r = subprocess.run(buildcfg.compile_command(f, obj, cc_for(f), flags_for(f)), capture_output=True, text=True)
     if r.returncode != 0:
         tu_fail(f, addrs, "COMPILE", (r.stdout + r.stderr)[-300:])
         continue

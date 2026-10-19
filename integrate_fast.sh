@@ -33,9 +33,12 @@ sha1_ok() {
 }
 REGION="$(python "$KIT/buildcfg.py" --region)" || exit 2
 REGION_TAG="${REGION^^}"
+SRC_EXTS="$(python "$KIT/buildcfg.py" --source-exts)" || exit 2
+shopt -s extglob
+SRC_GLOB="@($SRC_EXTS)"
 
-staged() { compgen -G "$SP/staging/*/*.cpp" || compgen -G "$SP/staging/*/*.c"; } >/dev/null
-n=$( (compgen -G "$SP/staging/*/*.cpp"; compgen -G "$SP/staging/*/*.c") | wc -l)
+staged() { compgen -G "$SP/staging/*/*.$SRC_GLOB"; } >/dev/null
+n=$(compgen -G "$SP/staging/*/*.$SRC_GLOB" | wc -l)
 [ "$n" -eq 0 ] && { echo "nothing staged"; exit 0; }
 echo "=== integrate_fast $(date '+%m-%d %H:%M'): $n staged ===" >> "$LOG"
 
@@ -59,7 +62,7 @@ fi
 # checksum, got wired into a build nobody chose to put it in. Sweep src/ clean first; the files are
 # moved, not deleted, and waves re-gather them from hold_<mod>/.
 _stray=0
-for f in $(git ls-files --others --exclude-standard -- src | grep -E '\.(cpp|c)$'); do
+for f in $(git ls-files --others --exclude-standard -- src | grep -E "[.]($SRC_EXTS)\$"); do
   [ -e "$f" ] || continue
   a=$(grep -oE "// ${REGION_TAG}: func_(ov[0-9]+_)?[0-9a-fA-F]{8}" "$f" | head -1 | grep -oE '[0-9a-fA-F]{8}$')
   d="$SP/hold_main"; case "$f" in *Overlay_*) d="$SP/quarantine";; esac
@@ -69,7 +72,7 @@ done
 
 SECURE="$SP/secure_queue"; mkdir -p "$SECURE"
 _held=0
-for f in "$SP"/staging/*/*.cpp "$SP"/staging/*/*.c; do
+for f in "$SP"/staging/*/*.$SRC_GLOB; do
   [ -e "$f" ] || continue
   a=$(basename "$f" | grep -o '0[0-9a-f]\{7\}' | head -1)
   [ -z "$a" ] && continue
@@ -81,7 +84,7 @@ done
 # file under src/ (integrate.py:165), not from staging, so a stub another tool already dropped there
 # -- land_harvest placing one per wave, ov_recover, a previous red pass -- walks straight into the
 # combined build past a staging-only holdback.
-for f in $(git ls-files --others --exclude-standard -- src | grep -E '\.(cpp|c)$'); do
+for f in $(git ls-files --others --exclude-standard -- src | grep -E "[.]($SRC_EXTS)\$"); do
   a=$(basename "$f" | grep -o '0[0-9a-f]\{7\}' | head -1)
   [ -z "$a" ] && continue
   if [ $((0x$a)) -lt $((0x02000800)) ]; then
@@ -109,7 +112,7 @@ bad = f"{SP}/staging_unclassified"
 os.makedirs(bad, exist_ok=True)
 by = collections.defaultdict(dict)
 paths = {}
-for p in glob.glob(f"{SP}/staging/*/*.cpp") + glob.glob(f"{SP}/staging/*/*.c"):
+for p in [p for ext in buildcfg.SOURCE_EXTS for p in glob.glob(f"{SP}/staging/*/*{ext}")]:
     tag = os.path.basename(os.path.dirname(p))
     mod = tag[2:] if tag.startswith("ov") else "main"
     m = re.search(rf"// {buildcfg.REGION.upper()}: func_(?:ov\d+_)?([0-9a-fA-F]{{8}})", open(p, encoding="utf-8", errors="ignore").read())
@@ -121,7 +124,8 @@ lib = []
 for mod, cands in by.items():
     builds = {}
     try:
-        verdicts = C.classify(mod, cands, builds=builds)
+        verdicts = C.classify(mod, cands, names={a: os.path.basename(paths[(mod, a)]) for a in cands},
+                              builds=builds)
     except Exception as e:
         print(f"pre-classify {mod}: {e}")
         continue
@@ -153,10 +157,10 @@ staged || { echo "$(date '+%H:%M') everything staged was already landed" | tee -
 for d in "$SP"/staging/*/; do
   [ -d "$d" ] || continue
   tag=$(basename "$d"); mod=${tag#ov}
-  { compgen -G "$d*.cpp" || compgen -G "$d*.c"; } >/dev/null || continue
+  compgen -G "$d*.$SRC_GLOB" >/dev/null || continue
   if [ "$mod" = "main" ]; then dst="$REPO/src/Combat/Main"; else dst="$REPO/src/Combat/Overlay_$((10#$mod))"; fi
   mkdir -p "$dst"
-  for f in "$d"*.cpp "$d"*.c; do
+  for f in "$d"*.$SRC_GLOB; do
     [ -e "$f" ] || continue
     lb=$(awk -v m="$mod" -v b="$(basename "$f")" '$1 == m && $2 == b {print $3}' "$SP/wlog/stage_lib.txt" 2>/dev/null)
     if [ -n "$lb" ]; then
@@ -230,7 +234,7 @@ if [ "$green" = "1" ]; then
     # integrator had dropped -- 02097280 was skipped because a tracked src/ file already defined it,
     # and then its staged copy went with the five that did land, leaving no trace of either.
     _kept=0
-    for f in "$SP"/staging/*/*.cpp "$SP"/staging/*/*.c; do
+    for f in "$SP"/staging/*/*.$SRC_GLOB; do
       [ -e "$f" ] || continue
       a=$(grep -oE "// ${REGION_TAG}: func_(ov[0-9]+_)?[0-9a-fA-F]{8}" "$f" | head -1 \
           | grep -oE '[0-9a-fA-F]{8}$' | tr 'A-F' 'a-f')

@@ -12,6 +12,9 @@ SP="$(python "$KIT/kitpaths.py" state)"
 LOG="$SP/wlog/land_harvest.log"
 HOLD="$SP/secure_queue"
 SECURE_END=$((0x02000800))
+SRC_EXTS="$(python "$KIT/buildcfg.py" --source-exts)" || exit 2
+shopt -s extglob
+SRC_GLOB="@($SRC_EXTS)"
 mkdir -p "$HOLD" "$SP/wlog"
 
 wave() {
@@ -25,9 +28,9 @@ wave() {
 echo "=== land_harvest up $(date '+%m-%d %H:%M:%S') ===" >> "$LOG"
 
 # Park the secure-area candidates so the bulk waves cannot batch them.
-for f in "$SP"/staging/main/*.cpp; do
+for f in "$SP"/staging/main/*.$SRC_GLOB; do
   [ -e "$f" ] || continue
-  a=$(basename "$f" .cpp | grep -o '0[0-9a-f]\{7\}' | head -1)
+  a=$(basename "$f" | grep -o '0[0-9a-f]\{7\}' | head -1)
   [ -z "$a" ] && continue
   if [ $((0x$a)) -lt "$SECURE_END" ]; then
     mv "$f" "$HOLD/" && echo "$(date '+%H:%M') parked secure $a" >> "$LOG"
@@ -35,13 +38,13 @@ for f in "$SP"/staging/main/*.cpp; do
 done
 
 for m in 008 017 main; do
-  ls "$SP/staging/$([ "$m" = main ] && echo main || echo "ov$m")"/*.cpp >/dev/null 2>&1 || continue
+  compgen -G "$SP/staging/$([ "$m" = main ] && echo main || echo "ov$m")/*.$SRC_GLOB" >/dev/null || continue
   wave "$m" "bulk"
 done
 
 # Secure area: one per wave, in address order.
-for f in $(ls "$HOLD"/*.cpp 2>/dev/null | sort); do
-  a=$(basename "$f" .cpp | grep -o '0[0-9a-f]\{7\}' | head -1)
+for f in $(compgen -G "$HOLD/*.$SRC_GLOB" | sort); do
+  a=$(basename "$f" | grep -o '0[0-9a-f]\{7\}' | head -1)
   mv "$f" "$SP/staging/main/" || continue
   wave main "secure $a"
 done

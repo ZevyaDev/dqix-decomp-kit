@@ -292,12 +292,9 @@ def _gate(OV, ADDR, SRC, SEC, out, env, build=None, state=None):
         # A `.s` GOES TO THE ASSEMBLER. Handing one to mwccarm reports a C syntax error on a line that is
         # perfectly good assembly, so the eighteen secure-area stubs and every SDK routine that has no C
         # form were ungateable through the one tool that decides what a match is.
-        if SRC.lower().endswith(".s"):
-            _cmd=buildcfg.tool_command(buildcfg.AS)+buildcfg.AS_FLAGS+["-o",_OBJ,SRC]
-        else:
-            _cc, _bf = (cc_for(SRC, env), _flags) if build is None else \
-                (buildcfg.build_cc(build), buildcfg.build_flags(build))
-            _cmd=buildcfg.tool_command(_cc)+_bf+flags_for(SRC)+buildcfg.lang_flags(SRC)+["-c",SRC,"-o",_OBJ]
+        _cc, _bf = (cc_for(SRC, env), _flags) if build is None else \
+            (buildcfg.build_cc(build), buildcfg.build_flags(build))
+        _cmd=buildcfg.compile_command(SRC,_OBJ,_cc,_bf+flags_for(SRC)+buildcfg.lang_flags(SRC))
         r=subprocess.run(_cmd,capture_output=True,text=True,cwd=REPO)
         if r.returncode!=0:
             _err=(r.stdout+r.stderr).strip().replace("\t"," ")

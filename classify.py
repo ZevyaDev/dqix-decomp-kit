@@ -190,7 +190,7 @@ def classify(MOD, cands, workdir=None, names=None, builds=None):
             # Not in any CODE section (rodata/data/bss) -> not an emittable function. Parked, never struck.
             out[addr] = 'SECTION'; continue
         _want = _want or '.text'
-        src = f"{work}/c.c" if buildcfg.lang_flags((names or {}).get(addr) or "") else f"{work}/c.cpp"
+        src = f"{work}/c{buildcfg.source_ext((names or {}).get(addr) or '')}"
         _cc = cc_for((names or {}).get(addr) or src) if _b == "game" else buildcfg.build_cc(_b)
         _bflags = buildcfg.build_flags(_b) + flags_for((names or {}).get(addr) or src) + buildcfg.lang_flags(src)
         if _headers():
@@ -200,7 +200,7 @@ def classify(MOD, cands, workdir=None, names=None, builds=None):
             if keys[addr] in _verdicts():
                 out[addr] = _verdicts()[keys[addr]]; continue
         open(src, 'w', encoding='utf-8').write(txt)
-        r = subprocess.run(buildcfg.tool_command(_cc) + _bflags + ["-c", src, "-o", obj], capture_output=True, text=True,
+        r = subprocess.run(buildcfg.compile_command(src, obj, _cc, _bflags), capture_output=True, text=True,
                            cwd=REPO)
         if r.returncode != 0:
             out[addr] = 'COMPILE'; continue

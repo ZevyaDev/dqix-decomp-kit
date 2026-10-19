@@ -22,7 +22,7 @@ REPO = _kp.REPO
 mod, addr, src = sys.argv[1], int(sys.argv[2], 16), sys.argv[3]
 mod = _kp.module_label(mod)
 obj = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_shiftdiff_%d.o" % os.getpid())
-r = subprocess.run(buildcfg.tool_command(buildcfg.cc_path(None)) + list(buildcfg.FLAGS) + ["-c", os.path.abspath(src), "-o", obj],
+r = subprocess.run(buildcfg.compile_command(os.path.abspath(src), obj, buildcfg.cc_path(None), buildcfg.FLAGS),
                    capture_output=True, text=True, cwd=REPO)
 if r.returncode:
     print(r.stdout[-2000:] + r.stderr[-2000:])

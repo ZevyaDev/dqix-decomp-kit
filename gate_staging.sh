@@ -10,8 +10,11 @@ SUB="$MOD"
 DIR="$SP/staging/$SUB"
 REJ="$SP/staging_rejected/$SUB"
 mkdir -p "$REJ"
+SRC_EXTS="$(python "$KIT/buildcfg.py" --source-exts)" || exit 2
+shopt -s extglob
+SRC_GLOB="@($SRC_EXTS)"
 pass=0; fail=0
-for f in "$DIR"/*.cpp "$DIR"/*.c; do
+for f in "$DIR"/*.$SRC_GLOB; do
     [ -f "$f" ] || continue
     addr=$(grep -oEm1 "USA: func_(ov[0-9]+_)?[0-9a-fA-F]{8}" "$f" | grep -oE "[0-9a-fA-F]{8}$")
     if [ -z "$addr" ]; then

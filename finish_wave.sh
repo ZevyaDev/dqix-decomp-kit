@@ -38,6 +38,9 @@ sha1_ok() {
 }
 REGION="$(python "$KIT/buildcfg.py" --region)" || exit 2
 REGION_TAG="${REGION^^}"
+SRC_EXTS="$(python "$KIT/buildcfg.py" --source-exts)" || exit 2
+shopt -s extglob
+SRC_GLOB="@($SRC_EXTS)"
 CFG="$(python "$KIT/buildcfg.py" --config-dir "$OV")" || exit 2
 DL="$CFG/delinks.txt"
 if [ "$OV" = "main" ]; then
@@ -67,7 +70,7 @@ git checkout HEAD -- include/ config/ src/ 2>/dev/null
 # 3. QUARANTINE (preserve, don't delete) untracked .cpp in OTHER module dirs — they pollute configure.
 #    ALL of src/, not src/Combat/ alone: the update-compiler base put ARM9 main's sources in
 #    src/World, src/Util, src/System and six more, and a half-written file there reds every module.
-git status --porcelain | awk '/\?\?.*\.(cpp|c)$/{print $2}' | grep '^src/' \
+git status --porcelain | awk -v re="[?][?].*[.]($SRC_EXTS)\$" '$0 ~ re {print $2}' | grep '^src/' \
   | grep -vE "^($(IFS='|'; echo "${OWNDIRS[*]}"))/" | while read -r f; do
   mv "$f" "$Q/$(basename "$f")" 2>/dev/null; done
 # A candidate's address is the one on its `// USA:` tag, never just the first func_ symbol in the
@@ -78,7 +81,7 @@ addr_of() {
   local a
   a=$(grep -oE "// ${REGION_TAG}: ${TAGPRE}[0-9a-fA-F]{8}" "$1" 2>/dev/null | head -1 \
       | grep -oE '[0-9a-fA-F]{8}$' | tr 'A-F' 'a-f')
-  [ -z "$a" ] && a=$(basename "$1" | grep -oE '[0-9a-fA-F]{8}\.(cpp|c)$' | cut -c1-8 | tr 'A-F' 'a-f')
+  [ -z "$a" ] && a=$(basename "$1" | grep -oE "[0-9a-fA-F]{8}[.]($SRC_EXTS)\$" | cut -c1-8 | tr 'A-F' 'a-f')
   echo "$a"
 }
 
@@ -112,7 +115,7 @@ done
 rm -f "$_tracked_tmp"
 # BULK-TRACKED-END
 _own_cpps=()
-for _d in "${OWNDIRS[@]}"; do _own_cpps+=("$_d"/*.cpp "$_d"/*.c); done
+for _d in "${OWNDIRS[@]}"; do _own_cpps+=("$_d"/*.$SRC_GLOB); done
 for f in "${_own_cpps[@]}"; do
   [ -e "$f" ] || continue
   [ -n "${_fw_tracked["$f"]+present}" ] && continue   # tracked: leave it
@@ -128,7 +131,7 @@ done
 #    function is never re-offered forever.
 STAGE="$SP/staging/$LBL"
 if [ -d "$STAGE" ]; then
-  for f in "$STAGE"/*.cpp "$STAGE"/*.c; do
+  for f in "$STAGE"/*.$SRC_GLOB; do
     [ -e "$f" ] || continue
     a=$(addr_of "$f")
     if [ -n "$a" ] && grep -qx "$a" "$Q/.done_$OV" 2>/dev/null; then

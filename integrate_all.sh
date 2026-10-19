@@ -12,6 +12,9 @@ KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && { pwd -W 2>/dev/null || pwd; })"
 SP="$(python "$KIT/kitpaths.py" state)"
 REPO="$(python "$(cd "$(dirname "${BASH_SOURCE[0]}")" && { pwd -W 2>/dev/null || pwd; })/kitpaths.py" repo)"
 LOG="$SP/wlog/integrate_all.log"
+SRC_EXTS="$(python "$KIT/buildcfg.py" --source-exts)" || exit 2
+shopt -s extglob
+SRC_GLOB="@($SRC_EXTS)"
 
 echo "=== integrate_all $(date '+%m-%d %H:%M') ===" >> "$LOG"
 BRANCH="${DQIX_BRANCH:-decomp-matching}"
@@ -19,14 +22,14 @@ H0=$(git -C "$REPO" rev-parse "$BRANCH" 2>/dev/null)
 
 # Biggest backlog first: each wave costs the same rebuild whether it lands 1 function or 37.
 set -- $(ls -d "$SP"/staging/*/ 2>/dev/null \
-         | while read -r x; do echo "$(ls "$x"*.cpp 2>/dev/null | wc -l) $x"; done \
+         | while read -r x; do echo "$(compgen -G "$x*.$SRC_GLOB" | wc -l) $x"; done \
          | sort -rn | awk '$1>0{print $2}')
 last_moved=0
 while [ $# -gt 0 ]; do
   d="$1"; shift
   tag=$(basename "$d")                 # main | ovNNN
   mod=${tag#ov}                        # finish_wave takes main | NNN
-  n=$(ls "$d"*.cpp 2>/dev/null | wc -l)
+  n=$(compgen -G "$d*.$SRC_GLOB" | wc -l)
   defer=defer; [ $# -eq 0 ] && defer=""
   echo "$(date '+%H:%M') --- $tag: $n staged ---" >> "$LOG"
   _before=$(git -C "$REPO" rev-parse "$BRANCH" 2>/dev/null)

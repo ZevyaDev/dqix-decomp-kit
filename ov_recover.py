@@ -62,7 +62,7 @@ def tag_addr(txt):
 SRCDIRS = [SRCDIR] + buildcfg.lib_dirs(MOD)
 
 
-SOURCE_GLOBS = ("*.cpp", "*.c")
+SOURCE_GLOBS = tuple(f"*{ext}" for ext in buildcfg.SOURCE_EXTS)
 
 
 def sources_in(d):
@@ -375,7 +375,8 @@ def consistent():
     # sweep-closed match, was deferred as CLOBBER by exactly that.
     for l in sorted(dirty_tracked() - _DIRTY_BASE):
         print("  CONSISTENCY FAIL: tracked file changed:", l); return False
-    for p in re.findall(r'(?m)^\s*(src/[^:\s]+\.(?:cpp|c))\s*:', open(f"{CFG}/delinks.txt").read()):
+    exts = "|".join(re.escape(e) for e in buildcfg.SOURCE_EXTS)
+    for p in re.findall(rf'(?m)^\s*(src/[^:\s]+(?:{exts}))\s*:', open(f"{CFG}/delinks.txt").read()):
         if not os.path.isfile(p):
             print("  CONSISTENCY FAIL: missing delinked file:", p); return False
     return True
@@ -417,7 +418,7 @@ def unstage_foreign():
     staged = sh("git", "diff", "--cached", "--name-only").stdout.split()
     foreign = []
     for rel in staged:
-        if not rel.endswith((".cpp", ".c")) or not rel.startswith("src/"):
+        if not rel.endswith(buildcfg.SOURCE_EXTS) or not rel.startswith("src/"):
             continue
         try:
             a = tag_addr(open(f"{REPO}/{rel}", encoding="utf-8", errors="ignore").read())
@@ -526,13 +527,17 @@ print(f"[{SUF}] preserved {_held} untracked .cpp to {HOLD} (before any git touch
 _FOREIGN_STEMS = set()
 for _l in sh("git", "ls-files", "src/").stdout.split():
     _l = _l.replace('\\', '/')
-    if _l.endswith(('.c', '.cpp')) and os.path.dirname(_l) != SRCDIR:
+    if _l.endswith(buildcfg.SOURCE_EXTS) and os.path.dirname(_l) != SRCDIR:
         _FOREIGN_STEMS.add(os.path.basename(_l).rsplit('.', 1)[0])
 
 from pragmas import HAND_ASM as ASMPAT, asm_allow
 # The ONLY functions allowed to land as hand-written assembly, by address. See asm_allow.txt for
 # why each one is there. Everything else still falls under the no-hand-asm policy below.
 ASM_ALLOW = asm_allow()
+
+
+def hand_asm(a):
+    return buildcfg.is_asm(cand_ext.get(a, "")) or bool(ASMPAT.search(cands.get(a, "")))
 
 
 def place(addrs):
@@ -542,13 +547,14 @@ def place(addrs):
     # failure that looks nothing like a bad match). Always disambiguate by addr on any collision.
     used = set()
     for a in addrs:
-        name, txt = sanitize(cands[a], a)
+        ext = cand_ext.get(a, ".cpp")
+        name, txt = (None, cands[a]) if buildcfg.is_asm(ext) else sanitize(cands[a], a)
         if not name:
             # NEVER DROP A TRUSTED CANDIDATE SILENTLY. sanitize() returns no name when it cannot find
             # an ARM/THUMB definition, and `continue` then removed the candidate from the wave without
             # a word -- so the same byte-verified functions deferred as `wired-0` every wave forever,
             # 7 of them on main.
-            if ASMPAT.search(txt):
+            if hand_asm(a):
                 # Hand asm is not a match we want to land; the goal is very little asm in the final
                 # product. Say so and move on -- but it must stop occupying a TRUSTED slot and a
                 # ~6 min gate on every wave forever.
@@ -565,13 +571,12 @@ def place(addrs):
                 # A plain C definition with no ARM/THUMB keyword is real work; name the file after the
                 # address, which is what place() falls back to on any collision anyway.
                 name = f"{TAGPRE}{a}"
-                print(f"  PLACE-FALLBACK {a}: no ARM/THUMB keyword, naming file {name}{cand_ext.get(a, '.cpp')}")
+                print(f"  PLACE-FALLBACK {a}: no ARM/THUMB keyword, naming file {name}{ext}")
         d = buildcfg.lib_dir(MOD, _build[a]) if _build.get(a, "game") != "game" else SRCDIR
         os.makedirs(d, exist_ok=True)
-        ext = cand_ext.get(a, ".cpp")
         stems = {os.path.splitext(p)[0] for p in used}
         taken = lambda stem: f"{d}/{stem}" in stems or any(
-            tracked(f"{d}/{stem}{e}") or os.path.exists(f"{d}/{stem}{e}") for e in (".cpp", ".c"))
+            tracked(f"{d}/{stem}{e}") or os.path.exists(f"{d}/{stem}{e}") for e in buildcfg.SOURCE_EXTS)
         bn = f"{d}/{name}{ext}"
         if taken(name) or name in _FOREIGN_STEMS:
             bn = f"{d}/{name}_{a}{ext}"
@@ -664,7 +669,7 @@ def try_set(addrs):
         pass
     _wired = committed_addrs()
     for _rel in sorted(dirty_tracked() - _DIRTY_BASE):
-        if not _rel.endswith((".cpp", ".c")):
+        if not _rel.endswith(buildcfg.SOURCE_EXTS):
             continue
         try:
             _txt = open(f"{REPO}/{_rel}", encoding="utf-8", errors="ignore").read()
@@ -851,7 +856,7 @@ for _a in sorted(variants):
         if _v == 'TRUSTED': break
     _cls[_a] = _bv
     _build[_a] = _bb
-    cand_ext[_a] = ".c" if buildcfg.lang_flags(_bn or "") else ".cpp"
+    cand_ext[_a] = buildcfg.source_ext(_bn or "")
     cands[_a] = _best
 # DRIFT PARKING: funcs already proven to break the link layout (not the bytes). Re-placing them every
 # wave costs an extra red gate each time and nothing else, so park them for a few waves. Not permanent —
@@ -894,7 +899,7 @@ for _a in BAD: cands.pop(_a, None)
 # ~12 min gate, were refused by place()'s policy check, and deferred -- the same six addrs on main
 # every wave, 24 refusals for 0 commits. Dropping them from trusted_ is deliberate: a func with no
 # landable source is unmatched work, so genwave should serve it to a worker for a C form.
-ASMPARK = [a for a in TRUSTED + RISKY if a not in ASM_ALLOW and ASMPAT.search(cands.get(a, ''))]
+ASMPARK = [a for a in TRUSTED + RISKY if a not in ASM_ALLOW and hand_asm(a)]
 if ASMPARK:
     _parkdir = f"{SP}/asm_park_{SUF}"
     os.makedirs(_parkdir, exist_ok=True)
