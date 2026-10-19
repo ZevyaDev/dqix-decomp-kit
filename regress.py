@@ -6414,6 +6414,37 @@ def _recover_places_sdk():
         return "placed %r" % got
 
 
+@check("a .s that exports the .L_ labels symbols.txt lists inside its function integrates as one function",
+       "dsd check symbols needs every listed label in the linked binary, so the .s has to make it .global, and "
+       "the integrator then counted each label as a second function: _fdiv 0200c1c0, _ddiv 0200d34c and "
+       "ov016 0219000c were rejected MULTI and could never land")
+def _asm_listed_labels_not_multi():
+    import ast
+    from types import SimpleNamespace
+    src = open(f"{KIT}/integrate.py", encoding="utf-8").read()
+    nodes = [n for n in ast.parse(src).body if isinstance(n, ast.FunctionDef) and n.name == "defined_global_funcs"]
+    ns = {}
+    exec(compile(ast.Module(body=nodes, type_ignores=[]), "integrate", "exec"), ns)
+
+    class Sym(dict):
+        def __init__(self, name, typ="STT_NOTYPE", bind="STB_GLOBAL", shndx=1):
+            super().__init__(st_info={"type": typ, "bind": bind}, st_shndx=shndx)
+            self.name = name
+
+    def names(syms, asm):
+        return ns["defined_global_funcs"](SimpleNamespace(iter_symbols=lambda: syms), asm)
+
+    got = names([Sym("_fdiv"), Sym(".L_0200c274"), Sym("$a", bind="STB_LOCAL"), Sym("_fadd", shndx="SHN_UNDEF")], True)
+    if got != ["_fdiv"]:
+        return "a .s with one listed label: %r" % got
+    got = names([Sym("_fdiv"), Sym("_frdiv")], True)
+    if got != ["_fdiv", "_frdiv"]:
+        return "a .s with two real functions must still count both: %r" % got
+    got = names([Sym("f", "STT_FUNC"), Sym("g", "STT_NOTYPE")], False)
+    if got != ["f"]:
+        return "C++ counts only STT_FUNC: %r" % got
+
+
 def _run_place(cand_ext, texts=None, allow=()):
     import ast
     import buildcfg
