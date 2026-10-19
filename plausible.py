@@ -1087,13 +1087,25 @@ def allowed():
     return out
 
 
+def _asm_allowed(text):
+    """Whether a finding is hand assembly that asm_allow.txt permits for this file."""
+    addrs = {a.lower() for a in USA_ADDR.findall(text)}
+    asm_addrs, asm_names = asm_allow(), asm_allow_symbols()
+    return lambda h: h[1] == "HAND-ASM" and (h[2] in asm_names or bool(addrs and addrs <= asm_addrs))
+
+
+def invented(text):
+    """findings() less the hand assembly asm_allow.txt permits: what a parked residue must not carry."""
+    asm_ok = _asm_allowed(text)
+    return [h for h in findings(text) if not asm_ok(h)]
+
+
 def blocking(text):
     addrs = {a.lower() for a in USA_ADDR.findall(text)}
     ok = allowed()
-    asm_addrs, asm_names = asm_allow(), asm_allow_symbols()
-    asm_ok = lambda h: h[2] in asm_names or (addrs and addrs <= asm_addrs)
+    asm_ok = _asm_allowed(text)
     return [h for h in findings(text) if h[1] not in ADVISORY and not any((a, h[1]) in ok for a in addrs)
-            and not (h[1] == "HAND-ASM" and asm_ok(h))]
+            and not asm_ok(h)]
 
 
 def hold(path, mod, addr, sp=None):

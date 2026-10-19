@@ -5615,6 +5615,27 @@ def _blocker_implausible():
         return "blockercheck counts IMPLAUSIBLE as an uncracked idiom class"
 
 
+@check("a residue on hand assembly that asm_allow.txt permits is recorded as the residue, not IMPLAUSIBLE",
+       "blocker.py judged plausibility with every finding, so 020b10b4 (C with the SDK inline-asm clz, allowed by "
+       "#516) was recorded IMPLAUSIBLE 18 and never parked, although plausible.py --blocking passes it")
+def _blocker_asm_allowed():
+    B = load("blocker")
+    B.gate_residue = lambda mod, addr, src: ("SCHED", 18, "x")
+    B.plausible.asm_allow = lambda: {"02000000"}
+    body = '// USA: func_%s\nextern "C" int f(int x) {\n    int r;\n    asm { clz r, x }\n    return r;\n}\n'
+    with tempfile.TemporaryDirectory() as d:
+        allowed, refused = os.path.join(d, "allowed.cpp"), os.path.join(d, "refused.cpp")
+        with open(allowed, "w") as fh:
+            fh.write(body % "02000000")
+        with open(refused, "w") as fh:
+            fh.write(body % "02000004")
+        ok, bad = B.measure("main", "02000000", allowed), B.measure("main", "02000004", refused)
+        if ok[0] != "SCHED":
+            return "allowed hand assembly measured %r" % (ok,)
+        if bad[0] != "IMPLAUSIBLE" or "HAND-ASM" not in bad[2]:
+            return "unallowed hand assembly measured %r" % (bad,)
+
+
 @check("claim.py skips an address another contributor reserved, and never a range's end",
        "claim.py did not read kit issues, so the xl queue opened on ov003 021539a0 (#178) and "
        "ov012 02184d80 (#227), both reserved by contributors")
