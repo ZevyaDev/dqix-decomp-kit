@@ -1,3 +1,5 @@
 src/Combat/Overlay_4/ov004_021570f0.cpp  ipa  Eakeys  ov004 TU 021570f0..0215e25c: its .bss and .rodata order only come out of whole-file codegen (kit #387)
 src/Runtime/Main/func_0200df80.cpp  exception_terminate  Eakeys  CW runtime UnwindStack, function-scope pragma of the original ExceptionHandler.cpp
 src/Runtime/Main/func_0200ea08.cpp  exception_terminate  Eakeys  CW runtime HandleUnexpected, function-scope pragma of the original ExceptionHandler.cpp
+src/WifiLib/Overlay_31/wifi_setup_0221f324.cpp  optimization_level  fuzzyassassin  ov031 Wi-Fi setup module: -O3 keeps the station scan's (0221fee4) second index counter; pokeheartgold matches the same function (WifiSetup_FindSetupAccessPoint) with optimization_level 3; every other function of the file matches with or without it
+src/WifiLib/Overlay_31/wifi_setup_0221f324.cpp  opt_loop_invariants  fuzzyassassin  ov031 Wi-Fi setup module: keeps the station scan's (0221fee4) retry-loop memcpy size in its own slot; every other function of the file matches with or without it
