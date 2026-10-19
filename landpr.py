@@ -98,7 +98,7 @@ def strip_comments(tree, tip):
     changed = git(tree, "diff", "--name-only", tip, "HEAD", "--", "src")[1].split()
     for path in changed:
         full = f"{tree}/{path}"
-        if path.endswith((".c", ".cpp")) and os.path.isfile(full):
+        if path.endswith((".c", ".cpp", ".s")) and os.path.isfile(full):
             with open(full, encoding="utf-8") as fh:
                 text = fh.read()
             if strip(text) != text:

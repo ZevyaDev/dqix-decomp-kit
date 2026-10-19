@@ -131,6 +131,36 @@ def _decomment_keeps_markers():
     return None
 
 
+@check("landpr strips contribution comments from assembly sources too",
+       "#259 and #265 carried 146 comment lines in .s files that landpr's .c/.cpp-only strip let through")
+def _landpr_strips_asm():
+    import subprocess
+    L = load("landpr")
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        def git(*args):
+            subprocess.run(["git", "-C", d, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "core.autocrlf=false",
+                            *args], capture_output=True, text=True, check=True)
+        git("init", "-q", "-b", "main")
+        git("config", "user.name", "t")
+        git("config", "user.email", "t@t")
+        os.makedirs(os.path.join(d, "src"))
+        path = os.path.join(d, "src", "a.s")
+        with open(path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write("\t.arm\n")
+        git("add", "-A")
+        git("commit", "-qm", "x")
+        tip = subprocess.run(["git", "-C", d, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+        with open(path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write("// why this is asm\n\t.arm\n// USA: func_02000000\nf:\n\tbx lr\n")
+        git("commit", "-qam", "y")
+        L.strip_comments(d, tip)
+        with open(path, encoding="utf-8") as fh:
+            out = fh.read()
+    if "why" in out or "// USA: func_02000000" not in out:
+        return "landpr left %r" % out
+    return None
+
+
 def _evo_score(sites_list):
     argv, sys.argv = sys.argv, ["evo_score.py", "main", "02011b68"]
     try:
