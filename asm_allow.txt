@@ -175,3 +175,17 @@
 020cf864  func_020cf864                      NitroSDK RtcWaitBusy, static asm in rtc_external.c (pokediamond RTC_external.s)
 0219000c  func_ov016_0219000c                ov016 codec middleware: entry branches to +0x810, private register ABI between ~14 internal routines, data words inside the body
 021d90ec  __sinit_ov029_021d90ec             ov029 decryptor stub: {block, 0x021dbb48} table inline in .text after the code, addressed with add r0, pc; saves only {lr}
+020ca95c  DecompressC                        NitroSDK MI_ReadUncomp* sibling of DecompressA: swpb stores, push {r4-r8}
+020c1280  Mat3x3_WriteRotationY              NitroSDK MTX_RotY33_, asm void (SonicRush fx_mtx33.c), Thumb
+0200c700  func_0200c700                      CW runtime s64 -> float: tail-branches into the middle of _fflt
+0200c76c  func_0200c76c                      CW runtime u64 -> float: tail-branches into the middle of _ffltu
+02211938  Rc4Crypt_02211938                  NitroSDK CRYPTO_RC4Encrypt, asm in pokebw2 rc4.c and pokeheartgold nitrocrypto_rc4.c; unpadded push {r4-r9, lr}
+0218f6b8  func_ov016_0218f6b8                ov016 codec middleware (as 0219000c): saves ip, mid-body push of loop constants, sp moved inside the loop
+01ff8218  func_01ff8218                      NitroSDK OSi_DoBoot (itcm), asm void in os_reset.c (pokediamond OS_reset.c)
+01ff82e4  func_01ff82e4                      NitroSDK OSi_CpuClear32 (itcm), static asm void in os_reset.c (pokediamond OS_reset.c)
+01ff8000  func_01ff8000                      NitroSDK OS_IrqHandler (itcm), asm void in os_irqHandler.c (pokediamond OS_irqHandler.c)
+01ff8068  func_01ff8068                      NitroSDK OS_IrqHandler_ThreadSwitch (itcm), asm void in os_irqHandler.c: mode switches, user-bank ldm/stm ^
+021d9788  __sinit_ov029_021d9788             ov029 decryptor stub (as 021d90ec): table inline in .text after the code, addressed with add r0, pc
+021d9a24  __sinit_ov029_021d9a24             ov029 decryptor stub (as 021d90ec): table inline in .text after the code, addressed with add r0, pc
+021da374  __sinit_ov029_021da374             ov029 decryptor stub (as 021d90ec): table inline in .text after the code, addressed with add r0, pc
+021da844  __sinit_ov029_021da844             ov029 decryptor stub (as 021d90ec): table inline in .text after the code, addressed with add r0, pc

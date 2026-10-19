@@ -5615,6 +5615,27 @@ def _blocker_implausible():
         return "blockercheck counts IMPLAUSIBLE as an uncracked idiom class"
 
 
+@check("a residue on hand assembly that asm_allow.txt permits is recorded as the residue, not IMPLAUSIBLE",
+       "blocker.py judged plausibility with every finding, so 020b10b4 (C with the SDK inline-asm clz, allowed by "
+       "#516) was recorded IMPLAUSIBLE 18 and never parked, although plausible.py --blocking passes it")
+def _blocker_asm_allowed():
+    B = load("blocker")
+    B.gate_residue = lambda mod, addr, src: ("SCHED", 18, "x")
+    B.plausible.asm_allow = lambda: {"02000000"}
+    body = '// USA: func_%s\nextern "C" int f(int x) {\n    int r;\n    asm { clz r, x }\n    return r;\n}\n'
+    with tempfile.TemporaryDirectory() as d:
+        allowed, refused = os.path.join(d, "allowed.cpp"), os.path.join(d, "refused.cpp")
+        with open(allowed, "w") as fh:
+            fh.write(body % "02000000")
+        with open(refused, "w") as fh:
+            fh.write(body % "02000004")
+        ok, bad = B.measure("main", "02000000", allowed), B.measure("main", "02000004", refused)
+        if ok[0] != "SCHED":
+            return "allowed hand assembly measured %r" % (ok,)
+        if bad[0] != "IMPLAUSIBLE" or "HAND-ASM" not in bad[2]:
+            return "unallowed hand assembly measured %r" % (bad,)
+
+
 @check("claim.py skips an address another contributor reserved, and never a range's end",
        "claim.py did not read kit issues, so the xl queue opened on ov003 021539a0 (#178) and "
        "ov012 02184d80 (#227), both reserved by contributors")
@@ -6412,6 +6433,37 @@ def _recover_places_sdk():
     got = _run_place({})
     if got != ["game/func_02000c9c.cpp", "sdk/func_020d3160.cpp"]:
         return "placed %r" % got
+
+
+@check("a .s that exports the .L_ labels symbols.txt lists inside its function integrates as one function",
+       "dsd check symbols needs every listed label in the linked binary, so the .s has to make it .global, and "
+       "the integrator then counted each label as a second function: _fdiv 0200c1c0, _ddiv 0200d34c and "
+       "ov016 0219000c were rejected MULTI and could never land")
+def _asm_listed_labels_not_multi():
+    import ast
+    from types import SimpleNamespace
+    src = open(f"{KIT}/integrate.py", encoding="utf-8").read()
+    nodes = [n for n in ast.parse(src).body if isinstance(n, ast.FunctionDef) and n.name == "defined_global_funcs"]
+    ns = {}
+    exec(compile(ast.Module(body=nodes, type_ignores=[]), "integrate", "exec"), ns)
+
+    class Sym(dict):
+        def __init__(self, name, typ="STT_NOTYPE", bind="STB_GLOBAL", shndx=1):
+            super().__init__(st_info={"type": typ, "bind": bind}, st_shndx=shndx)
+            self.name = name
+
+    def names(syms, asm):
+        return ns["defined_global_funcs"](SimpleNamespace(iter_symbols=lambda: syms), asm)
+
+    got = names([Sym("_fdiv"), Sym(".L_0200c274"), Sym("$a", bind="STB_LOCAL"), Sym("_fadd", shndx="SHN_UNDEF")], True)
+    if got != ["_fdiv"]:
+        return "a .s with one listed label: %r" % got
+    got = names([Sym("_fdiv"), Sym("_frdiv")], True)
+    if got != ["_fdiv", "_frdiv"]:
+        return "a .s with two real functions must still count both: %r" % got
+    got = names([Sym("f", "STT_FUNC"), Sym("g", "STT_NOTYPE")], False)
+    if got != ["f"]:
+        return "C++ counts only STT_FUNC: %r" % got
 
 
 def _run_place(cand_ext, texts=None, allow=()):

@@ -4,3 +4,5 @@
 021b0bc0 EXTERN-C-MANGLED ZevyaDev PR #153: mangled names contradict the ROM's argument widths; waits for a symbol rename
 02166070 EXTERN-C-MANGLED ZevyaDev PR #155: Object3D setters mangled unsigned short, the ROM passes unnarrowed; waits for a symbol rename
 0218dbec EXTERN-C-MANGLED ZevyaDev PR #155: Object3D setter mangled unsigned short, the ROM passes unnarrowed; waits for a symbol rename
+020e66a0 EXTERN-C-MANGLED ZevyaDev PR #270: __sinit registers KeyManager's destructor, whose address C++ cannot take; same idiom as upstream __sinit_020e6790
+020b25c4 INLINE-LOCAL-RETURN ZevyaDev PR #272: NitroSystem NNS_G2dFontGetTextRect's local gives the ROM's two rect copies, as pokebw2, pokeheartgold and kh-recoded write it

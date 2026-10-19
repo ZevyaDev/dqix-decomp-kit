@@ -333,6 +333,13 @@ def hand_asm(f):
     return buildcfg.is_asm(f) or bool(ASMPAT.search(open(f, encoding="utf-8", errors="ignore").read()))
 
 
+def defined_global_funcs(symtab, asm):
+    types = ("STT_FUNC", "STT_NOTYPE") if asm else ("STT_FUNC",)
+    return [s.name for s in symtab.iter_symbols()
+            if s["st_info"]["type"] in types and s["st_info"]["bind"] == "STB_GLOBAL"
+            and s["st_shndx"] != "SHN_UNDEF" and not (asm and s.name.startswith(".L"))]
+
+
 ORIGINAL = {}
 for f, addr in pending:
     if f not in ORIGINAL:
@@ -499,10 +506,7 @@ for f, addr in pending:
         fails.append((f, addr))
         continue
 
-    func_types = ("STT_FUNC", "STT_NOTYPE") if buildcfg.is_asm(f) else ("STT_FUNC",)
-    names = [s.name for s in symtab.iter_symbols()
-             if s["st_info"]["type"] in func_types and s["st_info"]["bind"] == "STB_GLOBAL"
-             and s["st_shndx"] != "SHN_UNDEF"]
+    names = defined_global_funcs(symtab, buildcfg.is_asm(f))
     if len(names) != 1:
         verdicts.append(("MULTI", addr))
         print("MULTI/NO GLOBAL FUNC", f, names)

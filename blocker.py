@@ -63,7 +63,7 @@ def measure(mod, addr, src):
     src = os.path.abspath(src)
     cls, metric, detail = gate_residue(mod, addr, src)
     with open(src, encoding="utf-8", errors="ignore") as fh:
-        invented = plausible.findings(fh.read())
+        invented = plausible.invented(fh.read())
     if invented and cls not in NOT_RESIDUE:
         detail = "%s %s; %s" % (cls, detail, "; ".join("%s %s" % (k, w) for _l, k, w in invented))
         cls = "IMPLAUSIBLE"
