@@ -337,7 +337,7 @@ def defined_global_funcs(symtab, asm):
     types = ("STT_FUNC", "STT_NOTYPE") if asm else ("STT_FUNC",)
     return [s.name for s in symtab.iter_symbols()
             if s["st_info"]["type"] in types and s["st_info"]["bind"] == "STB_GLOBAL"
-            and s["st_shndx"] != "SHN_UNDEF" and not (asm and s.name.startswith(".L"))]
+            and s["st_shndx"] != "SHN_UNDEF" and not (asm and s.name.startswith("."))]
 
 
 ORIGINAL = {}

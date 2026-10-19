@@ -6461,6 +6461,9 @@ def _asm_listed_labels_not_multi():
     got = names([Sym("_fdiv"), Sym(".L_0200c274"), Sym("$a", bind="STB_LOCAL"), Sym("_fadd", shndx="SHN_UNDEF")], True)
     if got != ["_fdiv"]:
         return "a .s with one listed label: %r" % got
+    got = names([Sym("__sinit_ov029_021d9788"), Sym(".p__sinit_ov029_021d9788", shndx=2)], True)
+    if got != ["__sinit_ov029_021d9788"]:
+        return "a static initialiser .s with its exported .ctor pointer: %r" % got
     got = names([Sym("_fdiv"), Sym("_frdiv")], True)
     if got != ["_fdiv", "_frdiv"]:
         return "a .s with two real functions must still count both: %r" % got
