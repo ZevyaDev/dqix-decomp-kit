@@ -4,3 +4,4 @@
 021b0bc0 EXTERN-C-MANGLED ZevyaDev PR #153: mangled names contradict the ROM's argument widths; waits for a symbol rename
 02166070 EXTERN-C-MANGLED ZevyaDev PR #155: Object3D setters mangled unsigned short, the ROM passes unnarrowed; waits for a symbol rename
 0218dbec EXTERN-C-MANGLED ZevyaDev PR #155: Object3D setter mangled unsigned short, the ROM passes unnarrowed; waits for a symbol rename
+020b25c4 INLINE-LOCAL-RETURN fuzzyassassin: NitroSystem NNSi_G2dTextCanvasDrawText; the font inline's local gives the two rect copies the ROM's stack shows, as pokebw2, pokeheartgold and kh-recoded write it; no form without it matches
