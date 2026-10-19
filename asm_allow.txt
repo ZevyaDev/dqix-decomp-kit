@@ -186,6 +186,7 @@
 01ff8000  func_01ff8000                      NitroSDK OS_IrqHandler (itcm), asm void in os_irqHandler.c (pokediamond OS_irqHandler.c)
 01ff8068  func_01ff8068                      NitroSDK OS_IrqHandler_ThreadSwitch (itcm), asm void in os_irqHandler.c: mode switches, user-bank ldm/stm ^
 021d9788  __sinit_ov029_021d9788             ov029 decryptor stub (as 021d90ec): table inline in .text after the code, addressed with add r0, pc
+021d97c0  func_ov029_021d97c0                DS Protect 1.26 clearDataAndInstructionCache, static asm void in encryptor.c: mcr p15 c7 cache loop (taxicat1/dsprot 1.26 encryptor.c)
 021d9a24  __sinit_ov029_021d9a24             ov029 decryptor stub (as 021d90ec): table inline in .text after the code, addressed with add r0, pc
 021da374  __sinit_ov029_021da374             ov029 decryptor stub (as 021d90ec): table inline in .text after the code, addressed with add r0, pc
 021da844  __sinit_ov029_021da844             ov029 decryptor stub (as 021d90ec): table inline in .text after the code, addressed with add r0, pc
