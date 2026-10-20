@@ -131,6 +131,18 @@ def _decomment_keeps_markers():
     return None
 
 
+@check("decomment strips a prose comment that starts with a region name",
+       "#307's `// JPN: no label kind; the name line gets a \"%s　さん\" suffix ...` passed as a JPN tag, landed, "
+       "and its UTF-8 broke m2ctx for func_ov003_021737e4")
+def _decomment_strips_region_prose():
+    src = ("// JPN: no label kind; the name line gets a suffix\n// USA: func_ov023_021f2638  (semantic: X)\n"
+           "// USA: 021d9e60; JPN: 021da6f0.\nint f() { return 0; }\n")
+    out = load("pad/decomment").strip(src)
+    if "no label kind" in out or "// USA: func_ov023_021f2638" not in out or "// USA: 021d9e60" not in out:
+        return "stripped to %r" % out
+    return None
+
+
 @check("regionsync restores only the modules a delink or link error names, not the whole port",
        "an ov029 header error and an ov027 .data range error named no `Check` line, so landpr's EUR port of "
        "33 files was restored whole and EUR got none of #254-#267's matches")
