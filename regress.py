@@ -211,6 +211,44 @@ def _landpr_strips_asm():
     return None
 
 
+@check("landpr --fixes DROP accepts a file the pull request deleted as a reviewed deletion",
+       "#315 deleted .idea/c_cpp_properties.json; DROP refused the absent path and prready refused it unreviewed")
+def _landpr_drop_reviews_a_deletion():
+    import subprocess
+    L = load("landpr")
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        tree, fixes = os.path.join(d, "t"), os.path.join(d, "fixes")
+        os.makedirs(os.path.join(tree, ".idea"))
+        os.makedirs(fixes)
+
+        def git(*args):
+            return subprocess.run(["git", "-C", tree, "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                                  capture_output=True, text=True, check=True).stdout.strip()
+        git("init", "-q", "-b", "main")
+        with open(os.path.join(tree, ".idea", "p.json"), "w", encoding="utf-8") as fh:
+            fh.write("{}\n")
+        git("add", "-A")
+        git("commit", "-qm", "x")
+        tip = git("rev-parse", "HEAD")
+        git("rm", "-q", ".idea/p.json")
+        git("commit", "-qm", "y")
+        with open(os.path.join(fixes, "DROP"), "w", encoding="utf-8") as fh:
+            fh.write(".idea/p.json\n")
+        try:
+            reviewed = L.apply_fixes(tree, fixes, ["1"], tip)
+        except SystemExit:
+            return "apply_fixes refused a DROP of the file the pull request deleted"
+        if reviewed != [".idea/p.json"]:
+            return "apply_fixes reviewed %r" % reviewed
+        with open(os.path.join(fixes, "DROP"), "w", encoding="utf-8") as fh:
+            fh.write(".idea/typo.json\n")
+        try:
+            L.apply_fixes(tree, fixes, ["1"], tip)
+        except SystemExit:
+            return None
+        return "apply_fixes accepted a DROP path that exists at neither revision"
+
+
 def _evo_score(sites_list):
     argv, sys.argv = sys.argv, ["evo_score.py", "main", "02011b68"]
     try:
@@ -4150,7 +4188,7 @@ def _implausible_blocks():
 
         lp.git = fake_git
         try:
-            lp.apply_fixes(tree, fixes, ["5"])
+            lp.apply_fixes(tree, fixes, ["5"], "HEAD")
         finally:
             lp.git = old
         if git("log", "-1", "--format=%s") != "Clean #5" or "*(int*)" in open(f"{tree}/src/a.cpp").read():
@@ -4167,7 +4205,7 @@ def _implausible_blocks():
             fh.write("src/b.cpp\n")
         lp.git = fake_git
         try:
-            lp.apply_fixes(tree, fixes, ["6"])
+            lp.apply_fixes(tree, fixes, ["6"], "HEAD")
         finally:
             lp.git = old
         links = open(f"{tree}/config/usa/delinks.txt", encoding="utf-8").read()
@@ -4204,7 +4242,7 @@ def _implausible_blocks():
             fh.write("PYTHON = 2\n")
         lp.git = fake_git
         try:
-            lp.apply_fixes(tree, fixes, ["8"])
+            lp.apply_fixes(tree, fixes, ["8"], "HEAD")
         finally:
             lp.git = old
         if git("log", "-1", "--format=%s") != "Clean #8" or git("status", "--porcelain"):

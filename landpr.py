@@ -5,6 +5,7 @@
 --fixes DIR overlays DIR's files (repo-relative paths, e.g. our cleaned versions of a pull request's flagged
 sources) on the merged tree and commits them as `Clean #N` before prready.py runs. DIR/DROP lists repo paths
 still implausible: each is removed with its delinks blocks (`Hold ... from #N`) and waits for cleanwork.
+A DROP path the pull request itself deleted is a reviewed deletion and lands.
 A merge conflict in a file DIR replaces is resolved to DIR's version. A changed path outside
 src/, include/ and config/ lands only when DIR supplies it, so nothing a contributor wrote runs here.
 In the integration tree, from the published tip: merges each pull request head as `Merge #N` (a
@@ -139,10 +140,13 @@ def drop_files(tree, paths, numbers):
         git(tree, "commit", "-q", "-m", "Hold %d implausible file(s) from %s" % (len(paths), " ".join("#" + n for n in numbers)))
 
 
-def apply_fixes(tree, fixes, numbers):
+def apply_fixes(tree, fixes, numbers, tip):
     drop = os.path.join(fixes, "DROP")
+    deleted = []
     if os.path.exists(drop):
-        drop_files(tree, [ln.strip() for ln in open(drop, encoding="utf-8") if ln.strip()], numbers)
+        paths = [ln.strip() for ln in open(drop, encoding="utf-8") if ln.strip()]
+        deleted = [p for p in paths if not os.path.exists(f"{tree}/{p}") and git(tree, "cat-file", "-e", f"{tip}:{p}")[0] == 0]
+        drop_files(tree, [p for p in paths if p not in deleted], numbers)
     written = []
     for root, _, files in os.walk(fixes):
         for name in files:
@@ -158,7 +162,7 @@ def apply_fixes(tree, fixes, numbers):
     if written and git(tree, "status", "--porcelain", "--", *written)[1].strip():
         git(tree, "add", "--", *written)
         git(tree, "commit", "-q", "-m", "Clean " + " ".join("#" + n for n in numbers))
-    return written
+    return written + deleted
 
 
 def main():
@@ -191,7 +195,7 @@ def main():
         if code and not (fixes and take_fixes(tree, fixes)) and not keep_both_delinks(tree, head):
             conflicts = git(tree, "diff", "--name-only", "--diff-filter=U")[1].split()
             refuse(f"#{n} conflicts in {', '.join(conflicts) or out.strip()[-200:]}; resolve it by hand")
-    reviewed = apply_fixes(tree, fixes, numbers) if fixes else []
+    reviewed = apply_fixes(tree, fixes, numbers, tip) if fixes else []
     strip_comments(tree, tip)
     code, out = run(KIT, sys.executable, f"{KIT}/prready.py", "decomp",
                     env=dict(os.environ, DQIX_REPO=tree, PRREADY_REVIEWED=os.pathsep.join(reviewed)))
