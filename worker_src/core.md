@@ -26,6 +26,14 @@ label a block by its address (`L1c:`); `plausible.py` refuses all three as TRANS
 structure first, then fix codegen differences with the levers below, never by going back to
 one statement per instruction. The forms under NATURAL FORMS THAT MATCH WHERE A TRICK DID come first.
 
+## NAMES ARE PLAIN — NEVER INVENT ONE
+Every name you write is plain: functions `func_<addr>` (a helper with no symbol `inline_<lowest caller
+addr>`), globals `data_<addr>`, types `Struct_<addr>` (the address of its global instance, else of the
+first function using it), enums `Enum_<addr>` with constants `Enum_<addr>_<value>`, members
+`unknown_<hexoff>_` (bitfields `unknown_<off>_<bit>_`), parameters `arg0..`, locals `var0..`. Only
+names already on upstream main stay. Landing renames anything else (`plainnames.py fix`) and
+`prready.py` refuses it as NOT A PLAIN NAME.
+
 ## THE GATE NAMES YOUR RESIDUE — ROUTE ON THAT CLASS, NOT ON A GUESS
 Every `wgate` run ends with `RESIDUE <CLASS> <metric> <detail>`. Route on it:
 

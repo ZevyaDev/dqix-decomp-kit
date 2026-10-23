@@ -36,6 +36,7 @@ from elftools.elf.elffile import ELFFile
 
 import buildcfg
 import dataown
+import plainnames
 
 SP = _kp.SP
 KIT = _kp.KIT
@@ -220,6 +221,10 @@ for f, addr in pending:
     TU.setdefault(f, []).append(addr)
 TU = {f: addrs for f, addrs in TU.items() if len(addrs) > 1}
 print(f"[{LBL}] base=0x{BASE:x}  {len(pending)} pending files{'  (DRY RUN)' if DRY else ''}")
+_plain = sorted({os.path.relpath(f, REPO).replace("\\", "/") for f, _ in pending if not tracked(f)})
+if _plain and not DRY:
+    _changed = plainnames.fix(REPO.replace("\\", "/"), _plain)[0]
+    print(f"[{LBL}] plain names: {len(_changed)} file(s) changed")
 
 
 def size_of(addr):

@@ -211,6 +211,103 @@ def _landpr_strips_asm():
     return None
 
 
+@check("plainnames renames a source's types, members, enums, parameters and locals to plain names",
+       "AI-invented names (#318 CharacterCreation, LookDefaults, ModelFile.allocator_) landed because "
+       "prready checked only symbols.txt")
+def _plainnames_renames_everything_invented():
+    P = load("plainnames")
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        root = d.replace("\\", "/")
+        os.makedirs(f"{root}/src/Combat/Main")
+        os.makedirs(f"{root}/include")
+        os.makedirs(f"{root}/upstream/src")
+        os.makedirs(f"{root}/config/usa/arm9")
+        with open(f"{root}/config/usa/arm9/symbols.txt", "w") as fh:
+            fh.write("func_02001000"
+                     " kind:function(arm,size=0x20) addr:0x02001000\n")
+        rel = "src/Combat/Main/func_02001000.cpp"
+        with open(f"{root}/{rel}", "w", newline="\n") as fh:
+            fh.write("struct Pair02001000 { int count; short items[4]; unsigned char lo : 4, hi : 4; };\n"
+                     "enum Mode02001000 { MODE_IDLE, MODE_RUN = 3 };\n"
+                     "typedef char PairSizeCheck[sizeof(Pair02001000) == 16 ? 1 : -1];\n"
+                     "extern \"C\" int func_02001000(struct Pair02001000* pair, int scale) {\n"
+                     "    int total = pair->count * scale;\n"
+                     "    if (total > MODE_RUN) total += pair->items[1] + pair->hi;\n"
+                     "    return total;\n"
+                     "}\n")
+        up = P.Upstream(f"{root}/upstream")
+        model = P.scan_tree(root, [rel], ("usa",))
+        results, misses = P.apply_plan(root, P.Planner(root, model, up).run())
+        got = results.get(rel, b"").decode()
+        with open(f"{root}/{rel}", "wb") as fh:
+            fh.write(results.get(rel, b""))
+        again, _ = P.apply_plan(root, P.Planner(root, P.scan_tree(root, [rel], ("usa",)), up).run())
+        if again:
+            return "a second pass renamed plain names again: %r" % again
+    want = ("struct Struct_02001000 { int unknown_0_; short unknown_4_[4]; unsigned char unknown_c_0_ : 4, "
+            "unknown_c_4_ : 4; };\n"
+            "enum Enum_02001000 { Enum_02001000_0, Enum_02001000_3 = 3 };\n"
+            "extern \"C\" int func_02001000(struct Struct_02001000* arg0, int arg1) {\n"
+            "    int var0 = arg0->unknown_0_ * arg1;\n"
+            "    if (var0 > Enum_02001000_3) var0 += arg0->unknown_4_[1] + arg0->unknown_c_4_;\n"
+            "    return var0;\n"
+            "}\n")
+    if misses:
+        return "unresolved: %s" % misses
+    if got != want:
+        return "got:\n%s" % got
+    return None
+
+
+@check("plainnames keeps a type already named Struct_<addr> at its definition and its uses",
+       "include/World/ZoneWarpScript.h's struct Struct_020fdc20 became Struct_020fdc20_2 while "
+       "`extern Struct_020fdc20 data_020fdc20` kept the old name; 55 objects failed to compile")
+def _plainnames_keeps_plain_types():
+    P = load("plainnames")
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        root = d.replace("\\", "/")
+        for sub in ("src", "include", "upstream/src", "config/usa/arm9"):
+            os.makedirs(f"{root}/{sub}")
+        with open(f"{root}/config/usa/arm9/symbols.txt", "w") as fh:
+            fh.write("func_02001000"
+                     " kind:function(arm,size=0x20) addr:0x02001000\n")
+        rel = "src/func_02001000.cpp"
+        with open(f"{root}/{rel}", "w", newline="\n") as fh:
+            fh.write("struct Struct_02001000 { int a; };\nextern Struct_02001000 data_02001100;\n"
+                     "extern \"C\" int func_02001000(struct Struct_02001000* p, int arg5) { return p->a + arg5; }\n")
+        model = P.scan_tree(root, [rel], ("usa",))
+        results, misses = P.apply_plan(root, P.Planner(root, model, P.Upstream(f"{root}/upstream")).run())
+        got = results.get(rel, b"").decode()
+    want = ("struct Struct_02001000 { int unknown_0_; };\nextern Struct_02001000 data_02001100;\n"
+            "extern \"C\" int func_02001000(struct Struct_02001000* arg0, int arg1) { return arg0->unknown_0_ + arg1; }\n")
+    return None if got == want else "got %r" % got
+
+
+@check("plainnames renames a parameter inside every region's copy of a macro",
+       "#325's `#if defined(jpn) #define OBJ (base + 0xe20)` kept `base` after the parameter became arg0, "
+       "because only the USA #define was rewritten; jpn was red")
+def _plainnames_region_macros():
+    P = load("plainnames")
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        root = d.replace("\\", "/")
+        for sub in ("src", "include", "upstream/src", "config/usa/arm9"):
+            os.makedirs(f"{root}/{sub}")
+        with open(f"{root}/config/usa/arm9/symbols.txt", "w") as fh:
+            fh.write("func_02001000"
+                     " kind:function(arm,size=0x20) addr:0x02001000\n")
+        rel = "src/func_02001000.cpp"
+        with open(f"{root}/{rel}", "w", newline="\n") as fh:
+            fh.write("#if defined(jpn)\n#define OBJ (base + 1)\n#else\n#define OBJ (self + 2)\n#endif\n"
+                     "#if defined(jpn)\nextern \"C\" int func_02001000(int base) { return OBJ; }\n"
+                     "#else\nextern \"C\" int func_02001000(int self) { return OBJ; }\n#endif\n")
+        model = P.scan_tree(root, [rel], ("usa", "jpn"))
+        results, misses = P.apply_plan(root, P.Planner(root, model, P.Upstream(f"{root}/upstream")).run())
+        got = results.get(rel, b"").decode()
+    if "base" in got or "self" in got or got.count("arg0") != 4:
+        return "got %r, misses %s" % (got, misses)
+    return None
+
+
 @check("landpr --fixes DROP accepts a file the pull request deleted as a reviewed deletion",
        "#315 deleted .idea/c_cpp_properties.json; DROP refused the absent path and prready refused it unreviewed")
 def _landpr_drop_reviews_a_deletion():
@@ -2254,7 +2351,7 @@ def _prready():
             "src/B.cpp": "void Baz() {}\n"})
         commit(pub_kit, {n: open(f"{KIT}/{n}", encoding="utf-8").read()
                          for n in ("prready.py", "delinked.py", "kitpaths.py", "pragmas.py", "plausible.py", "mangle.py",
-                                   "gitread.py")}
+                                   "gitread.py", "plainnames.py")}
                | {"worker_src/deadends.md": "# dead ends\n", "worker_src/core.md": "# core\n"})
         git(d, "clone", "-q", pub_decomp, decomp)
         git(d, "clone", "-q", pub_kit, kit)
@@ -2304,7 +2401,8 @@ def _prready():
         want = {"decomp": ("KIT BEHIND", "DECOMP BEHIND", "OUTSIDE A MATCH .github/workflows/match.yml",
                            "DEAD FILE src/Dead.cpp", "HALF RENAME Foo", "CODEGEN PRAGMA src/A.cpp: adds 2",
                            "NO USA TAG src/Untagged.cpp", "NOT AN UPSTREAM NAME Bar",
-                           "NOT AN UPSTREAM NAME _Z19Qux_ov002_02150010v", "REINTERPRET-CAST include/A.h"),
+                           "NOT AN UPSTREAM NAME _Z19Qux_ov002_02150010v", "REINTERPRET-CAST include/A.h",
+                           "NOT A PLAIN NAME include/A.h:1 p: write arg0"),
                 "kit": ("KIT BEHIND", "NO DEAD ENDS", "UNPROVEN CITATION 02000400", "UNPROVEN CITATION 02150010")}
         for mode, needles in want.items():
             code, out = prready(mode)

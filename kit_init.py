@@ -24,7 +24,7 @@ REPO = kitpaths.REPO
 
 STATE_DIRS = ["wlog", "wlog/gates", "wip", "staging", "handwork", "attempts", "claims", "scaffold",
               "gated", "clsbest", "quarantine", "doc_cache", "refs"]
-REQUIRED = {"capstone": "capstone", "elftools": "pyelftools"}
+REQUIRED = {"capstone": "capstone", "elftools": "pyelftools", "clang": "libclang"}
 OPTIONAL = {"frida": "frida (only for frida/*.py and pad/renum/)", "yaml": "pyyaml (only for frida/schedforce.py)"}
 PORTABLE_SKILLS = ["dqix-hand-match", "dqix-status", "dqix-stop", "dqix-coordinate"]
 

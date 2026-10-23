@@ -224,6 +224,12 @@ def decomp(decomp_tip):
         if new:
             problems.append(f"IMPLAUSIBLE {path}: adds {', '.join(new)}; write what a developer wrote "
                             f"(worker_src/core.md, NATURAL FORMS THAT MATCH WHERE A TRICK DID)")
+    named = [p for p in changed if p.startswith(("src/", "include/")) and p.endswith((".c", ".cpp", ".h"))
+             and os.path.isfile(f"{REPO}/{p}")]
+    if named:
+        import plainnames
+        for line in plainnames.check(REPO, named):
+            problems.append(f"{line} (python plainnames.py fix {line.split()[4].rsplit(':', 1)[0]})")
     for path in changed:
         if path.startswith("src/"):
             gained = (len(codegen_pragmas("\n".join(plus(path)), path))

@@ -10,7 +10,8 @@ A merge conflict in a file DIR replaces is resolved to DIR's version. A changed 
 src/, include/ and config/ lands only when DIR supplies it, so nothing a contributor wrote runs here.
 In the integration tree, from the published tip: merges each pull request head as `Merge #N` (a
 conflict only in delinks.txt, where both sides added blocks, keeps both), refuses symbolic links, strips
-comments from the source it changed, requires `prready.py decomp` READY, ports between the regions
+comments from the source it changed, renames what it changed to plain names (plainnames.py, committed as
+`Plain names`), requires `prready.py decomp` READY, ports between the regions
 (regionsync.py), requires `ninja check` and `ninja sha1` in every region, refuses a head that moved
 since it was fetched, then publishes. regionsync prints `NOT IN USA <file>: <why>` for each file another
 region delinks that it could not wire into config/usa.
@@ -23,6 +24,7 @@ import sys
 
 import gitread
 import kitpaths
+import plainnames
 
 sys.path.insert(0, f"{kitpaths.KIT}/pad")
 from decomment import strip
@@ -108,6 +110,19 @@ def strip_comments(tree, tip):
     if git(tree, "status", "--porcelain", "--", "src")[1].strip():
         git(tree, "add", "--", "src")
         git(tree, "commit", "-q", "-m", "Strip contribution comments")
+
+
+def plain_names(tree, tip):
+    changed = [p for p in git(tree, "diff", "--name-only", tip, "HEAD", "--", "src", "include")[1].split()
+               if p.endswith((".c", ".cpp", ".h")) and os.path.isfile(f"{tree}/{p}")]
+    if not changed:
+        return
+    files, misses, _ = plainnames.fix(tree, changed)
+    for line in misses:
+        print(f"UNRESOLVED {line}")
+    if git(tree, "status", "--porcelain", "--", "src", "include", "config")[1].strip():
+        git(tree, "add", "--", "src", "include", "config")
+        git(tree, "commit", "-q", "-m", "Plain names")
 
 
 def build_every_region(tree):
@@ -197,6 +212,7 @@ def main():
             refuse(f"#{n} conflicts in {', '.join(conflicts) or out.strip()[-200:]}; resolve it by hand")
     reviewed = apply_fixes(tree, fixes, numbers, tip) if fixes else []
     strip_comments(tree, tip)
+    plain_names(tree, tip)
     code, out = run(KIT, sys.executable, f"{KIT}/prready.py", "decomp",
                     env=dict(os.environ, DQIX_REPO=tree, PRREADY_REVIEWED=os.pathsep.join(reviewed)))
     if code:
