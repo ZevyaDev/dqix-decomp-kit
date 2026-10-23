@@ -2130,10 +2130,10 @@ def _scaffold_symbols_name():
        "main:020c8bd4's scaffold declared `extern \"C\" void EnableSystemControlBit0();` for the ROM's "
        "_Z23EnableSystemControlBit0v, which links to a symbol that does not exist")
 def _scaffold_mangled_callee():
-    out = _scaffold("main", "020c8bd4")
-    if "void EnableSystemControlBit0_020c89f8();" not in out:
-        return "no C++ declaration of EnableSystemControlBit0_020c89f8: %s" % out[-300:]
-    if re.search(r'(?m)^extern "C" void (?:_Z|EnableSystemControlBit0)', out):
+    out = _scaffold("main", "020103f0")
+    if not re.search(r"(?m)^void GetCurrentTimestamp\(\);", out):
+        return "no C++ declaration of GetCurrentTimestamp: %s" % out[-300:]
+    if re.search(r'(?m)^extern "C" void (?:_Z|GetCurrentTimestamp)', out):
         return "a mangled callee was declared extern \"C\""
     return None
 
@@ -2143,8 +2143,8 @@ def _scaffold_mangled_callee():
        "map left it out")
 def _scaffold_rom_call():
     out = _scaffold("main", "020c8bd4")
-    if not re.search(r"(?m)^\s+\+0x50\s+DisableSystemControlBit0_020c8a08$", out):
-        return "the call map has no +0x50 DisableSystemControlBit0_020c8a08: %s" % out[-300:]
+    if not re.search(r"(?m)^\s+\+0x50\s+func_020c8a08$", out):
+        return "the call map has no +0x50 func_020c8a08: %s" % out[-300:]
     return None
 
 
@@ -2259,7 +2259,8 @@ def _prready():
         git(d, "clone", "-q", pub_decomp, decomp)
         git(d, "clone", "-q", pub_kit, kit)
         env = dict(os.environ, DQIX_KIT_URL=pub_kit, DQIX_KIT_BRANCH="main", DQIX_DECOMP_URL=pub_decomp,
-                   DQIX_DECOMP_BRANCH="decomp-matching", DQIX_REPO=decomp, DQIX_STATE=f"{d}/state")
+                   DQIX_DECOMP_BRANCH="decomp-matching", DQIX_UPSTREAM_URL=pub_decomp,
+                   DQIX_UPSTREAM_BRANCH="decomp-matching", DQIX_REPO=decomp, DQIX_STATE=f"{d}/state")
 
         def prready(*args, stdin=None):
             r = subprocess.run([sys.executable, f"{kit}/prready.py", *args], env=env, input=stdin,
@@ -2302,8 +2303,8 @@ def _prready():
         commit(pub_kit, {"README.md": "x\n"})
         want = {"decomp": ("KIT BEHIND", "DECOMP BEHIND", "OUTSIDE A MATCH .github/workflows/match.yml",
                            "DEAD FILE src/Dead.cpp", "HALF RENAME Foo", "CODEGEN PRAGMA src/A.cpp: adds 2",
-                           "NO USA TAG src/Untagged.cpp", "NAME WITHOUT ADDRESS _Z3Bazv",
-                           "REINTERPRET-CAST include/A.h"),
+                           "NO USA TAG src/Untagged.cpp", "NOT AN UPSTREAM NAME Bar",
+                           "NOT AN UPSTREAM NAME _Z19Qux_ov002_02150010v", "REINTERPRET-CAST include/A.h"),
                 "kit": ("KIT BEHIND", "NO DEAD ENDS", "UNPROVEN CITATION 02000400", "UNPROVEN CITATION 02150010")}
         for mode, needles in want.items():
             code, out = prready(mode)
@@ -2314,8 +2315,8 @@ def _prready():
                 return f"prready.py kit flagged a landed citation: {out.strip()[-400:]}"
             if mode == "decomp" and "HALF RENAME data_02000040" in out:
                 return f"prready.py decomp flagged a region port taking the USA name: {out.strip()[-400:]}"
-            if mode == "decomp" and "Qux_ov002_02150010" in out:
-                return f"prready.py decomp flagged a name that carries its address: {out.strip()[-400:]}"
+            if mode == "decomp" and ("UPSTREAM NAME _Z3Bazv" in out or "UPSTREAM NAME data_" in out):
+                return f"prready.py decomp flagged an upstream or default name: {out.strip()[-400:]}"
             if mode == "decomp" and "CODEGEN PRAGMA src/B.cpp" in out:
                 return f"prready.py decomp refused a pragma pragma_allow.txt lists for that file: {out.strip()[-400:]}"
         code, out = prready("--hook", stdin=json.dumps({"tool_input": {"command": "gh pr create -R ZevyaDev/dqix-decomp"}}))

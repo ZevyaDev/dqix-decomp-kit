@@ -34,6 +34,42 @@ REGION_ONLY = re.compile(r"(?m)^#if defined\((jpn|eur)\)\s*$")
 
 
 MANGLED_FREE = re.compile(r"^_Z(\d+)")
+DEFAULT_NAME = re.compile(r"^(func|data)_(ov\d{3}_)?(jpn_|eur_)?[0-9a-f]{8}(_\w+)?$")
+
+
+def own_ident(name):
+    if not name.startswith("_Z"):
+        return name
+    if name.startswith("_ZN"):
+        i, last = (4 if name.startswith("_ZNK") else 3), None
+        while i < len(name) and name[i] != "E":
+            m = re.match(r"\d+", name[i:])
+            if not m:
+                return None
+            j = i + len(m.group())
+            last, i = name[j:j + int(m.group())], j + int(m.group())
+        return last
+    m = MANGLED_FREE.match(name)
+    return name[m.end():m.end() + int(m.group(1))] if m else None
+
+
+def toolchain_name(name):
+    return name.startswith(("@", ".", "__sinit", "_ZZ", "_ZT", "_ZGV")) or "$" in name
+
+
+def upstream_names(tip):
+    paths = [p for p in files(REPO, tip, "config") if p.endswith("symbols.txt")]
+    texts = gitread.blobs(REPO, [f"{tip}:{p}" for p in paths]).values()
+    full = set().union(*(names(t) for t in texts))
+    idents = {own_ident(n) for n in full} | {c for n in full for c in re.findall(r"\d+([A-Za-z_]\w*)", n)}
+    return full, idents
+
+
+def not_upstream(name, full, idents):
+    if DEFAULT_NAME.match(name) or toolchain_name(name) or name in full:
+        return False
+    ident = own_ident(name)
+    return not ident or not (DEFAULT_NAME.match(ident) or ident in idents)
 
 
 def signature_only(old, new):
@@ -201,14 +237,17 @@ def decomp(decomp_tip):
             if gained > 0:
                 problems.append(f"REINTERPRET-CAST {path}: adds {gained}; give the value the type it really has "
                                 f"instead of casting it")
-    for path in changed:
-        if path.startswith("config/usa/") and path.endswith("symbols.txt"):
+    if any(SYMBOLS.match(p) for p in changed):
+        full, idents = upstream_names(published(REPO, kitpaths.UPSTREAM_URL, kitpaths.UPSTREAM_BRANCH))
+        for path in changed:
+            if not SYMBOLS.match(path):
+                continue
             before = names(show(REPO, decomp_tip, path))
             for line in plus(path):
-                m = re.match(r"(_Z\S+) kind:function\S*\s+addr:0x([0-9a-fA-F]+)", line)
-                if m and m.group(1) not in before and m.group(2).lower()[-8:] not in m.group(1).lower():
-                    problems.append(f"NAME WITHOUT ADDRESS {m.group(1)} in {path}: end the C++ name with its USA "
-                                    "address, <name>_<addr> in main or <name>_ovNNN_<addr> in an overlay")
+                name = line.split()[0] if line.strip() else ""
+                if name and name not in before and not_upstream(name, full, idents):
+                    problems.append(f"NOT AN UPSTREAM NAME {name} in {path}: keep the default func_/data_ name; "
+                                    "only names already on upstream main are taken")
     for path in changed:
         m = SYMBOLS.match(path)
         if not m:

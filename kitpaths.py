@@ -69,6 +69,8 @@ KIT_URL = os.environ.get("DQIX_KIT_URL", "https://github.com/ZevyaDev/dqix-decom
 KIT_BRANCH = os.environ.get("DQIX_KIT_BRANCH", "main")
 DECOMP_URL = os.environ.get("DQIX_DECOMP_URL", "https://github.com/ZevyaDev/dqix-decomp.git")
 DECOMP_BRANCH = os.environ.get("DQIX_DECOMP_BRANCH", "decomp-matching")
+UPSTREAM_URL = os.environ.get("DQIX_UPSTREAM_URL", "https://github.com/DQIX/dqix-decomp.git")
+UPSTREAM_BRANCH = os.environ.get("DQIX_UPSTREAM_BRANCH", "main")
 
 
 def module_label(mod):

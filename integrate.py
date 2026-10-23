@@ -419,7 +419,6 @@ for f, addr in pending:
         newhdr = m.group(1) + m.group(2) + ("" if has_ec else 'extern "C" ') + m.group(3) + want + m.group(5)
         ftxt = ftxt[:m.start()] + newhdr + ftxt[m.end():]
         if sem != want:
-            ftxt = ftxt.replace(f"// {REGION_TAG}: {raw}", f"// {REGION_TAG}: {raw}  (semantic: {sem})", 1)
             # A RECURSIVE CALL IS A REFERENCE TO THE NAME WE JUST RETIRED. Renaming only the
             # definition left `UpdateAndRenderDebugList_02029988(...)` inside func_02029988 on
             # main:02029988, so the file never compiled again and every sweep re-reported it.

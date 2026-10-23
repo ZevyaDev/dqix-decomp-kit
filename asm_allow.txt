@@ -39,18 +39,18 @@
 020c197c  MTX_RotX43_                       NitroSDK ships it as asm (pokediamond FX_mtx43.c:169)
 020c6938  GX_SendFifo64B                    NitroSDK ships it as asm (SonicRush gxasm.c:24)
 0200cd1c  _ll_mod                           CW runtime asm: pushes ip, branches into _ll_sdiv; asm in every ref (SonicRush msl.s)
-020c98f0  ResetSystemAndBoot020c98f0       NitroSDK OS_ResetSystem tail is inline asm: mov sp to the IRQ stack bottom, bl into ITCM; mov sp has no C form
+020c98f0  func_020c98f0                    NitroSDK OS_ResetSystem tail is inline asm: mov sp to the IRQ stack bottom, bl into ITCM; mov sp has no C form
 020c8bd4  func_020c8bd4                    NitroSDK OSi_DisplayExContext wraps its handler call in inline asm: mrs/msr cpsr, mov sp, ldr lr,=label (pokeheartgold os_exception.c:123)
 0200ae40  _d2f                             CW runtime soft-float, hand-written asm: andseq, cmn+bhs, subs+bls and an unfolded mov #0xff000000 have no C form (pokediamond RUNTIME_d_dtof.s)
 0200d8a8  func_0200d8a8                    MSL semihosting SYS_READC (mov r0,#7; swi 0x123456): a swi has no C form; neighbours func_0200d894 and sys_exit 0200d8bc are delinked as the same asm
 020ca7e0  _Z19AtomicSwap_020ca7e0iPi         swp has no C form (SonicRushAdventure-Decomp/mi_swap.c 100%)
-020c8b30  _Z37CallFunc020c8b44Then020c8bd4_020c8b30Pv NitroSDK OSi_GetAndDisplayContext: push r0/lr, two bl, pop, bx lr (pokediamond OS_exception.c, asm)
-020c9a4c  _Z26CountLeadingZeros_020c9a4cj    hand asm (SonicRushAdventure-Decomp/os_vramExclusive.c 100%)
+020c8b30  func_020c8b30                               NitroSDK OSi_GetAndDisplayContext: push r0/lr, two bl, pop, bx lr (pokediamond OS_exception.c, asm)
+020c9a4c  func_020c9a4c                      hand asm (SonicRushAdventure-Decomp/os_vramExclusive.c 100%)
 020001c0  CpuSet                             swi has no C form (khdays-decomp/CpuSet.c 100%)
-020c8a08  _Z33DisableSystemControlBit0_020c8a08v mcr/mrc has no C form (SonicRushAdventure-Decomp/os_protectionRegion.c 100%)
-020c89d4  _Z22EnableDataTcm_020c89d4v        mcr/mrc has no C form (SonicRushAdventure-Decomp/os_protectionRegion.c 100%)
-020c89c4  _Z29EnableInstructionTcm_020c89c4v mcr/mrc has no C form (SonicRushAdventure-Decomp/os_protectionRegion.c 100%)
-020c89f8  _Z32EnableSystemControlBit0_020c89f8v mcr/mrc has no C form (SonicRushAdventure-Decomp/os_protectionRegion.c 100%)
+020c8a08  func_020c8a08                          mcr/mrc has no C form (SonicRushAdventure-Decomp/os_protectionRegion.c 100%)
+020c89d4  func_020c89d4                      mcr/mrc has no C form (SonicRushAdventure-Decomp/os_protectionRegion.c 100%)
+020c89c4  func_020c89c4                      mcr/mrc has no C form (SonicRushAdventure-Decomp/os_protectionRegion.c 100%)
+020c89f8  func_020c89f8                         mcr/mrc has no C form (SonicRushAdventure-Decomp/os_protectionRegion.c 100%)
 020c6914  func_020c6914                      hand asm (SonicRushAdventure-Decomp/gxasm.c 100%)
 020c89e4  _Z29GetDataTcmRegionBase_020c89e4v mrc has no C form
 0200056c  Halt                               swi has no C form (khdays-decomp/Halt.c 100%)
@@ -64,12 +64,12 @@
 020c2208  Mat4x4_ConvertTo4x3                hand asm (SonicRushAdventure-Decomp/fx_mtx44.c 100%)
 020c7d80  RestoreContext                     mrs/msr has no C form (sm64ds-decomp/ARMRestoreContext.c 82%)
 020c7d34  SaveContext                        mrs/msr has no C form (SonicRushAdventure-Decomp/os_context.c 84%)
-020c8a2c  _Z29SetProtectionRegion1_020c8a2cj mcr has no C form (SonicRushAdventure-Decomp/os_protectionRegion.c 100%)
-020c8a34  _Z29SetProtectionRegion2_020c8a34j mcr has no C form (SonicRushAdventure-Decomp/os_protectionRegion.c 100%)
-020c8a18  _Z35UpdateDataAccessPermission_020c8a18jj mcr/mrc has no C form (SonicRushAdventure-Decomp/os_protectionRegion.c 100%)
+020c8a2c  func_020c8a2c                      mcr has no C form (SonicRushAdventure-Decomp/os_protectionRegion.c 100%)
+020c8a34  func_020c8a34                      mcr has no C form (SonicRushAdventure-Decomp/os_protectionRegion.c 100%)
+020c8a18  func_020c8a18                             mcr/mrc has no C form (SonicRushAdventure-Decomp/os_protectionRegion.c 100%)
 020c9bf0  func_020c9bf0                      mcr has no C form (SonicRushAdventure-Decomp/os_cache.c 100%)
-020c8348  _Z26WaitForVCountZero_020c8348v    hand asm (khdays-decomp/OSi_CancelDma0.c 100%)
-020c56dc  _Z29WriteGXFifoZeroBurst_020c56dcPVv hand asm (pokediamond/GX_g3x.c 100%)
+020c8348  func_020c8348                      hand asm (khdays-decomp/OSi_CancelDma0.c 100%)
+020c56dc  func_020c56dc                        hand asm (pokediamond/GX_g3x.c 100%)
 0200bf68  _fgeq                              mrs/msr has no C form
 0200bfc4  _fgr                               mrs/msr has no C form
 0200c020  _fleq                              mrs/msr has no C form
@@ -92,9 +92,9 @@
 020ca7e8  func_020ca7e8                      swpb has no C form (pmd-sky/mi_uncompress.c 91%)
 0200d8bc  func_0200d8bc                      swi has no C form (sm64ds-decomp/func_0207199c.c 100%)
 0220c0ac  func_ov031_0220c0ac                CPS bignum get48bits_3: the high halfword loaded straight into r1 of a u64 return, which C combines with an identity orr, asm in the library (SonicRushAdventure-Decomp/ssl.s; pokeheartgold fork cps_bignum.c)
-0220c0c0  _Z29ReadPacked64Reversed_0220c0c0Pt  CPS bignum get64bits: two halfword pairs orr'd into r1:r0 with no u64 combine, asm in the library (SonicRushAdventure-Decomp/ssl.s; pokeheartgold fork cps_bignum.c)
+0220c0c0  func_ov031_0220c0c0                  CPS bignum get64bits: two halfword pairs orr'd into r1:r0 with no u64 combine, asm in the library (SonicRushAdventure-Decomp/ssl.s; pokeheartgold fork cps_bignum.c)
 0220db38  func_ov031_0220db38                NitroWiFi WcmCountBits: clz has no intrinsic; bxcc appears as a branch-over-branch in the ROM, asm in the library (pokediamond WCM_system.s; pokeheartgold fork wcm_control.c)
-0220db64  _Z26CountLeadingZeros_0220db64j    hand asm (SonicRushAdventure-Decomp/os_vramExclusive.c 100%)
+0220db64  func_ov031_0220db64                hand asm (SonicRushAdventure-Decomp/os_vramExclusive.c 100%)
 020c96e8  _Z19EnableIRQInterruptsv           mrs/msr has no C form (SonicRushAdventure-Decomp/os_system.c 100%)
 020c96fc  _Z20DisableIRQInterruptsv          mrs/msr has no C form (SonicRushAdventure-Decomp/os_system.c 100%)
 020c9710  _Z20SetIRQInterruptStatei          mrs/msr has no C form (SonicRushAdventure-Decomp/os_system.c 100%)
@@ -179,7 +179,7 @@
 020c1280  Mat3x3_WriteRotationY              NitroSDK MTX_RotY33_, asm void (SonicRush fx_mtx33.c), Thumb
 0200c700  func_0200c700                      CW runtime s64 -> float: tail-branches into the middle of _fflt
 0200c76c  func_0200c76c                      CW runtime u64 -> float: tail-branches into the middle of _ffltu
-02211938  Rc4Crypt_02211938                  NitroSDK CRYPTO_RC4Encrypt, asm in pokebw2 rc4.c and pokeheartgold nitrocrypto_rc4.c; unpadded push {r4-r9, lr}
+02211938  func_ov031_02211938                NitroSDK CRYPTO_RC4Encrypt, asm in pokebw2 rc4.c and pokeheartgold nitrocrypto_rc4.c; unpadded push {r4-r9, lr}
 0218f6b8  func_ov016_0218f6b8                ov016 codec middleware (as 0219000c): saves ip, mid-body push of loop constants, sp moved inside the loop
 01ff8218  func_01ff8218                      NitroSDK OSi_DoBoot (itcm), asm void in os_reset.c (pokediamond OS_reset.c)
 01ff82e4  func_01ff82e4                      NitroSDK OSi_CpuClear32 (itcm), static asm void in os_reset.c (pokediamond OS_reset.c)

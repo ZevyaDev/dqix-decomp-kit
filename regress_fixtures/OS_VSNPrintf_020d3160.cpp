@@ -3,9 +3,9 @@
 struct ByteWriter020d3084;
 struct Sink020d30b4;
 struct Sink020d3108;
-void WriteByteIfRoom(ByteWriter020d3084* sink, int c);
-void FillSinkClamped(Sink020d30b4* sink, char value, int count);
-void CopySinkClamped(Sink020d3108* sink, char* src, int count);
+extern "C" void func_020d3084(ByteWriter020d3084* sink, int c);
+extern "C" void func_020d30b4(Sink020d30b4* sink, char value, int count);
+extern "C" void func_020d3108(Sink020d3108* sink, char* src, int count);
 
 struct FmtSink020d3160 {
     unsigned long len;
@@ -14,15 +14,15 @@ struct FmtSink020d3160 {
 };
 
 static inline void string_put_char(FmtSink020d3160* p, char c) {
-    WriteByteIfRoom((ByteWriter020d3084*)p, c);
+    func_020d3084((ByteWriter020d3084*)p, c);
 }
 
 static inline void string_fill_char(FmtSink020d3160* p, char c, int n) {
-    FillSinkClamped((Sink020d30b4*)p, c, n);
+    func_020d30b4((Sink020d30b4*)p, c, n);
 }
 
 static inline void string_put_string(FmtSink020d3160* p, const char* s, int n) {
-    CopySinkClamped((Sink020d3108*)p, (char*)s, n);
+    func_020d3108((Sink020d3108*)p, (char*)s, n);
 }
 
 #define va_arg(list, ty) (*(ty*)((list += 4) - 4))

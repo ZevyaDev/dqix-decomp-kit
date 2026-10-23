@@ -210,7 +210,7 @@ def scaffold(mod, addr):
         L.append("//      func_<addr> deletes a symbol the build requires and reds the WHOLE wave.")
         L.append("// KEEP-NAME")
     L.append(f"// {REGION_TAG}: {pfx}{addr}")
-    L.append(f'extern "C" {mac} int {symname if not symname.startswith("func_") else "TODO_Name_" + addr}(/* TODO args */) {{')
+    L.append(f'extern "C" {mac} int {symname}(/* TODO args */) {{')
     L.append("    /* TODO */")
     L.append("}")
     return '\n'.join(L) + '\n', len(calls) + len(data)
