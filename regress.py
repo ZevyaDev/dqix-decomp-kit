@@ -1645,6 +1645,18 @@ def _autorepair_keeps_c_definition():
     return None
 
 
+@check("integrate runs plain names in a child process, never in-process",
+       "integrate.py has no __main__ guard: plainnames.fix's Pool re-ran it in every spawned Windows worker, "
+       "each died bootstrapping, and finish_wave 004 and 029 sat in integrate.py until killed")
+def _integrate_plainnames_out_of_process():
+    src = open(f"{KIT}/integrate.py", encoding="utf-8").read()
+    if re.search(r"(?m)^\s*(import plainnames|from plainnames\b)", src) or "plainnames.fix(" in src:
+        return "integrate.py calls plainnames in-process"
+    if not re.search(r'subprocess\.run\(\[sys\.executable, f"\{KIT\}/plainnames\.py", "--tree"', src):
+        return "integrate.py does not run plainnames.py as a child process"
+    return None
+
+
 # ---------------------------------------------------------------- finish_wave.sh
 
 @check("finish_wave refuses a malformed module instead of reporting green",
