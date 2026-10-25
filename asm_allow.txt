@@ -57,7 +57,7 @@
 0200062c  HuffUnCompReadByCallback           swi has no C form (khdays-decomp/HuffUnCompReadByCallback.c 100%)
 020c21dc  Mat4x4_WriteIdentity               hand asm (SonicRushAdventure-Decomp/fx_mtx44.c 100%)
 020c7cb0  _Z26InitializeContextRegistersP16ProcessorContextjj hand asm (pmd-sky/os_context.c 100%)
-020004ec  IntrWait                           swi has no C form (khdays-decomp/IntrWait.c 100%)
+020004ea  IntrWait                           swi has no C form (khdays-decomp/IntrWait.c 100%)
 020000d4  IsDebugger                         swi has no C form (khdays-decomp/IsDebugger.c 100%)
 020002cc  LZ77UnCompReadByCallbackWrite16bit swi has no C form (khdays-decomp/LZ77UnCompReadByCallbackWrite16bit.c 100%)
 02000140  LZ77UnCompReadNormalWrite8bit      swi has no C form (khdays-decomp/LZ77UnCompReadNormalWrite8bit.c 100%)
