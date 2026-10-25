@@ -800,6 +800,11 @@ the object, put the static in an inline accessor so it has a linkable name:
 guessed size, or the true size at file scope, leaves the residue byte-identical (`ov026:021d8ba0`).
 Keep every other global `extern`.
 
+The same size test decides loads through an `extern` struct that models another file's `.bss` block
+(a TU's statics, reached from its section base): declare the struct at the block's TRUE extent, the
+`.bss` range its owner has in `delinks.txt`. At 0x80 or 0xe0 the loads reorder; from 0xe8
+(2 × 0x68 + 0x18) it matches (`ov031:02204c84`, SCHED 26 → MATCH).
+
 ## A COMPARE AGAINST A HOISTED REGISTER IS AN ENUM-TYPED LOCAL
 Symptom: the ROM materialises small constants before a loop (`mov r7,#1; mov r6,#4`) and compares
 against the registers (`cmp r0,r7`), where every literal, `#define`, enum constant, `const` or `int`
