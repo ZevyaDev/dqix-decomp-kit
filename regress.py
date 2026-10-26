@@ -211,6 +211,44 @@ def _landpr_strips_asm():
     return None
 
 
+@check("landpr keeps the comments a file already had and strips only the ones the pull request added",
+       "#335 dropped one alias line from 34 files, and landpr's strip would have taken eakeys' comments out of "
+       "every upstream file among them; e0738f324 had already stripped 21 from two")
+def _landpr_keeps_existing_comments():
+    import subprocess
+    L = load("landpr")
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        def git(*args):
+            subprocess.run(["git", "-C", d, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "core.autocrlf=false",
+                            *args], capture_output=True, text=True, check=True)
+        git("init", "-q", "-b", "main")
+        git("config", "user.name", "t")
+        git("config", "user.email", "t@t")
+        os.makedirs(os.path.join(d, "src"))
+        touched = os.path.join(d, "src", "a.cpp")
+        edited = os.path.join(d, "src", "b.cpp")
+        with open(touched, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write("#define func_02000000 func_02000100\n// reset the registers\nvoid f(); /* mode */\n")
+        with open(edited, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write("// upstream note\nint g();\n")
+        git("add", "-A")
+        git("commit", "-qm", "x")
+        tip = subprocess.run(["git", "-C", d, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+        with open(touched, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write("// reset the registers\nvoid f(); /* mode */\n")
+        with open(edited, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write("// upstream note\n// added by the pull request\nint g();\n")
+        git("commit", "-qam", "y")
+        L.strip_comments(d, tip)
+        with open(touched, encoding="utf-8") as fh:
+            a = fh.read()
+        with open(edited, encoding="utf-8") as fh:
+            b = fh.read()
+    if a != "// reset the registers\nvoid f(); /* mode */\n" or b != "// upstream note\nint g();\n":
+        return "landpr left %r and %r" % (a, b)
+    return None
+
+
 @check("plainnames renames a source's types, members, enums, parameters and locals to plain names",
        "AI-invented names (#318 CharacterCreation, LookDefaults, ModelFile.allocator_) landed because "
        "prready checked only symbols.txt")

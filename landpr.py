@@ -27,7 +27,7 @@ import kitpaths
 import plainnames
 
 sys.path.insert(0, f"{kitpaths.KIT}/pad")
-from decomment import strip
+from decomment import comments, strip
 import regionsync
 
 KIT, URL, BRANCH = kitpaths.KIT, kitpaths.DECOMP_URL, kitpaths.DECOMP_BRANCH
@@ -104,9 +104,11 @@ def strip_comments(tree, tip):
         if path.endswith((".c", ".cpp", ".s")) and os.path.isfile(full):
             with open(full, encoding="utf-8") as fh:
                 text = fh.read()
-            if strip(text) != text:
+            code, old = git(tree, "show", f"{tip}:{path}")
+            keep = comments(old) if code == 0 else set()
+            if comments(text) - keep and strip(text, keep) != text:
                 with open(full, "w", encoding="utf-8", newline="\n") as fh:
-                    fh.write(strip(text))
+                    fh.write(strip(text, keep))
     if git(tree, "status", "--porcelain", "--", "src")[1].strip():
         git(tree, "add", "--", "src")
         git(tree, "commit", "-q", "-m", "Strip contribution comments")
