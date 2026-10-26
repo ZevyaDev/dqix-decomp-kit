@@ -331,7 +331,8 @@ def _plainnames_region_order():
         for sub in ("src", "include", "upstream/src", "config/usa/arm9"):
             os.makedirs(f"{root}/{sub}")
         with open(f"{root}/config/usa/arm9/symbols.txt", "w") as fh:
-            fh.write("func_02001000 kind:function(arm,size=0x20) addr:0x02001000\n")
+            fh.write("func_02001000"
+                     " kind:function(arm,size=0x20) addr:0x02001000\n")
         for base in (root, f"{root}/upstream"):
             with open(f"{base}/src/b.cpp", "w", newline="\n") as fh:
                 fh.write("#if defined(jpn)\n#define func_02001000 func_02001100\n#endif\n"
