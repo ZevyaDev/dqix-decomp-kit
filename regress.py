@@ -321,6 +321,27 @@ def _plainnames_keeps_plain_types():
     return None if got == want else "got %r" % got
 
 
+@check("plainnames gives the same verdict whichever region's scan is merged first",
+       "#335's landing was refused twice, for different upstream parameter names in GeometryFifo.cpp and "
+       "RenderCommands_Common.h, whenever a JPN scan that sees the `#define` alias was merged before USA's")
+def _plainnames_region_order():
+    P = load("plainnames")
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        root = d.replace("\\", "/")
+        for sub in ("src", "include", "upstream/src", "config/usa/arm9"):
+            os.makedirs(f"{root}/{sub}")
+        with open(f"{root}/config/usa/arm9/symbols.txt", "w") as fh:
+            fh.write("func_02001000 kind:function(arm,size=0x20) addr:0x02001000\n")
+        for base in (root, f"{root}/upstream"):
+            with open(f"{base}/src/b.cpp", "w", newline="\n") as fh:
+                fh.write("#if defined(jpn)\n#define func_02001000 func_02001100\n#endif\n"
+                         "extern \"C\" void func_02001000(const void* src, int count);\n")
+        files = ["src/b.cpp"]
+        model = P.scan_tree(root, files, ("jpn", "usa"))
+        renamed = P.Planner(root, model, P.Upstream(f"{root}/upstream"), set(files)).run()["renamed"]
+    return "renamed %r" % renamed if renamed else None
+
+
 @check("plainnames renames a parameter inside every region's copy of a macro",
        "#325's `#if defined(jpn) #define OBJ (base + 0xe20)` kept `base` after the parameter became arg0, "
        "because only the USA #define was rewritten; jpn was red")

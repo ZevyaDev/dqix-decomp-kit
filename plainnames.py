@@ -330,7 +330,8 @@ def mangle_chunk(job):
 
 def jobs(root, files, regions):
     workers = max(1, min(len(files), (os.cpu_count() or 2) - 2))
-    return [(root, region, files[i::workers]) for region in regions for i in range(workers) if files[i::workers]]
+    ordered = sorted(regions, key=lambda r: REGIONS.index(r) if r in REGIONS else len(REGIONS))
+    return [(root, region, files[i::workers]) for region in ordered for i in range(workers) if files[i::workers]]
 
 
 class UnionFind:
@@ -390,7 +391,7 @@ def parallel(fn, work):
         yield from map(fn, work)
         return
     with multiprocessing.Pool(min(len(work), max(1, (os.cpu_count() or 2) - 2))) as pool:
-        yield from pool.imap_unordered(fn, work)
+        yield from pool.imap(fn, work)
 
 
 def scan_tree(root, files, regions):
