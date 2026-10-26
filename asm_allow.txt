@@ -189,6 +189,7 @@
 021d9a24  __sinit_ov029_021d9a24             ov029 decryptor stub (as 021d90ec): table inline in .text after the code, addressed with add r0, pc
 021da374  __sinit_ov029_021da374             ov029 decryptor stub (as 021d90ec): table inline in .text after the code, addressed with add r0, pc
 021da844  __sinit_ov029_021da844             ov029 decryptor stub (as 021d90ec): table inline in .text after the code, addressed with add r0, pc
+021d97c0  func_ov029_021d97c0                mcr p15 has no C form: DS Protect's cache clean/invalidate loop (drain write buffer, clean+invalidate DC line, invalidate IC line), asm like the os_cache.c rows
 0200b5f0  _drsb                              CW runtime reverse subtract: eor operand swap falling through into _dsub, in _dsub's .s (pokediamond RUNTIME_d_sub.s)
 0200c1b4  _frdiv                             CW runtime reverse divide: eor operand swap falling through into _fdiv, in _fdiv's .s (pokediamond RUNTIME_f_div.s)
 0200ca98  _frsb                              CW runtime reverse subtract: eor operand swap falling through into _fsub, in _fsub's .s (pokediamond RUNTIME_f_sub.s)
