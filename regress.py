@@ -6834,21 +6834,23 @@ def _asm_sources_assemble():
 def _integrate_wires_asm():
     import subprocess
     import buildcfg
-    import pragmas
-    allow = pragmas.asm_allow()
     overlays = f"{_kp.REPO}/{buildcfg.config_dir('main')}/overlays"
-    picks = {}
+    found = []
     for mod in ["main"] + sorted(d[2:] for d in os.listdir(overlays) if re.fullmatch(r"ov\d+", d)):
         for name, addr, size in _arm_functions(mod, True):
-            picks.setdefault(addr in allow, (mod, name, addr, size))
-        if len(picks) == 2:
+            if all(addr != f[2] for f in found):
+                found.append((mod, name, addr, size))
+        if len(found) >= 2:
             break
-    if len(picks) != 2:
-        return "no undelinked ARM function is left %s asm_allow.txt to build the fixture from" % (
-            "off" if True in picks else "on")
+    if len(found) < 2:
+        return "fewer than two undelinked ARM functions are left to build the fixture from"
+    picks = {True: found[0], False: found[1]}
     os.makedirs(f"{SP}/handwork", exist_ok=True)
     with tempfile.TemporaryDirectory(dir=f"{SP}/handwork", ignore_cleanup_errors=True) as d:
         root = d.replace("\\", "/")
+        allow_path = f"{root}/asm_allow.txt"
+        with open(allow_path, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write("%s  %s  fixture\n" % (found[0][2], found[0][1]))
         out = {}
         for allowed, (mod, name, addr, size) in picks.items():
             path = f"{root}/{int(allowed)}/{addr}.s"
@@ -6857,7 +6859,8 @@ def _integrate_wires_asm():
                 fh.write(_asm_source(mod, name, addr, size))
             r = subprocess.run([sys.executable, f"{KIT}/integrate.py", mod, f"--srcdir={os.path.dirname(path)}"],
                                capture_output=True, text=True, encoding="utf-8", errors="replace",
-                               env={**os.environ, "DQIX_STATE": f"{root}/sp", "DQIX_NO_FRESHNESS": "1"})
+                               env={**os.environ, "DQIX_STATE": f"{root}/sp", "DQIX_NO_FRESHNESS": "1",
+                                    "DQIX_ASM_ALLOW": allow_path})
             out[allowed] = (path, r.returncode, (r.stdout + r.stderr).replace("\r\n", "\n"))
         path, rc, log = out[True]
         mod, _name, addr, size = picks[True]

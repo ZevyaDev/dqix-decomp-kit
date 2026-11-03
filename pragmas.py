@@ -4,7 +4,7 @@ import re
 CODEGEN_PRAGMA = re.compile(r"(?m)^[ \t]*#[ \t]*pragma[ \t]+(?!(?:define_section|section|once)\b)(\w+)")
 HAND_ASM = re.compile(r'(?m)^\s*asm\b|\basm\s+(?:void|int|unsigned|char|long|short)\b')
 ASM_SITE = re.compile(r"(?m)^\s*asm\b|\basm\s+(?:void|int|unsigned|char|long|short)\b|\b__asm\b|\basm\s*[({]")
-ASM_ALLOW_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "asm_allow.txt")
+ASM_ALLOW_PATH = os.environ.get("DQIX_ASM_ALLOW") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "asm_allow.txt")
 PRAGMA_ALLOW_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pragma_allow.txt")
 
 
