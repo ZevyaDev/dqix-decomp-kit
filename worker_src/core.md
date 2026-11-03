@@ -410,6 +410,9 @@ section base, so `ldr rX,=A; ldrsb [rX,#5]; ldrsb [rX,#9]` comes from `signed ch
 data_ov004_021707e8[6]; Tail data_ov004_021707f0;` defined (not `extern`) in the source. One struct
 over both stays SCHED 27 (wrong alias edges); two `extern`s give one literal per object (OVERGEN).
 Size each defined object up to the next symbol, or dsd refuses the file's `.bss` range.
+When a function needs those definitions but another file already owns the block, merge the
+contiguous functions from that owner through it into one file owning the whole `.bss` range, its
+definitions in the order that reproduces the ROM layout (`0215f770`, `ov004_0215ef14.cpp`).
 
 How the numbers are assigned (decompiled): IRO temps `@N` first (newest first, the low band), then
 declared locals in reverse declaration order, then lowering temps (operands before the op, a for
