@@ -4875,6 +4875,27 @@ def _pipetest_callee_in_header():
     return None
 
 
+@check("tucheck compares against the active region's config and ROM image, itcm included",
+       "tucheck hardcoded config/usa and extract/usa while compiling with the region's flags, so a JPN "
+       "unit was compared with USA bytes and reported BYTEDIFF in functions it does not contain")
+def _tucheck_region_and_tcm():
+    import subprocess
+    import buildcfg
+    src = open(f"{KIT}/tucheck.py", encoding="utf-8").read()
+    if "config/usa" in src or "extract/usa" in src:
+        return "tucheck.py still names the usa config or extract"
+    cfg = f"{_kp.REPO}/{buildcfg.config_dir('itcm')}"
+    unit = re.search(r"(?m)^(src/\S+):\s*\n\s*complete\s*\n\s*\.text start:0x([0-9a-f]+) end:0x([0-9a-f]+)\s*$",
+                     open(f"{cfg}/delinks.txt", encoding="utf-8").read())
+    if not unit:
+        return "no complete itcm unit in %s" % cfg
+    r = subprocess.run([sys.executable, f"{KIT}/tucheck.py", "itcm", f"{_kp.REPO}/{unit.group(1)}",
+                        unit.group(2), unit.group(3)], capture_output=True, text=True, cwd=_kp.REPO)
+    if "MATCH" not in r.stdout.split():
+        return "tucheck itcm %s: %r" % (unit.group(1), (r.stdout + r.stderr).strip()[-160:])
+    return None
+
+
 @check("itcm and dtcm resolve to their own config, image, symbol prefix and reloc module",
        "every non-main module was taken for an overlay, so `wlist.py itcm` opened "
        "arm9_overlays/ovitcm.bin and the three JPN itcm functions could not be scaffolded or gated")
