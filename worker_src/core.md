@@ -509,6 +509,13 @@ Prefer a struct member at that offset over raw `(u8*)` arithmetic; both compile 
 `generic = 0;` written after `soundId = 3; textKind = 1;` is hoisted above the compare into r1 and
 swaps r0/r1 through the block; written BEFORE them it lands in r0, as in the ROM (`021d8c30`).
 
+### A SHIFTED LOOP BOUND KEEPS ITS OWN HOISTED 1 — compute it into a local beside the other shift
+`for (k = 0; k < (1u << rows); k++)` leaves the bound's `1` in the k-loop test block, where local CSE
+cannot merge it with the `1` of `width = 1 << ws;`, so LICM hoists two 1s and the outer loop enters
+with one more live value (pass-1 pressure mode, one free pick short). Write `n = 1 << (hs + 3);`
+next to `width = 1 << (ws + 3);` and test `k < n`; the compare still folds to `cmp rK, r1, lsl rN`
+(`0203e8f8`).
+
 ### A NAMED ADDRESS LOCAL MOVES THE INVARIANT HOIST — write the address at each use
 `flags = self + 0x195b; ... *flags |= 1;` hoists the loop invariants in a different order from
 `*(self + 0x195b) |= 1;` written at the use. A copy-modify-store (`int cur = F; cur += step * 16;
