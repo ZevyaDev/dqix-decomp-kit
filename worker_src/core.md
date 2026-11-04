@@ -1294,7 +1294,9 @@ the form directly:
 - An SDK-build loop left unrotated, with `mul`/`mla` recomputed each pass, touches an object the SDK
   declares `ATTRIBUTE_ALIGN(n)`. Declare the extern the same way, `extern SNDCommand data_02112a60[256]
   __attribute__((aligned(32)));`. A function that touches an aligned object skips loop optimisation
-  (`020d2220`, SND_CommandInit).
+  (`020d2220`, SND_CommandInit). Game code too: the 0x30000 file buffer is `extern unsigned char
+  data_0211e33c[0x30000] __attribute__((aligned(4)));`; a function using it keeps a counter that is
+  incremented and never read, and repeated array address computations unmerged (`ov000:02165490`).
 
 ## EXTERN "C" AND MANGLING — the WRONG-SYMBOL trap
 Whether a declaration mangles decides both the emitted symbol and the argument widths. Get this
