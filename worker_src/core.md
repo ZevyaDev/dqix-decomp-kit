@@ -1116,7 +1116,10 @@ subtracts 1 + max(1, live-14), each def still read later adds max(1, live-14); l
 earlier IR; latency and height ignored. r0-r3 between two calls in one block stay counted. Call
 arguments are always set up in argument order, so a later argument's load issuing before an earlier
 simple argument means the block was under 14 live, the calls sat in separate blocks, or that load
-was its base's last use. Declaration order, temps and argument spelling cannot change it. A block
+was its base's last use, or pass 2 rescheduled the block. Pass 2 (after RA) reschedules only blocks
+whose pcodes RA or a late pass inserted or deleted: a narrowing parameter type in the callee's
+prototype (a `signed char` passed to `unsigned short`) adds a copy RA coalesces away, and that
+deletion makes the block's call arguments reschedule (`02186d00`). Declaration order, temps and argument spelling cannot change it. A block
 also splits at a named label, a C++ exception-region change, or after ~100 pcodes (`02157d40`,
 `02165490`). Tools: `pad/renum/pressforce.py`, `pad/renum/schedwhy.py`, `pad/renum/renum.py`. In pass 2 two constant moves tie and IR order decides:
 when the ROM sets `r5final = 0` before `kind = 0xf`, the variable whose value is used FIRST in IR is
