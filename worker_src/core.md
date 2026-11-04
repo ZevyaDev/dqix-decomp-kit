@@ -397,7 +397,9 @@ const, local) is exact unless its alias falls outside the object. Alias propagat
 the immediate on `ldr rX,=s; strh [rX,#k]`: the access lands at (2k, size), and if 2k+size >
 sizeof(s) the WHOLE object joins the worst-case set and every pointer load now depends on it. So
 a struct declared smaller than the real object makes stores look aliasing: give the struct its true
-size (look for other files touching higher offsets). The reverse: when the ROM HAS an edge between
+size (look for other files touching higher offsets). When the struct already has its true size and
+2k+size still runs past it, declare the object as an incomplete array, `extern T s[];`, and access
+`s[0].f`: an unknown size never triggers the check (`0216e198`). The reverse: when the ROM HAS an edge between
 two stores, they hit the same object; write both through one base (`*(u16*)&((Oam*)&tbl[0].b)[n]`
 instead of a second extern at +4), and a narrow local (`char`/`short`/`bool`) spilled with a 4-byte
 `str` runs past its object and goes worst-case, so two such spill stores depend on each other: type
