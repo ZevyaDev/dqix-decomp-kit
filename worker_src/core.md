@@ -421,7 +421,9 @@ declared locals in reverse declaration order, then lowering temps (operands befo
 condition after the body), then pcode-expansion temps (offset splits, constants). An IRO temp appears
 when an expression is REUSED, including a short promoted to int twice; its number overrides
 declaration order, so remove the reuse (hold the narrowed value in a wide local:
-`int key = (short)(idx[i] + 12);`, `021ddf5c`). `x = e` is a temp plus a copy that CSE deletes unless
+`int key = (short)(idx[i] + 12);`, `021ddf5c`). A local assigned in both arms of an `if`/`else` (or a
+ternary) also becomes a low-band IRO temp; a `switch` on the same condition keeps its declared
+number (`default:` first if the ROM falls through into that arm) (`02160d14`). `x = e` is a temp plus a copy that CSE deletes unless
 a call or a block with 2+ predecessors intervenes. Coalescing merges copy-related vregs and keeps the
 LOWER number, so an unreachable rank is usually a missing or unwanted coalesce:
 `pad/renum/vdump.py <src> [vreg...]` prints the IR before coalescing (a copy reads `mov =A B`), and
