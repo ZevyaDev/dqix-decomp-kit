@@ -4938,6 +4938,32 @@ def _tucheck_region_and_tcm():
     return None
 
 
+@check("tucheck removes its object on every exit, SIZE and COMPILE included",
+       "the object was removed only after a size match, so every SIZE or COMPILE result left a "
+       "_tucheck_<pid>.o in the kit checkout (40 after one JPN session)")
+def _tucheck_cleans_up():
+    import glob
+    import subprocess
+    import buildcfg
+    cfg = f"{_kp.REPO}/{buildcfg.config_dir('itcm')}"
+    unit = re.search(r"(?m)^(src/\S+):\s*\n\s*complete\s*\n\s*\.text start:0x([0-9a-f]+) end:0x([0-9a-f]+)\s*$",
+                     open(f"{cfg}/delinks.txt", encoding="utf-8").read())
+    if not unit:
+        return "no complete itcm unit in %s" % cfg
+    before = set(glob.glob(f"{KIT}/_tucheck_*.o"))
+    wrong_end = "%x" % (int(unit.group(3), 16) + 4)
+    r = subprocess.run([sys.executable, f"{KIT}/tucheck.py", "itcm", f"{_kp.REPO}/{unit.group(1)}",
+                        unit.group(2), wrong_end], capture_output=True, text=True, cwd=_kp.REPO)
+    if "SIZE" not in (r.stdout + r.stderr):
+        return "tucheck with a wrong end did not report SIZE: %r" % (r.stdout + r.stderr).strip()[-160:]
+    left = set(glob.glob(f"{KIT}/_tucheck_*.o")) - before
+    if left:
+        for f in left:
+            os.remove(f)
+        return "tucheck left %s after SIZE" % ", ".join(os.path.basename(f) for f in sorted(left))
+    return None
+
+
 @check("itcm and dtcm resolve to their own config, image, symbol prefix and reloc module",
        "every non-main module was taken for an overlay, so `wlist.py itcm` opened "
        "arm9_overlays/ovitcm.bin and the three JPN itcm functions could not be scaffolded or gated")

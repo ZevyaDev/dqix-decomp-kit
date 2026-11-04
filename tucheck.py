@@ -24,26 +24,29 @@ funcs = sorted((int(m.group(2), 16), m.group(1)) for m in re.finditer(
     open(f"{REPO}/{cfg}/symbols.txt", encoding="utf-8").read()))
 
 obj = f"{os.path.dirname(os.path.abspath(__file__))}/_tucheck_{os.getpid()}.o"
-r = subprocess.run(buildcfg.tool_command(buildcfg.CC) + list(buildcfg.FLAGS) + ["-c", src, "-o", obj], cwd=REPO,
-                   capture_output=True, text=True)
-if r.returncode:
-    sys.exit("COMPILE " + (r.stdout + r.stderr)[-1500:])
-buildcfg.postcompile(obj)
-with open(obj, "rb") as fh:
-    elf = ELFFile(fh)
-    secs = list(elf.iter_sections())
-    texts = [i for i, s in enumerate(secs) if s.name == ".text"]
-    data, masked = b"", set()
-    for i in texts:
-        for s in secs:
-            if s.name in (".rel.text", ".rela.text") and s["sh_info"] == i:
-                for rr in s.iter_relocations():
-                    o = len(data) + (rr["r_offset"] & ~3)
-                    masked.update(range(o, o + 4))
-        data += secs[i].data()
-    if len(data) != hi - lo:
-        sys.exit(f"SIZE {[hex(secs[i]['sh_size']) for i in texts]} total 0x{len(data):x} want 0x{hi - lo:x}")
-os.remove(obj)
+try:
+    r = subprocess.run(buildcfg.tool_command(buildcfg.CC) + list(buildcfg.FLAGS) + ["-c", src, "-o", obj],
+                       cwd=REPO, capture_output=True, text=True)
+    if r.returncode:
+        sys.exit("COMPILE " + (r.stdout + r.stderr)[-1500:])
+    buildcfg.postcompile(obj)
+    with open(obj, "rb") as fh:
+        elf = ELFFile(fh)
+        secs = list(elf.iter_sections())
+        texts = [i for i, s in enumerate(secs) if s.name == ".text"]
+        data, masked = b"", set()
+        for i in texts:
+            for s in secs:
+                if s.name in (".rel.text", ".rela.text") and s["sh_info"] == i:
+                    for rr in s.iter_relocations():
+                        o = len(data) + (rr["r_offset"] & ~3)
+                        masked.update(range(o, o + 4))
+            data += secs[i].data()
+        if len(data) != hi - lo:
+            sys.exit(f"SIZE {[hex(secs[i]['sh_size']) for i in texts]} total 0x{len(data):x} want 0x{hi - lo:x}")
+finally:
+    if os.path.exists(obj):
+        os.remove(obj)
 orig = open(rom, "rb").read()[lo - base:hi - base]
 diffs = [i for i in range(hi - lo) if i not in masked and data[i] != orig[i]]
 if not diffs:
