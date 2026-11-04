@@ -800,6 +800,16 @@ one of them is usually why the last site will not move. Replace them with the na
 struct with named members, accessed as `self->field`) and re-measure, accepting a worse number to get
 into the right basin (`ov026:021d8ba0`).
 
+## A STATE "STRUCT" CAN BE SEPARATE FILE-SCOPE OBJECTS — one pool word for the TU's .bss
+mwcc addresses every defined, non-address-taken object of a TU through one section-base pool word,
+so `ldr fp,=0219d144` + `[fp,#0x28]` is either one struct or separate globals defined in that TU.
+Separate globals behave differently: a stored global's value is carried across a loop back-edge with
+no local, which gives a loop-carried register the vreg numbering of a lowering temp. The MobiClip
+sample player keeps its ring state as separate statics (`pos` read from the global at every use):
+`ov016:0218d2f4` matched only so, after every struct form stopped at 12-18 bytes. Every user of the
+block must be in the defining TU (an extern of one object loads its own address), and the objects
+must be declared in the order the ascending-size .bss heapsort turns into the ROM offsets.
+
 ## A CONSTANT HOISTED ABOVE A GLOBAL'S POOL LOAD — THE GLOBAL'S STORAGE CLASS DECIDES IT
 Symptom: a store into a global is followed by a store through a pointer, and the ROM emits the
 second store's constant FIRST (`mov r1,#3 ; ldr r0,[pc,#N] ; mvn r2,#0 ; str r2,[r0,#0x18] ;
