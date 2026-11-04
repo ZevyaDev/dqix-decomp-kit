@@ -6881,9 +6881,14 @@ def _c_sources_compile_as_c():
     return None
 
 
-def _arm_functions(mod, undelinked):
+def _region_path(path, region):
     import buildcfg
-    cfg = f"{_kp.REPO}/{buildcfg.config_dir(mod)}"
+    return path.replace(f"/{buildcfg.REGION}/", f"/{region}/", 1) if region else path
+
+
+def _arm_functions(mod, undelinked, region=None):
+    import buildcfg
+    cfg = f"{_kp.REPO}/{_region_path(buildcfg.config_dir(mod), region)}"
     symtxt = open(f"{cfg}/symbols.txt", encoding="utf-8").read()
     delinks = open(f"{cfg}/delinks.txt", encoding="utf-8").read()
     text = [(int(s, 16), int(e, 16)) for s, e in
@@ -6897,15 +6902,17 @@ def _arm_functions(mod, undelinked):
             yield name, "%08x" % a, int(size, 16)
 
 
-def _asm_source(mod, name, addr, size):
+def _asm_source(mod, name, addr, size, region=None):
     import buildcfg
-    delinks = open(f"{_kp.REPO}/{buildcfg.config_dir(mod)}/delinks.txt", encoding="utf-8").read()
+    delinks = open(f"{_kp.REPO}/{_region_path(buildcfg.config_dir(mod), region)}/delinks.txt",
+                   encoding="utf-8").read()
     base = min(int(s, 16) for s in re.findall(r"start:0x([0-9a-fA-F]+)\s+end:0x[0-9a-fA-F]+\s+kind:", delinks))
     at = int(addr, 16) - base
-    blob = open(f"{_kp.REPO}/{buildcfg.pristine(mod)}", "rb").read()[at:at + size]
+    blob = open(f"{_kp.REPO}/{_region_path(buildcfg.pristine(mod), region)}", "rb").read()[at:at + size]
     words = "".join("\t.word 0x%08x\n" % int.from_bytes(blob[i:i + 4], "little") for i in range(0, size, 4))
     tag = "func_" if mod == "main" else "func_ov%s_" % mod
-    return "\t.section .text\n\t.arm\n\n\t.global %s\n\n// USA: %s%s\n%s:\n%s" % (name, tag, addr, name, words)
+    return "\t.section .text\n\t.arm\n\n\t.global %s\n\n// %s: %s%s\n%s:\n%s" % (
+        name, (region or buildcfg.REGION).upper(), tag, addr, name, words)
 
 
 @check("a .s source assembles in the gate, wdiff, shiftdiff and classify, and the wave places it as .s "
@@ -6957,16 +6964,22 @@ def _asm_sources_assemble():
 def _integrate_wires_asm():
     import subprocess
     import buildcfg
-    overlays = f"{_kp.REPO}/{buildcfg.config_dir('main')}/overlays"
-    found = []
-    for mod in ["main"] + sorted(d[2:] for d in os.listdir(overlays) if re.fullmatch(r"ov\d+", d)):
-        for name, addr, size in _arm_functions(mod, True):
-            if all(addr != f[2] for f in found):
-                found.append((mod, name, addr, size))
+    found, region = [], None
+    for region in dict.fromkeys((buildcfg.REGION, "usa", "eur", "jpn")):
+        overlays = f"{_kp.REPO}/{_region_path(buildcfg.config_dir('main'), region)}/overlays"
+        if not os.path.isdir(overlays):
+            continue
+        found = []
+        for mod in ["main"] + sorted(d[2:] for d in os.listdir(overlays) if re.fullmatch(r"ov\d+", d)):
+            for name, addr, size in _arm_functions(mod, True, region):
+                if all(addr != f[2] for f in found):
+                    found.append((mod, name, addr, size))
+            if len(found) >= 2:
+                break
         if len(found) >= 2:
             break
     if len(found) < 2:
-        return "fewer than two undelinked ARM functions are left to build the fixture from"
+        return "fewer than two undelinked ARM functions are left in any region to build the fixture from"
     picks = {True: found[0], False: found[1]}
     os.makedirs(f"{SP}/handwork", exist_ok=True)
     with tempfile.TemporaryDirectory(dir=f"{SP}/handwork", ignore_cleanup_errors=True) as d:
@@ -6979,11 +6992,11 @@ def _integrate_wires_asm():
             path = f"{root}/{int(allowed)}/{addr}.s"
             os.makedirs(os.path.dirname(path))
             with open(path, "w", encoding="utf-8", newline="\n") as fh:
-                fh.write(_asm_source(mod, name, addr, size))
+                fh.write(_asm_source(mod, name, addr, size, region))
             r = subprocess.run([sys.executable, f"{KIT}/integrate.py", mod, f"--srcdir={os.path.dirname(path)}"],
                                capture_output=True, text=True, encoding="utf-8", errors="replace",
                                env={**os.environ, "DQIX_STATE": f"{root}/sp", "DQIX_NO_FRESHNESS": "1",
-                                    "DQIX_ASM_ALLOW": allow_path})
+                                    "DQIX_ASM_ALLOW": allow_path, "DQIX_REGION": region})
             out[allowed] = (path, r.returncode, (r.stdout + r.stderr).replace("\r\n", "\n"))
         path, rc, log = out[True]
         mod, _name, addr, size = picks[True]
