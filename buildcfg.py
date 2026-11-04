@@ -82,15 +82,28 @@ FLAGS = (_cfg.CC_FLAGS + " " + _cfg.CC_INCLUDES + " " + _mwcc_defines(_cfg)).spl
 from pragmas import CODEGEN_PRAGMA
 
 
+TCM_MODULES = ("itcm", "dtcm")
+
+
 def config_dir(mod):
     root = f"config/{REGION}/arm9"
-    return root if mod == "main" else f"{root}/overlays/ov{mod}"
+    if mod == "main":
+        return root
+    return f"{root}/{mod}" if mod in TCM_MODULES else f"{root}/overlays/ov{mod}"
 
 
 def pristine(mod):
-    if mod == "main":
-        return f"extract/{REGION}/arm9/arm9.bin"
+    if mod == "main" or mod in TCM_MODULES:
+        return f"extract/{REGION}/arm9/{'arm9' if mod == 'main' else mod}.bin"
     return f"extract/{REGION}/arm9_overlays/ov{mod}.bin"
+
+
+def reloc_module(mod):
+    return mod if mod == "main" or mod in TCM_MODULES else f"overlay({int(mod)})"
+
+
+def func_prefix(mod):
+    return "func_" if mod == "main" or mod in TCM_MODULES else f"func_ov{mod}_"
 
 
 SDK_LCF_SYMBOLS = {"SDK_IRQ_STACKSIZE": 0x400, "SDK_SYS_STACKSIZE": 0}
@@ -134,7 +147,9 @@ def lib_zone(mod, addr):
 
 def lib_dir(mod, build):
     root = LIBRARIES[build][0]
-    return f"{root}/Main" if mod == "main" else f"{root}/Overlay_{int(mod)}"
+    if mod == "main" or mod in TCM_MODULES:
+        return f"{root}/{'Main' if mod == 'main' else mod}"
+    return f"{root}/Overlay_{int(mod)}"
 
 
 def lib_dirs(mod):

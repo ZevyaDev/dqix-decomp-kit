@@ -732,14 +732,19 @@ def _stratify_total():
     src = open(os.path.join(KIT, "claim.py"), encoding="utf-8").read()
     if "not any(lo <= r[1] <= hi for lo, hi in SIZE_BOUNDS)" not in src:
         return "stratify() no longer keeps items that fall outside every SIZE_BOUNDS range"
+    rows = [(0, size, "%08x" % (0x02100000 + 0x10 * i)) for i, size in
+            enumerate((8, 64, 65, 200, 256, 257, 700, 1024, 1025, 2048))]
+    open_rows, C.open_rows = C.open_rows, lambda mod: list(rows)
     with tempfile.TemporaryDirectory() as d:
         sp, C.SP = C.SP, d
         try:
             pool = C.unmatched("main")
         finally:
-            C.SP = sp
-    if not pool:
-        return "claim.unmatched('main') is empty -- the band filter is dropping work again"
+            C.SP, C.open_rows = sp, open_rows
+    served = sorted(re.search(r"[0-9a-f]{8}", str(r)).group(0) for r in pool)
+    if served != sorted(r[2] for r in rows):
+        return "claim.unmatched served %r of %d rows -- the band filter is dropping work again" % (
+            served, len(rows))
     return None
 
 
@@ -2072,7 +2077,7 @@ def _main_function(landed):
     return None
 
 
-def _wgate(addr, text, name="t.cpp"):
+def _wgate(addr, text, name="t.cpp", extra=None):
     import subprocess
     with tempfile.TemporaryDirectory(dir=f"{SP}/handwork", ignore_cleanup_errors=True) as d:
         src = os.path.join(d, name)
@@ -2080,7 +2085,7 @@ def _wgate(addr, text, name="t.cpp"):
             fh.write(text)
         env = {k: v for k, v in os.environ.items() if not k.startswith("WGATE_ALLOW")}
         r = subprocess.run([sys.executable, f"{KIT}/wgate.py", "main", addr, src], capture_output=True,
-                           text=True, cwd=_kp.REPO, env={**env, "WGATE_SESSION": "regress"})
+                           text=True, cwd=_kp.REPO, env={**env, "WGATE_SESSION": "regress", **(extra or {})})
     return r.returncode, r.stdout + r.stderr
 
 
@@ -2103,10 +2108,10 @@ def _gate_refuses_hand_asm():
     if not pragmas.refused_asm("0200aaaa", "x.cpp", 'extern "C" int f(int a) {\n    int b;\n'
                                '    __asm("mov b, a");\n    return b;\n}\n'):
         return "refused_asm passes an inline __asm register hack"
-    addr = _main_function(landed=False)
+    addr = _main_function(landed=True)
     if not addr:
-        return "no unlanded main function to gate"
-    rc, out = _wgate(addr, asm.replace("void f(", "void func_%s(" % addr))
+        return "no landed main function to gate"
+    rc, out = _wgate(addr, asm.replace("void f(", "void func_%s(" % addr), extra={"WGATE_ALLOW_COMMITTED": "1"})
     if rc != 1 or "RESIDUE HAND-ASM 1" not in out:
         return "wgate on an asm body for %s: exit %d, %r" % (addr, rc, out.strip()[-160:])
     if not re.search(r'grep -qi "\^\$a " "\$KIT/asm_allow.txt"', open(f"{KIT}/stage_gated.sh", encoding="utf-8").read()):
@@ -2134,7 +2139,7 @@ def _blockercheck_skips_landed():
     import contextlib
     import io
     bc = load("blockercheck")
-    landed, open_ = _main_function(landed=True), _main_function(landed=False)
+    landed, open_ = _main_function(landed=True), "02fffff0"
     with tempfile.TemporaryDirectory(dir=f"{SP}/handwork", ignore_cleanup_errors=True) as d:
         bc.TSV, bc.DOC, bc.DECLINED = f"{d}/b.tsv", f"{d}/core.md", f"{d}/declined.txt"
         with open(bc.TSV, "w", encoding="utf-8", newline="\n") as fh:
@@ -4790,7 +4795,8 @@ def _region_functions(script, root, region):
         config_dir=lambda mod: "config/%s/arm9%s" % (
             region, "" if mod == "main" else "/overlays/ov" + mod),
         pristine=lambda mod: "extract/%s/%s" % (
-            region, "arm9/arm9.bin" if mod == "main" else "arm9_overlays/ov" + mod + ".bin"))
+            region, "arm9/arm9.bin" if mod == "main" else "arm9_overlays/ov" + mod + ".bin"),
+        func_prefix=buildcfg.func_prefix, reloc_module=buildcfg.reloc_module)
     source = open(f"{KIT}/{script}.py", encoding="utf-8").read()
     tree = ast.parse(source)
     nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) or
@@ -4839,6 +4845,59 @@ def _scaffold_region_fixture():
                 if ("// %s: %s%s" % (region.upper(), prefix, addr) not in out
                         or name + "(" not in out or count != 0):
                     return "%s %s emitted the wrong symbol or region tag: %s" % (region, mod, out)
+
+
+@check("pipetest's nonexistent-callee mutation still compiles when the callee is declared in a header",
+       "the mutation renamed only the call site, so a callee declared in an included header became an "
+       "undeclared identifier: the compile aborted and pipetest reported 02013d24 MISDIAGNOSED instead of UNDEF")
+def _pipetest_callee_in_header():
+    import subprocess
+    import buildcfg
+    P = load("pipetest")
+    with tempfile.TemporaryDirectory(dir=f"{SP}/handwork", ignore_cleanup_errors=True) as d:
+        hdr = os.path.join(d, "callee.h").replace("\\", "/")
+        with open(hdr, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write('extern "C" int func_0200aaaa(int arg0);\n')
+        txt = ('#include <globaldefs.h>\n#include "%s"\n'
+               'extern "C" ARM int func_0200bbbb(int arg0) { return func_0200aaaa(arg0) + 1; }\n' % hdr)
+        got = P.mut_callee(txt, "0200bbbb")
+        if not got or got[1] != "UNDEF":
+            return "mut_callee found no callee to point elsewhere: %r" % (got,)
+        src, obj = os.path.join(d, "m.cpp"), os.path.join(d, "m.o")
+        with open(src, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(got[0])
+        r = subprocess.run(buildcfg.tool_command(buildcfg.cc_path(None)) + list(buildcfg.FLAGS)
+                           + ["-c", src, "-o", obj], cwd=_kp.REPO, capture_output=True, text=True)
+        if r.returncode:
+            return "the mutated source does not compile: %s" % (r.stdout + r.stderr).strip()[-160:]
+        if b"func_deadbeef" not in open(obj, "rb").read():
+            return "the mutated object does not reference func_deadbeef"
+    return None
+
+
+@check("itcm and dtcm resolve to their own config, image, symbol prefix and reloc module",
+       "every non-main module was taken for an overlay, so `wlist.py itcm` opened "
+       "arm9_overlays/ovitcm.bin and the three JPN itcm functions could not be scaffolded or gated")
+def _tcm_modules():
+    import subprocess
+    import buildcfg
+    r = buildcfg.REGION
+    want = {"config_dir": "config/%s/arm9/itcm" % r, "pristine": "extract/%s/arm9/itcm.bin" % r,
+            "func_prefix": "func_", "reloc_module": "itcm"}
+    got = {k: getattr(buildcfg, k)("itcm") for k in want}
+    if got != want:
+        return "itcm resolves to %r" % got
+    if buildcfg.func_prefix("017") != "func_ov017_" or buildcfg.reloc_module("017") != "overlay(17)":
+        return "overlay 017 resolves to %r %r" % (buildcfg.func_prefix("017"), buildcfg.reloc_module("017"))
+    sym = open(f"{_kp.REPO}/{buildcfg.config_dir('itcm')}/symbols.txt", encoding="utf-8").read()
+    m = re.search(r"(?m)^(\S+) kind:function\(arm,size=0x([0-9a-f]+)\) addr:0x([0-9a-f]{8})", sym)
+    if not m:
+        return "no itcm function in %s" % buildcfg.config_dir("itcm")
+    out = subprocess.run([sys.executable, f"{KIT}/wlist.py", "itcm", m.group(3)], capture_output=True,
+                         text=True, cwd=_kp.REPO).stdout
+    if not out.startswith("%s  isa=arm  size=0x%s" % (m.group(1), m.group(2))):
+        return "wlist itcm %s printed %r" % (m.group(3), out[:120])
+    return None
 
 
 @check("autorepair selects active-region symbols and repairs its init/KEEP-NAME tags",
@@ -6597,11 +6656,12 @@ def _gatelog_parallel_rows():
 def _wgate_inprocess_matches_cli():
     import subprocess
     W = load("wgate")
-    landed, open_addr = _main_function(True), _main_function(False)
-    if not landed or not open_addr:
-        return "no landed and unlanded main function to gate"
-    cases = [(landed, "int x;\n", {}), (open_addr, 'extern "C" ARM void func_%s() {}\n' % open_addr, {}),
-             (open_addr, "this is not C\n", {}), ("02000001", "int x;\n", {"WGATE_ALLOW_COMMITTED": "1"})]
+    landed = _main_function(True)
+    if not landed:
+        return "no landed main function to gate"
+    gate_anyway = {"WGATE_ALLOW_COMMITTED": "1"}
+    cases = [(landed, "int x;\n", {}), (landed, 'extern "C" ARM void func_%s() {}\n' % landed, gate_anyway),
+             (landed, "this is not C\n", gate_anyway), ("02000001", "int x;\n", gate_anyway)]
     with tempfile.TemporaryDirectory(dir=f"{SP}/handwork", ignore_cleanup_errors=True) as d:
         for addr, text, env in cases:
             src = os.path.join(d, "t_%s.cpp" % addr).replace("\\", "/")

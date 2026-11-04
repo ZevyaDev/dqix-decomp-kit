@@ -98,7 +98,7 @@ def _module(OV):
         if MAIN:
             PFX, BASE = "func_", 0x02000000
         else:
-            PFX = f"func_ov{OV}_"
+            PFX = buildcfg.func_prefix(OV)
             STARTS=[int(m,16) for m in re.findall(r'start:0x([0-9a-f]+)', delinks)]
             BASE=min(STARTS)
         return CFG, PRISTINE, PFX, BASE, symtxt, delinks
@@ -265,12 +265,12 @@ def _gate(OV, ADDR, SRC, SEC, out, env, build=None, state=None):
             print("ALREADY-COMMITTED: this address is already delinked; the function is in the repo. "
                   "Nothing to gate or integrate.")
             raise _Exit(2)
-        if refused_asm(ADDR, SRC, _txt):
-            print("RESIDUE HAND-ASM 1")
-            print("HAND-ASM: assembly reaches the bytes by definition, so it is not a match, and the "
-                  "integrator parks it. Write C, or emit BLOCKED with your best C file "
-                  "(core.md, NEVER WRITE HAND ASSEMBLY).")
-            raise _Exit(1)
+    if refused_asm(ADDR, SRC, _txt):
+        print("RESIDUE HAND-ASM 1")
+        print("HAND-ASM: assembly reaches the bytes by definition, so it is not a match, and the "
+              "integrator parks it. Write C, or emit BLOCKED with your best C file "
+              "(core.md, NEVER WRITE HAND ASSEMBLY).")
+        raise _Exit(1)
     _defm=re.search(r'\b(?:ARM|THUMB)\b[^\n(;{]*?\b([A-Za-z_]\w*)\s*\(', _txt)
     # EXEMPT THE CONFIG'S OWN NAME. Some ROM symbols legitimately contain 0x (AccumulateFlag0x800-
     # CombatantValue is committed and delinked; SubmitFlag0x800CombatantDataA0201fca0 is waiting).

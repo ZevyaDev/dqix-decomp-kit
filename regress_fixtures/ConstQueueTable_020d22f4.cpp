@@ -1,5 +1,5 @@
 #include <globaldefs.h>
-#include <System/Interrupts.h>
+#include <NitroSDK/Interrupts.h>
 
 struct SoundCommand020d22f4 {
     SoundCommand020d22f4* next;

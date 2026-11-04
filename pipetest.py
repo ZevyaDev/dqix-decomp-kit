@@ -115,7 +115,7 @@ def mut_callee(txt, own_addr):
                           if symtab.get_symbol(rr["r_info_sym"])["st_shndx"] == "SHN_UNDEF"}
     for m in re.finditer(r"\b(func_[0-9a-fA-F]{8})\s*\(", txt):
         if m.group(1) != f"func_{own_addr.lower()}" and m.group(1) in referenced:
-            return re.sub(rf"\b{m.group(1)}\b", "func_deadbeef", txt), "UNDEF"
+            return f"#define {m.group(1)} func_deadbeef\n" + txt, "UNDEF"
     return None
 
 

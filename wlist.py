@@ -32,7 +32,7 @@ if OV == "main":
 else:
     CFG = f"{REPO}/{buildcfg.config_dir(OV)}"
     BLOB = open(f"{REPO}/{buildcfg.pristine(OV)}", "rb").read()
-    PFX = f"func_ov{OV}_"
+    PFX = buildcfg.func_prefix(OV)
     BASE = min(int(m, 16) for m in
                re.findall(r'start:0x([0-9a-fA-F]+)', open(f"{CFG}/delinks.txt").read()))
 

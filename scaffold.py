@@ -134,7 +134,7 @@ def scaffold(mod, addr):
                 if a <= f < a + sz:
                     rel.append((f, mm.group(2), int(mm.group(3), 16), mm.group(5), mm.group(4)))
 
-    own = "main" if mod == "main" else f"overlay({int(mod)})"
+    own = buildcfg.reloc_module(mod)
     covered = {r[0] for r in rel}
     for frm, to in rom_calls(mod, a, sz, isa):
         tag = next((t for t in (own, "main") if SYMS.get(t, {}).get(to, ('', ''))[1] == 'function'), None)
@@ -191,7 +191,7 @@ def scaffold(mod, addr):
             L.append("   " + line + note)
         L.append("*/")
         L.append("")
-    pfx = "func_" if mod == "main" else f"func_ov{mod}_"
+    pfx = buildcfg.func_prefix(mod)
     mac = "THUMB" if isa == "thumb" else "ARM"
     # A CURATED ROM NAME IS THE BIGGEST HINT THERE IS, and it was being handed over silently.
     # 146 unmatched functions carry a real symbol (strcmp, AutoloadCallback, WaitForVCountZero,

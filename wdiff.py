@@ -59,7 +59,7 @@ def _module(ov):
         if ov == "main":
             pfx, base = "func_", 0x02000000
         else:
-            pfx = f"func_ov{ov}_"
+            pfx = buildcfg.func_prefix(ov)
             base = min(int(m, 16) for m in re.findall(r'start:0x([0-9a-fA-F]+)', delinks))
         with open(os.path.join(REPO, cfg, "symbols.txt"), encoding='utf-8', errors='ignore') as fh:
             symtxt = fh.read()
