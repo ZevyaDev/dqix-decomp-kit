@@ -650,6 +650,15 @@ or offset (same constant, different slot). `ov025:021ebb90` had two constants sw
 (`1.8f` passed where the code used `&data`, `4096.0f` multiplied where the code used `1.8f`); fixing
 the VALUES cleared four "offset" runs at once, 31 -> 24.
 
+### A LOCAL INITIALIZER READ AT `[base, #N]` MEANS N BYTES OF THE TU'S RODATA COME FIRST
+mwcc reads a local array initializer through the TU's `.rodata` section base plus its offset. The
+objects requested before the TU's FIRST function reaches codegen, that function's own initializers
+included, are laid out in ascending size; a later function's initializers follow in request order.
+So unreferenced bytes ahead of the initializers that are LARGER than them mean the function is not
+the TU's first: put it after the function that shares its globals and add the table as one
+`static const` (`ov004:02165f2c`: after `02165ef4`, `static const short data_ov004_0216ff98[3] =
+{6, 8, 10};`; three one-element arrays only sort ahead by size and are not plausible).
+
 ### WRITE A LOOP-INVARIANT INSIDE THE LOOP WHEN THE ROM COMPUTES IT AFTER THE LOOP INIT
 If the ROM initialises the loop counter FIRST and only then stores an invariant (`j = found` reload,
 then `codes = node + 0x14` to its slot), a `codes = node->codes;` written before the `for` comes out
