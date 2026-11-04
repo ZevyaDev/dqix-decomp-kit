@@ -21,9 +21,16 @@ TARGETS = {
 
 
 def rom(mod, addr, size):
-    cfg = open(REPO + "/config/usa/arm9/overlays/%s/delinks.txt" % mod).read()
-    base = min(int(x, 16) for x in re.findall(r"start:0x([0-9a-fA-F]+)", cfg))
-    blob = open(REPO + "/extract/usa/arm9_overlays/%s.bin" % mod, "rb").read()
+    import buildcfg
+    m = mod[2:] if mod.startswith("ov") else mod
+    image = f"{REPO}/{buildcfg.pristine(m)}"
+    blob = open(image, "rb").read()
+    if m == "main":
+        import yaml
+        base = yaml.safe_load(open(image[:-len(".bin")] + ".yaml"))["base_address"]
+    else:
+        cfg = open(f"{REPO}/{buildcfg.config_dir(m)}/delinks.txt").read()
+        base = min(int(x, 16) for x in re.findall(r"start:0x([0-9a-fA-F]+)", cfg))
     return struct.unpack("<%dI" % (size // 4), blob[addr - base:addr - base + size])
 
 

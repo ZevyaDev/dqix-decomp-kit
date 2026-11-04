@@ -170,10 +170,6 @@ class Func:
 
 
 def rom(mod, addr, size):
-    if mod == "main":
-        base = yaml.safe_load(open(REPO + "/extract/usa/arm9/arm9.yaml"))["base_address"]
-        blob = open(REPO + "/extract/usa/arm9/arm9.bin", "rb").read()
-        return struct.unpack("<%dI" % (size // 4), blob[addr - base:addr - base + size])
     return forcereal.rom(mod, addr, size)
 
 

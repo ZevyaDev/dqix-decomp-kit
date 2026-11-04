@@ -4875,6 +4875,31 @@ def _pipetest_callee_in_header():
     return None
 
 
+@check("the frida forcing tools read the active region's ROM bytes",
+       "forcereal.rom() and schedforce.rom() hardcoded extract/usa, so under DQIX_REGION=jpn colorforce "
+       "crashed on the module path and schedforce scored JPN compiles against USA bytes")
+def _frida_rom_region():
+    import struct
+    import subprocess
+    import yaml
+    addr = 0x0203edf4
+    root = f"{_kp.REPO}/extract/jpn/arm9"
+    if not os.path.exists(f"{root}/arm9.bin"):
+        return None
+    base = yaml.safe_load(open(f"{root}/arm9.yaml"))["base_address"]
+    want = list(struct.unpack("<2I", open(f"{root}/arm9.bin", "rb").read()[addr - base:addr - base + 8]))
+    code = ("import sys; sys.path.insert(0, %r); import forcereal; print(list(forcereal.rom('main', %d, 8)))"
+            % (f"{KIT}/frida", addr))
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=_kp.REPO,
+                       env={**os.environ, "DQIX_REGION": "jpn"})
+    if r.stdout.strip() != str(want):
+        return "forcereal.rom under jpn returned %r, the jpn image holds %r" % (r.stdout.strip()[-80:], want)
+    for f in ("frida/forcereal.py", "frida/schedforce.py"):
+        if "extract/usa" in open(f"{KIT}/{f}", encoding="utf-8").read():
+            return "%s still names extract/usa" % f
+    return None
+
+
 @check("tucheck compares against the active region's config and ROM image, itcm included",
        "tucheck hardcoded config/usa and extract/usa while compiling with the region's flags, so a JPN "
        "unit was compared with USA bytes and reported BYTEDIFF in functions it does not contain")
