@@ -4875,6 +4875,23 @@ def _pipetest_callee_in_header():
     return None
 
 
+@check("dqtool dis and infer read the active region's config and ROM",
+       "both hardcoded config/usa and extract/usa, so `DQIX_REGION=jpn python dqtool.py dis` listed "
+       "USA bytes (or NO-SLOT) for a JPN address and infer guessed JPN arities from USA code")
+def _dqtool_infer_region():
+    import subprocess
+    for f in ("dqtool.py", "infer.py"):
+        if re.search(r"config/usa|extract/usa", open(f"{KIT}/{f}", encoding="utf-8").read()):
+            return "%s still names the usa config or extract" % f
+    if not os.path.exists(f"{_kp.REPO}/extract/jpn/arm9/arm9.bin"):
+        return None
+    r = subprocess.run([sys.executable, f"{KIT}/dqtool.py", "dis", "main", "0203edf4"], capture_output=True,
+                       text=True, cwd=_kp.REPO, env={**os.environ, "DQIX_REGION": "jpn"})
+    if not r.stdout.startswith("func_0203edf4  arm  size=0x668"):
+        return "dqtool dis main 0203edf4 under jpn printed %r" % r.stdout[:80]
+    return None
+
+
 @check("the frida forcing tools read the active region's ROM bytes",
        "forcereal.rom() and schedforce.rom() hardcoded extract/usa, so under DQIX_REGION=jpn colorforce "
        "crashed on the module path and schedforce scored JPN compiles against USA bytes")

@@ -35,11 +35,9 @@ MEM = re.compile(r'\[(\w+)(?:, #(-?(?:0x)?[0-9a-fA-F]+))?\]')
 
 
 def load(mod, addr):
-    if mod == "main":
-        cfg, binp, base = "config/usa/arm9", "extract/usa/arm9/arm9.bin", 0x02000000
-    else:
-        cfg = f"config/usa/arm9/overlays/ov{mod}"
-        binp = f"extract/usa/arm9_overlays/ov{mod}.bin"
+    import buildcfg
+    cfg, binp, base = buildcfg.config_dir(mod), buildcfg.pristine(mod), 0x02000000
+    if mod != "main":
         d = open(f"{REPO}/{cfg}/delinks.txt").read()
         base = min(int(x, 16) for x in re.findall(r'start:0x([0-9a-fA-F]+)', d))
     sym = open(f"{REPO}/{cfg}/symbols.txt", encoding='utf-8', errors='ignore').read()

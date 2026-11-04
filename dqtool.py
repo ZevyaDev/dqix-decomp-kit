@@ -29,12 +29,11 @@ KIT = _kp.KIT
 
 def cfg_for(mod):
     """(config dir, pristine binary, load base) for a module."""
+    import buildcfg
+    cfg = f"{REPO}/{buildcfg.config_dir(mod)}"
+    rom = open(f"{REPO}/{buildcfg.pristine(mod)}", "rb").read()
     if mod == "main":
-        cfg = f"{REPO}/config/usa/arm9"
-        rom = open(f"{REPO}/extract/usa/arm9/arm9.bin", "rb").read()
         return cfg, rom, 0x02000000
-    cfg = f"{REPO}/config/usa/arm9/overlays/ov{mod}"
-    rom = open(f"{REPO}/extract/usa/arm9_overlays/ov{mod}.bin", "rb").read()
     base = min(int(m, 16) for m in
                re.findall(r"start:0x([0-9a-fA-F]+)", open(f"{cfg}/delinks.txt").read()))
     return cfg, rom, base
@@ -104,7 +103,7 @@ def _scan(pattern, want_matched):
     (a ';'-separated sequence of per-instruction regexes)."""
     pats = [re.compile(p) for p in pattern.split(";")]
     mods = ["main"] + sorted(re.search(r"ov(\d+)", p).group(1)
-                             for p in glob.glob(f"{REPO}/config/usa/arm9/overlays/ov*"))
+                             for p in glob.glob(f"{REPO}/{__import__('buildcfg').config_dir('main')}/overlays/ov*"))
     hits, scanned = [], 0
     for mod in mods:
         try:
