@@ -424,7 +424,10 @@ declaration order, so remove the reuse (hold the narrowed value in a wide local:
 `int key = (short)(idx[i] + 12);`, `021ddf5c`). A local assigned in both arms of an `if`/`else` (or a
 ternary) also becomes a low-band IRO temp; a `switch` on the same condition keeps its declared
 number (`default:` first if the ROM falls through into that arm) (`02160d14`). `x = e` is a temp plus a copy that CSE deletes unless
-a call or a block with 2+ predecessors intervenes. Coalescing merges copy-related vregs and keeps the
+a call or a block with 2+ predecessors intervenes. A pair check written with the same const-view test
+twice (`if (f(p) && f(p))`, a copy-paste of `f(p) && f(p + 1)`) gives the else arm 2 predecessors with
+no code left: locals used there keep their low numbers, and the duplicate load and compare go later
+(`0203cb58`). Coalescing merges copy-related vregs and keeps the
 LOWER number, so an unreachable rank is usually a missing or unwanted coalesce:
 `pad/renum/vdump.py <src> [vreg...]` prints the IR before coalescing (a copy reads `mov =A B`), and
 `pad/renum/forcemerge.py <src> <mod> <addr> <size> A:B` tests merging that pair.
