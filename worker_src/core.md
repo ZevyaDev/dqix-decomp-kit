@@ -673,6 +673,14 @@ the TU's first: put it after the function that shares its globals and add the ta
 `static const` (`ov004:02165f2c`: after `02165ef4`, `static const short data_ov004_0216ff98[3] =
 {6, 8, 10};`; three one-element arrays only sort ahead by size and are not plausible).
 
+### UNDER `#pragma ipa file` THE WHOLE TU'S RODATA IS ONE HEAPSORT BY SIZE
+Layout = heapsort of the REVERSED request list, key = size. Requested first: every array, initializer
+and static array (local or file-scope `static`) in parse order; then every scalar `const` (unused ones
+too) by function in reverse source order, declaration order inside a function. A file-scope object
+with external linkage gets its own section, so block tables must be `static`; a 3-byte initializer
+copy only matches from the TU's own object, never an `extern` struct (`main:02069ecc`: whole TU
+02066794..0206d080, two tables moved to file scope, `03`/`0f`/`0xe0` as unused consts).
+
 ### WRITE A LOOP-INVARIANT INSIDE THE LOOP WHEN THE ROM COMPUTES IT AFTER THE LOOP INIT
 If the ROM initialises the loop counter FIRST and only then stores an invariant (`j = found` reload,
 then `codes = node + 0x14` to its slot), a `codes = node->codes;` written before the `for` comes out
