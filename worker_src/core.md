@@ -680,6 +680,11 @@ too) by function in reverse source order, declaration order inside a function. A
 with external linkage gets its own section, so block tables must be `static`; a 3-byte initializer
 copy only matches from the TU's own object, never an `extern` struct (`main:02069ecc`: whole TU
 02066794..0206d080, two tables moved to file scope, `03`/`0f`/`0xe0` as unused consts).
+Solve it backwards: pin the tail (initializers, then scalars) and search the order of the file-scope
+tables, which may come in any order at the top of the file. Scalars follow DECLARATION order even
+when used in another order, and objects pack at their type's alignment only (`ov009:0218b2e8`,
+`ov009:0218b680`: whole overlay one TU, 29 tables at file scope, `021853a0` declares its size consts
+0x400 before 0x2000).
 
 ### WRITE A LOOP-INVARIANT INSIDE THE LOOP WHEN THE ROM COMPUTES IT AFTER THE LOOP INIT
 If the ROM initialises the loop counter FIRST and only then stores an invariant (`j = found` reload,

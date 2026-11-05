@@ -3,3 +3,4 @@ src/Runtime/Main/func_0200df80.cpp  exception_terminate  Eakeys  CW runtime Unwi
 src/Runtime/Main/func_0200ea08.cpp  exception_terminate  Eakeys  CW runtime HandleUnexpected, function-scope pragma of the original ExceptionHandler.cpp
 src/NitroSDK/Main/func_020b10b4.cpp  ipa  Eakeys  NitroSystem g2d GetCharIndex1D: exact only with file-level IPA on every 2.0 sp1+; its g2d neighbours match with or without it
 src/Combat/Main/func_02066794.cpp  ipa  Eakeys  JPN TU 02066794..0206d080: its .rodata 020e87dc..020e88c0 is one size-sorted block only whole-file codegen emits (game code moves to ipa file, Eakeys 11-04)
+src/Combat/Overlay_9/ov009_021853a0.cpp  ipa  Eakeys  JPN ov009 TU 021853a0..0218b934: its .rodata 0218b934..0218bc00 is one size-sorted block only whole-file codegen emits (game code moves to ipa file, Eakeys 11-04)
