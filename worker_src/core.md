@@ -510,6 +510,9 @@ register holding a partial sum (`save+0x324`) with `#0x2400` re-added at each us
 split: one access at the full `+0x2724` fixes a function-wide callee-saved swap (`021adcb0`). A
 loop-invariant pointer at an unencodable `+0xdf8` bound before the loop does the same and also
 schedules its load ahead of a result copy (`021e33b4`).
+The high vreg also reorders colouring: `var0 = &p->unknown_df8_` (not `&p->unknown_1f8_` used as
+`&var0->unknown_c00_`) is coloured before an earlier loop's hoisted zero, so that zero takes the
+callee-saved register var0 opened and the counter keeps ip (JPN `ov023:021e4bc8`).
 Prefer a struct member at that offset over raw `(u8*)` arithmetic; both compile the same.
 
 ### A ZERO WRITTEN AFTER CONSTANT STORES TAKES THE OTHER SCRATCH REGISTER

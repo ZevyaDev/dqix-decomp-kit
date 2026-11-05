@@ -6988,7 +6988,6 @@ def _asm_sources_assemble():
        "integrate.py gathered only *.cpp and *.c, so an allowlisted .s that gated MATCH reported "
        "`0 pending files` and was never delinked (kit issue #512)")
 def _integrate_wires_asm():
-    import subprocess
     import buildcfg
     best, region = [], None
     for reg in dict.fromkeys((buildcfg.REGION, "usa", "eur", "jpn")):
@@ -7006,9 +7005,56 @@ def _integrate_wires_asm():
             best, region = found, reg
         if len(best) >= 2:
             break
-    found = best
+    found, restore = best, None
     if not found:
-        return "no undelinked ARM function is left in any region to build the fixture from"
+        found, region, restore = _undelink_one_arm_function()
+    if not found:
+        return "no ARM function in any region is delinked alone to build the fixture from"
+    try:
+        return _wire_asm_fixture(found, region)
+    finally:
+        if restore:
+            restore()
+
+
+def _undelink_one_arm_function():
+    import buildcfg
+    for reg in dict.fromkeys((buildcfg.REGION, "usa", "eur", "jpn")):
+        overlays = f"{_kp.REPO}/{_region_path(buildcfg.config_dir('main'), reg)}/overlays"
+        if not os.path.isdir(overlays):
+            continue
+        for mod in ["main"] + sorted(d[2:] for d in os.listdir(overlays) if re.fullmatch(r"ov\d+", d)):
+            path = f"{_kp.REPO}/{_region_path(buildcfg.config_dir(mod), reg)}/delinks.txt"
+            raw = open(path, "rb").read()
+            lines = raw.decode("utf-8").splitlines(True)
+            funcs = {int(addr, 16): (name, size) for name, addr, size in _arm_functions(mod, False, reg)}
+            for i, line in enumerate(lines):
+                if line[:1] in (" ", "\t") or not re.fullmatch(r"\S+:\s*", line):
+                    continue
+                k = i + 1
+                while k < len(lines) and lines[k][:1] in (" ", "\t") and lines[k].strip():
+                    k += 1
+                ranges = [re.fullmatch(r"\s*\.(\w+)\s+start:0x([0-9a-fA-F]+)\s+end:0x([0-9a-fA-F]+)\s*", l)
+                          for l in lines[i + 1:k] if l.strip().startswith(".")]
+                if len(ranges) != 1 or not ranges[0] or ranges[0].group(1) != "text":
+                    continue
+                start, end = int(ranges[0].group(2), 16), int(ranges[0].group(3), 16)
+                hit = funcs.get(start)
+                if not hit or start + hit[1] != end:
+                    continue
+                lo = i - 1 if i and not lines[i - 1].strip() else i
+                with open(path, "wb") as fh:
+                    fh.write("".join(lines[:lo] + lines[k:]).encode("utf-8"))
+
+                def restore(path=path, raw=raw):
+                    with open(path, "wb") as fh:
+                        fh.write(raw)
+                return [(mod, hit[0], "%08x" % start, hit[1])], reg, restore
+    return [], None, None
+
+
+def _wire_asm_fixture(found, region):
+    import subprocess
     picks = {True: found[0], False: found[-1]}
     os.makedirs(f"{SP}/handwork", exist_ok=True)
     with tempfile.TemporaryDirectory(dir=f"{SP}/handwork", ignore_cleanup_errors=True) as d:
