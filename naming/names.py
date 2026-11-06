@@ -388,6 +388,8 @@ def land(dry=False):
     if code not in (0, 2):
         landpr.refuse(f"integ_tree.py publish: {out.strip()[-300:]}")
     head = landpr.git(tree, "rev-parse", "--short", "HEAD")[1].strip()
+    pooled = landpr.run(kit, sys.executable, f"{kit}/pad/repool.py", "--apply", "--rev", tip)[1].strip()
+    print("pools: " + (pooled.splitlines() or [""])[-1])
     for r in todo:
         regions = {region: final for region, (_, final) in finals.get(current(r["key"], moved), {}).items()}
         restate(r["key"], "landed", commit=head, regions=regions)
