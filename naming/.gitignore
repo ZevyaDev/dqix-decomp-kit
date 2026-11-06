@@ -1,3 +1,5 @@
 /*/
+!/scenarios/
+__pycache__/
 *.json
 *.tsv

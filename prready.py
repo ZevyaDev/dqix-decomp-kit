@@ -19,6 +19,7 @@ os.environ["DQIX_NO_FRESHNESS"] = "1"
 import delinked
 import gitread
 import kitpaths
+import namerules
 import plausible
 from pragmas import codegen_pragmas
 
@@ -51,6 +52,24 @@ def own_ident(name):
         return last
     m = MANGLED_FREE.match(name)
     return name[m.end():m.end() + int(m.group(1))] if m else None
+
+
+def introduced(problems, plus, repo=None):
+    added, out = {}, []
+    for line in problems:
+        file, num = line.split()[4].rsplit(":", 1)
+        if file not in added:
+            added[file] = {l.rstrip() for l in plus(file)}
+        with open(f"{repo or REPO}/{file}", encoding="utf-8", errors="replace") as fh:
+            text = fh.read().splitlines()
+        if 0 < int(num) <= len(text) and text[int(num) - 1].rstrip() in added[file]:
+            out.append(line)
+    return out
+
+
+def keeps_address(name, defaults):
+    tail = namerules.address_of(own_ident(name) or "")
+    return bool(tail) and bool({f"func_{tail}", f"data_{tail}"} & defaults)
 
 
 def toolchain_name(name):
@@ -228,7 +247,7 @@ def decomp(decomp_tip):
              and os.path.isfile(f"{REPO}/{p}")]
     if named:
         import plainnames
-        for line in plainnames.check(REPO, named):
+        for line in introduced(plainnames.check(REPO, named), plus):
             problems.append(f"{line} (python plainnames.py fix {line.split()[4].rsplit(':', 1)[0]})")
     for path in changed:
         if path.startswith("src/"):
@@ -249,11 +268,13 @@ def decomp(decomp_tip):
             if not SYMBOLS.match(path):
                 continue
             before = names(show(REPO, decomp_tip, path))
+            defaults = {own_ident(n) for n in before}
             for line in plus(path):
                 name = line.split()[0] if line.strip() else ""
-                if name and name not in before and not_upstream(name, full, idents):
-                    problems.append(f"NOT AN UPSTREAM NAME {name} in {path}: keep the default func_/data_ name; "
-                                    "only names already on upstream main are taken")
+                if name and name not in before and not_upstream(name, full, idents) \
+                        and not keeps_address(name, defaults):
+                    problems.append(f"NOT AN UPSTREAM NAME {name} in {path}: keep the default func_/data_ name, "
+                                    "or rename it through naming/names.py keeping its address")
     for path in changed:
         m = SYMBOLS.match(path)
         if not m:

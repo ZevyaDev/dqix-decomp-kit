@@ -9,6 +9,8 @@ Struct_<addr> (lowest global instance, else lowest-address user; more at one add
 Enum_<addr>[_B] with constants Enum_<addr>_<value> (m for minus); other typedefs Type_<addr>;
 members unknown_<hexoff>_ (bitfields unknown_<off>_<bit>_, more at one offset unknown1_<off>_);
 parameters arg<i>; locals var<i>. FILE is relative to the decomp tree ($DQIX_REPO, or --tree DIR).
+Names from the naming pass are kept (namerules.py): <Stem>_[ovNNN_]<addr> for functions, globals and
+types, <stem>_<hexoff>_ for members, and a named function's parameters and locals.
 """
 import bisect
 import collections
@@ -26,6 +28,7 @@ import tarfile
 import clang.cindex as ci
 
 import kitpaths
+from namerules import MEMBER, NAMED
 
 K = ci.CursorKind
 RECORDS = {K.STRUCT_DECL, K.UNION_DECL, K.CLASS_DECL, K.CLASS_TEMPLATE}
@@ -70,6 +73,19 @@ _lib.clang_getOverriddenCursors.argtypes = [ci.Cursor, ctypes.POINTER(ctypes.POI
 _lib.clang_getOverriddenCursors.restype = None
 _lib.clang_disposeOverriddenCursors.argtypes = [ctypes.POINTER(ci.Cursor)]
 _lib.clang_disposeOverriddenCursors.restype = None
+
+
+def kept(name):
+    return bool(PLAIN.fullmatch(name) or NAMED.fullmatch(name))
+
+
+def named_function(name):
+    return bool(NAMED.fullmatch(name)) and not PLAIN.fullmatch(name)
+
+
+def member_tail(off, bw):
+    byte, bit = divmod(off, 8)
+    return f"{byte:x}_{bit}_" if bw is not None else f"{byte:x}_"
 
 
 def norm(path):
@@ -520,10 +536,13 @@ def asm_ranges(data):
 
 
 class Planner:
-    def __init__(self, tree, model, up, only=None):
+    def __init__(self, tree, model, up, only=None, names=None):
         self.tree = tree
         self.up = up
         self.only = only
+        self.names = names or {}
+        self.unmatched = []
+        self.named_roots = set()
         self.decls, self.refs, self.uf = model.decls, model.refs, model.uf
         self.decl_regions = model.regions
         self.syms, self.symnames = symbol_tables(tree)
@@ -555,7 +574,7 @@ class Planner:
         self.group_names, self.key_names, self.deletions = {}, {}, []
         self.taken = set(up.recs) | set(up.typedefs) | set(up.enums)
         self.taken |= {d["n"] for d in self.decls.values()
-                       if d["k"] in ("R", "O", "E", "T", "C") and d["n"] and PLAIN.fullmatch(d["n"])}
+                       if d["k"] in ("R", "O", "E", "T", "C") and d["n"] and kept(d["n"])}
         self.site_files = collections.defaultdict(set)
         for site, target, _, _ in self.refs:
             self.site_files[self.find(target)].add(site.rsplit(":", 1)[0])
@@ -697,7 +716,7 @@ class Planner:
             source = {"R": recs, "E": enums}.get(kinds[root], opaque)
             names = [d["n"] for _, d in source.get(root, []) if d["n"]]
             old = names[0] if names else ""
-            if not old or self.upstream_type(old) or PLAIN.fullmatch(old):
+            if not old or self.upstream_type(old) or kept(old):
                 continue
             addr = self.address_for(root)
             if not addr:
@@ -709,7 +728,7 @@ class Planner:
         for root, items in typedefs.items():
             d = items[0][1]
             old = d["n"]
-            if self.upstream_type(old) or PLAIN.fullmatch(old):
+            if self.upstream_type(old) or kept(old):
                 continue
             if SIZE_CHECK.match(d["utext"].strip()) and root not in self.used_roots:
                 self.deletions.extend((k, x["ext"]) for k, x in items)
@@ -749,7 +768,7 @@ class Planner:
         for root, items in self.funcs.items():
             d = items[0][1]
             n = d["n"]
-            if root in self.fn_upstream or n.startswith(SPECIAL) or n.startswith("__") or PLAIN.fullmatch(n):
+            if root in self.fn_upstream or n.startswith(SPECIAL) or n.startswith("__") or kept(n):
                 continue
             cls = self.find(d["cls"]) if d["cls"] else None
             if cls and n == next((x["n"] for _, x in recs.get(cls, []) if x["n"]), None):
@@ -757,7 +776,7 @@ class Planner:
             if not cls and not any(x["def"] for _, x in items):
                 continue
             inline.add(root)
-        pool = {d["n"] for d in self.decls.values() if d["k"] == "D" and PLAIN.fullmatch(d["n"])}
+        pool = {d["n"] for d in self.decls.values() if d["k"] == "D" and kept(d["n"])}
         for root in sorted(inline):
             d = self.funcs[root][0][1]
             addr = self.fn_addr.get(root)
@@ -779,16 +798,16 @@ class Planner:
             if d["k"] == "F" and d["n"] and d["owner"]:
                 groups[self.find(k)].append((k, d))
         pools = collections.defaultdict(set)
-        kept = set()
+        keep = set()
         for root, variants in groups.items():
             for _, d in variants:
                 oname = (self.decls.get(d["owner"]) or {}).get("n", "")
-                if (oname in self.up.recs and d["n"] in self.up.fields.get(oname, ())) or PLAIN.fullmatch(d["n"]):
-                    kept.add(root)
+                if (oname in self.up.recs and d["n"] in self.up.fields.get(oname, ())) or MEMBER.fullmatch(d["n"]):
+                    keep.add(root)
                     pools[d["owner"]].add(d["n"])
         order = []
         for root, variants in groups.items():
-            if root not in kept:
+            if root not in keep:
                 k, d = self.primary(variants)
                 order.append((d["owner"], d["off"] if d["off"] is not None else -1, k, root))
         for _, _, _, root in sorted(order):
@@ -797,8 +816,7 @@ class Planner:
             if off is None or off < 0:
                 continue
             owners = {x["owner"] for _, x in groups[root]}
-            byte, bit = divmod(off, 8)
-            tail = f"{byte:x}_{bit}_" if d["bw"] is not None else f"{byte:x}_"
+            tail = member_tail(off, d["bw"])
             name, n = f"unknown_{tail}", 0
             while any(name in pools[o] for o in owners):
                 n += 1
@@ -866,6 +884,8 @@ class Planner:
         for root, items in members.items():
             if root in self.fn_updef or self.is_asm(root):
                 continue
+            if any(named_function(x["n"]) for _, x in self.funcs.get(root, [])):
+                continue
             quals = {x["q"] for _, x in self.funcs.get(root, [])}
             slots = collections.defaultdict(list)
             for k, d in items:
@@ -893,6 +913,33 @@ class Planner:
                         n += 1
                     self.key_names[sroot] = f"var{n}"
                     used.add(f"var{n}")
+
+    def assign_names(self):
+        if not self.names:
+            return
+        scoped = collections.defaultdict(dict)
+        for key, new in self.names.items():
+            outer, _, inner = key.partition("::")
+            scoped[outer][inner] = new
+        names_of = collections.defaultdict(set)
+        for k, d in self.decls.items():
+            if d.get("n"):
+                names_of[self.find(k)].add(d["n"])
+        hits = set()
+        for k, d in self.decls.items():
+            if d["k"] == "F" and d["owner"]:
+                outer = names_of.get(self.find(d["owner"]), ())
+            elif d["k"] in ("P", "V") and d.get("fn"):
+                outer = names_of.get(self.find(d["fn"]), ())
+            else:
+                continue
+            for o in outer:
+                new = scoped.get(o, {}).get(d["n"])
+                if new:
+                    self.key_names[self.find(k)] = new
+                    self.named_roots.add(self.find(k))
+                    hits.add(f"{o}::{d['n']}")
+        self.unmatched = sorted(set(self.names) - hits)
 
     def bodies(self):
         by_file = collections.defaultdict(list)
@@ -939,6 +986,8 @@ class Planner:
         return self.only is None or file in self.only
 
     def allowed(self, root):
+        if self.names:
+            return root in self.named_roots
         if self.only is None:
             return True
         return all(f in self.only for f in self.decl_files.get(root, ()))
@@ -952,6 +1001,7 @@ class Planner:
         self.assign_fields()
         self.assign_enumerators()
         self.assign_locals()
+        self.assign_names()
         self.decl_files = collections.defaultdict(set)
         for k in self.decls:
             self.decl_files[self.find(k)].add(k.rsplit(":", 1)[0])
@@ -978,7 +1028,8 @@ class Planner:
                 continue
             for old, new in changes:
                 edits[file].append([int(off), old, new, len(pairs)])
-        deletions = [(k, ext) for k, ext in self.deletions if self.allowed_file(k.rsplit(":", 1)[0])]
+        deletions = [(k, ext) for k, ext in self.deletions
+                     if self.allowed_file(k.rsplit(":", 1)[0]) and not self.names]
         olds = collections.defaultdict(set)
         for root, (old, new) in self.group_names.items():
             if old and new.startswith(("Struct_", "Enum_")) and self.allowed(root):
@@ -1260,6 +1311,15 @@ def plan_for(tree, files, only):
     model = scan_tree(tree, files, REGIONS)
     planner = Planner(tree, model, up, only)
     return planner, planner.run()
+
+
+def rename_scoped(tree, names, up=None, regions=REGIONS):
+    up = up or Upstream(upstream_tree(tree))
+    planner = Planner(tree, scan_tree(tree, sources(tree), regions), up, None, names)
+    results, misses = apply_plan(tree, planner.run())
+    for rel, data in results.items():
+        open(f"{tree}/{rel}", "wb").write(data)
+    return sorted(results), misses + [f"UNMATCHED {key}" for key in planner.unmatched]
 
 
 def check(tree, files):

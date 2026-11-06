@@ -368,6 +368,160 @@ def _plainnames_region_macros():
     return None
 
 
+def _naming_tree(d, symbols, files):
+    root = d.replace("\\", "/")
+    for sub in ("src", "include", "upstream/src", "config/usa/arm9"):
+        os.makedirs(f"{root}/{sub}", exist_ok=True)
+    with open(f"{root}/config/usa/arm9/symbols.txt", "w", newline="\n") as fh:
+        fh.write(symbols)
+    for rel, text in files.items():
+        os.makedirs(os.path.dirname(f"{root}/{rel}"), exist_ok=True)
+        with open(f"{root}/{rel}", "w", newline="\n") as fh:
+            fh.write(text)
+    return root
+
+
+@check("plainnames keeps naming-pass names: Stem_<addr>, <stem>_<off>_ members, a named function's locals",
+       "the naming pass's names would be turned back into func_/Struct_/unknown_/arg/var by the plain-name "
+       "fix every integration and landpr run")
+def _plainnames_keeps_naming_pass_names():
+    P = load("plainnames")
+    src = ("struct Pair_02001000 { int count_0_; short items_4_[4]; };\n"
+           "extern \"C\" int Total_02001000(struct Pair_02001000* pair, int scale) {\n"
+           "    int total = pair->count_0_ * scale;\n"
+           "    return total + pair->items_4_[1];\n"
+           "}\n")
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        root = _naming_tree(d, "Total_02001000 kind:function(arm,size=0x20) addr:0x02001000\n",
+                            {"src/a.cpp": src})
+        model = P.scan_tree(root, ["src/a.cpp"], ("usa",))
+        results, misses = P.apply_plan(root, P.Planner(root, model, P.Upstream(f"{root}/upstream")).run())
+    return "renamed %r, misses %s" % (results, misses) if results or misses else None
+
+
+@check("plainnames.rename_scoped renames only the ledger's members, parameters and locals",
+       "a whole-tree plain-name plan renames 1288 human names from unmerged upstream branches; the naming "
+       "pass must touch nothing but its own keys")
+def _plainnames_rename_scoped_only_names():
+    P = load("plainnames")
+    src = ("struct Struct_02001000 { int unknown_0_; int unknown_4_; };\n"
+           "struct Other { int junk; };\n"
+           "extern \"C\" int func_02001000(struct Struct_02001000* arg0, int arg1) {\n"
+           "    int var0 = arg0->unknown_0_ * arg1;\n"
+           "    return var0 + arg0->unknown_4_;\n"
+           "}\n")
+    names = {"Struct_02001000::unknown_0_": "count_0_", "func_02001000::arg0": "pair",
+             "func_02001000::var0": "total", "Struct_02001000::unknown_8_": "missing_8_"}
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        root = _naming_tree(d, "func_02001000"
+                               " kind:function(arm,size=0x20) addr:0x02001000\n",
+                            {"src/a.cpp": src})
+        changed, misses = P.rename_scoped(root, names, P.Upstream(f"{root}/upstream"), ("usa",))
+        with open(f"{root}/src/a.cpp") as fh:
+            got = fh.read()
+    want = ("struct Struct_02001000 { int count_0_; int unknown_4_; };\n"
+            "struct Other { int junk; };\n"
+            "extern \"C\" int func_02001000(struct Struct_02001000* pair, int arg1) {\n"
+            "    int total = pair->count_0_ * arg1;\n"
+            "    return total + pair->unknown_4_;\n"
+            "}\n")
+    if misses != ["UNMATCHED Struct_02001000::unknown_8_"]:
+        return "misses %s" % misses
+    return None if got == want else "got:\n%s" % got
+
+
+@check("naming/names.py renames a symbol in source, asm, mangled names and symbols.txt, never a path",
+       "func_ names live in mangled _Z tokens with a length prefix, JPN #define aliases and delinks.txt "
+       "paths; a whole-word rename misses the first and breaks the last")
+def _names_rename_globals():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("names", os.path.join(KIT, "naming", "names.py"))
+    N = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(N)
+    src = ("#include \"func_02001000.h\"\n"
+           "#if defined(jpn)\n#define func_02001000 func_02001100\n#endif\n"
+           "struct Struct_02002000 { void func_02003000(); };\n"
+           "extern \"C\" void _ZN15Struct_0200200013func_02003000Ev();\n"
+           "extern \"C\" int func_02001000(Struct_02002000* p) { p->func_02003000(); return 0; }\n"
+           "asm void f() { bl func_02001000 }\n")
+    sym = ("func_02001000"
+           " kind:function(arm,size=0x20) addr:0x02001000\n"
+           "_ZN15Struct_0200200013func_02003000Ev"
+           " kind:function(arm,size=0x20) addr:0x02003000\n")
+    mapping = {"func_02001000": "Total_02001000", "Struct_02002000": "Pair_02002000",
+               "func_02003000": "Reset_02003000"}
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        root = _naming_tree(d, sym, {"src/a.cpp": src})
+        with open(f"{root}/config/usa/arm9/delinks.txt", "w") as fh:
+            fh.write("src/func_02001000.cpp:\n")
+        N.rename_globals(root, mapping)
+        with open(f"{root}/src/a.cpp") as fh:
+            got = fh.read()
+        with open(f"{root}/config/usa/arm9/symbols.txt") as fh:
+            gotsym = fh.read()
+        with open(f"{root}/config/usa/arm9/delinks.txt") as fh:
+            delinks = fh.read()
+    want = ("#include \"func_02001000.h\"\n"
+            "#if defined(jpn)\n#define Total_02001000 func_02001100\n#endif\n"
+            "struct Pair_02002000 { void Reset_02003000(); };\n"
+            "extern \"C\" void _ZN13Pair_0200200014Reset_02003000Ev();\n"
+            "extern \"C\" int Total_02001000(Pair_02002000* p) { p->Reset_02003000(); return 0; }\n"
+            "asm void f() { bl Total_02001000 }\n")
+    wantsym = ("Total_02001000 kind:function(arm,size=0x20) addr:0x02001000\n"
+               "_ZN13Pair_0200200014Reset_02003000Ev kind:function(arm,size=0x20) addr:0x02003000\n")
+    if got != want:
+        return "source:\n%s" % got
+    if gotsym != wantsym:
+        return "symbols:\n%s" % gotsym
+    return None if delinks == "src/func_02001000.cpp:\n" else "delinks %r" % delinks
+
+
+@check("prready refuses plain-name problems only on lines the change adds, and an address-keeping rename",
+       "a naming batch touching 400 files was refused for 39 parameter names already in untouched lines "
+       "(`_fmul(float a, float b)`), and every naming-pass symbol read as NOT AN UPSTREAM NAME")
+def _prready_introduced_names():
+    R = load("prready")
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        root = d.replace("\\", "/")
+        os.makedirs(f"{root}/src")
+        with open(f"{root}/src/a.cpp", "w", newline="\n") as fh:
+            fh.write("extern \"C\" float _fmul(float a, float b);\n"
+                     "extern \"C\" int Total_02001000(int count) { return count; }\n")
+        problems = ["NOT A PLAIN NAME src/a.cpp:1 a: write arg0", "NOT A PLAIN NAME src/a.cpp:2 count: write arg0"]
+        added = ["extern \"C\" int Total_02001000(int count) { return count; }"]
+        got = R.introduced(problems, lambda path: added if path == "src/a.cpp" else [], root)
+    if got != problems[1:]:
+        return "introduced %r" % got
+    defaults = {"func_02001000", "data_02002000"}
+    for name, want in (("Total_02001000", True), ("_ZN13Pair_0200200014Reset_02001000Ev", True),
+                       ("Table_02002000", True), ("Total_02003000", False), ("Total", False)):
+        if R.keeps_address(name, defaults) != want:
+            return "keeps_address(%s) != %s" % (name, want)
+    return None
+
+
+@check("namerules gives a key its stem plus the key's own address or offset, and refuses bad stems",
+       "an AI name without its address cannot be mapped back to the ROM (Eakeys, ghidra)")
+def _namerules_final():
+    R = load("namerules")
+    cases = {("func_ov012_021e4bc8", "SetupBattle"): ("func", "SetupBattle_ov012_021e4bc8"),
+             ("Struct_020a1234_2", "BattleUnit"): ("type", "BattleUnit_020a1234_2"),
+             ("Struct_020a1234::unknown1_34_", "hp"): ("member", "hp_34_"),
+             ("Struct_020a1234::unknown_c_4_", "isDead"): ("member", "isDead_c_4_"),
+             ("func_02001000::arg0", "unit"): ("local", "unit")}
+    for (key, stem), want in cases.items():
+        if R.final(key, stem) != want:
+            return "%s %s -> %s" % (key, stem, R.final(key, stem))
+    for key, stem in (("func_02001000", "setup"), ("func_02001000::arg0", "Unit"), ("Foo", "Bar"),
+                      ("func_02001000::var0", "near"), ("func_02001000", "Set_Up")):
+        try:
+            R.final(key, stem)
+            return "accepted %s %s" % (key, stem)
+        except ValueError:
+            pass
+    return None
+
+
 @check("landpr --fixes DROP accepts a file the pull request deleted as a reviewed deletion",
        "#315 deleted .idea/c_cpp_properties.json; DROP refused the absent path and prready refused it unreviewed")
 def _landpr_drop_reviews_a_deletion():
@@ -2428,7 +2582,7 @@ def _prready():
             "src/B.cpp": "void Baz() {}\n"})
         commit(pub_kit, {n: open(f"{KIT}/{n}", encoding="utf-8").read()
                          for n in ("prready.py", "delinked.py", "kitpaths.py", "pragmas.py", "plausible.py", "mangle.py",
-                                   "gitread.py", "plainnames.py")}
+                                   "gitread.py", "plainnames.py", "namerules.py")}
                | {"worker_src/deadends.md": "# dead ends\n", "worker_src/core.md": "# core\n"})
         git(d, "clone", "-q", pub_decomp, decomp)
         git(d, "clone", "-q", pub_kit, kit)
