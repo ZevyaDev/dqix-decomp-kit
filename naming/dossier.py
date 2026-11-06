@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import kitpaths
 from graph import Graph
+import dyn as dyn_mod
 import names as ledger_mod
 
 CALL_PREFIX = re.compile(r"[=(;,!&|?]|\breturn\b|->|\.\s*$")
@@ -96,7 +97,7 @@ def dynamic(sym):
             args = "; ".join(" ".join(f"{a:x}" for a in row) for row in hit.get("args", [])[:4])
             out.append(f"{data.get('scenario', os.path.basename(path))}: {hit.get('calls', '?')} call(s)"
                        + (f", r0-r3 {args}" if args else ""))
-    return out
+    return out + dyn_mod.probe_lines(sym)
 
 
 def dossier(g, sym, n_callers=12, n_lines=160):

@@ -27,6 +27,8 @@ evidence lives in the ledger.
     python naming/dossier.py <key> [--callers N]   source, callees, strings, call sites, dynamic, ledger
     python naming/dyn.py run <scenario>...         call counts per function from headless melonDS
     python naming/dyn.py only <scenario> <other>   functions one scenario reaches and the others do not
+    python naming/dyn.py probe <scenario> <key>... arguments, callers, returns, memory, screenshots
+    python naming/dyn.py show <key> [scenario]     what probes recorded (the dossier shows it too)
     python naming/names.py import rows.jsonl       {key, stem, evidence: [...], by}
     python naming/names.py accept KEY...           after the audit; reject KEY WHY otherwise
     python naming/names.py check                   keys exist, finals are free, locals have a named function

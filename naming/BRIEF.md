@@ -7,7 +7,12 @@ you are given, one JSON object per line:
 
 Read `$KIT/naming/HANDOFF.md` for the name forms. Get the facts with
 `python $KIT/naming/dossier.py <key> --callers 12`; read more callers' source when the call sites
-disagree. Run a scenario (`python $KIT/naming/dyn.py run <name>`) only when the brief allows it.
+disagree. Then watch it in the game: every function whose meaning is not plain from a few lines of
+code (a bare accessor returning a global of an upstream-named type is plain) needs `dyn:` evidence
+from `python $KIT/naming/dyn.py probe <scenario> <key>...` (caller chains, arguments, return values,
+pointed-to memory, screenshots at the call and after it; open the PNGs). When no scenario reaches the
+behavior, write one in `naming/scenarios/`. A name the game contradicts is wrong however well the
+code reads.
 
 ## What a name must be
 
@@ -34,7 +39,8 @@ Each row needs at least one item a reviewer can check without trusting you:
   loopEntry->maybeSoundEffect`)
 - `upstream:` a human name the code touches (upstream types, methods, fields)
 - `str:` a string the function loads
-- `dyn:` a scenario observation (`dyn: menu 214496 calls, idle 117900: per-frame, not menu-specific`)
+- `dyn:` a scenario observation (`dyn: menu 214496 calls, idle 117900: per-frame, not menu-specific`;
+  `dyn: town probe: r1 is "*: Welcome back..." and the window shows it in main_0204500c_1after.png`)
 - `data:`, `save:`, `web:` a game table, save offset, or a URL confirming a behavior (never a name)
 
 A guess is not evidence. A name derived from another unlanded proposal says so (`call: depends on
@@ -54,5 +60,7 @@ named in their batch, and the dossier keeps listing it until then.
 The auditor gets the rows and the dossiers, not the namer's reasoning. For each row: is every evidence
 item true when checked against the source and the dossier, does the stem follow from it, does it hold
 for every caller, is it consistent with landed names, and is it the namer's own rather than an
-identifier from an external source (an SDK-style `NNS_`/`OS_` name, another project's name)? Reply per
-key `accept` or `reject: <why>`. Reject when in doubt.
+identifier from an external source (an SDK-style `NNS_`/`OS_` name, another project's name)? Does a
+function that is not plain carry `dyn:` evidence from a probe, and does the recorded probe
+(`dyn.py show`, its PNGs) say what the row claims? Reply per key `accept` or `reject: <why>`. Reject
+when in doubt.
