@@ -18,7 +18,9 @@ code reads.
 
 - Your own. Every name comes from your analysis of the code and of what the game does. Never take an
   identifier from an external source: other decompilations, SDK or NitroSystem names, fan tools,
-  wikis, documentation. Outside material may confirm what code does; it never supplies a name.
+  wikis, documentation. Outside material may confirm what code does; it never supplies a name. A
+  stem equal to a library identifier with its prefix dropped (`STD_GetStringLength` ->
+  `GetStringLength`) counts as taken: find your own word.
 - True for every caller, not one. A function called from 20 overlays with 20 argument types does one
   thing; name that thing.
 - Specific as the evidence allows, no further. `GetZone3D` when it returns the `Zone3D` instance;
@@ -27,8 +29,10 @@ code reads.
   nouns (`SoundManager`), globals `g` plus the noun (`gZone3D`), members camelCase nouns with a `p`
   prefix for pointers (`pAllocator_4c_` comes out of stem `pAllocator`), booleans `is`/`has`. No
   `Maybe`, `Unknown`, `Probably`, `Helper`, `Do`, `Handle` without an object, numbered stems.
-- The same thing gets the same word everywhere. Check `names.py show` and the dossier's callee names
-  before choosing a word another row already uses differently.
+  Abbreviations keep upstream's spelling (`BG`, as in `GetMainBG1ScreenBase`, never `Bg`).
+- The same thing gets the same word everywhere. Check `names.py show` (proposed and accepted rows
+  too) and the dossier's callee names before choosing a word another row already uses differently;
+  when two functions touch the same object, compare the addresses a probe returns.
 
 ## Evidence
 
@@ -44,7 +48,8 @@ Each row needs at least one item a reviewer can check without trusting you:
 - `data:`, `save:`, `web:` a game table, save offset, or a URL confirming a behavior (never a name)
 
 A guess is not evidence. A name derived from another unlanded proposal says so (`call: depends on
-func_X -> Y`).
+func_X -> Y`). Quote what a screenshot or probe shows exactly (text, counts, values), and cite only
+probes that exist under `$SP/names/dyn/probe/`; a near-match claimed as equal rejects the row.
 
 ## Insides
 
@@ -53,7 +58,9 @@ batch as the function (`func_X::arg0` -> `soundId`); the dossier's `PLAIN INSIDE
 left. A loop index is `i` (`j` inside it); otherwise say what the value is. Name the members the
 function touches whose meaning its code shows (`Struct_02108760::unknown_b4_` -> `currentBank`, final
 `currentBank_b4_`), including the type itself; a member whose meaning shows only in other functions is
-named in their batch, and the dossier keeps listing it until then.
+named in their batch, and the dossier keeps listing it until then. A member rename lands on every
+declaration of that type's member: grep them, and skip the member when another unit declares that
+offset as padding, an array, or a different type.
 
 ## Audit
 
