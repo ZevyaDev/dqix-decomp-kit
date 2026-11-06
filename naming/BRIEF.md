@@ -11,15 +11,17 @@ disagree. Run a scenario (`python $KIT/naming/dyn.py run <name>`) only when the 
 
 ## What a name must be
 
+- Your own. Every name comes from your analysis of the code and of what the game does. Never take an
+  identifier from an external source: other decompilations, SDK or NitroSystem names, fan tools,
+  wikis, documentation. Outside material may confirm what code does; it never supplies a name.
 - True for every caller, not one. A function called from 20 overlays with 20 argument types does one
   thing; name that thing.
 - Specific as the evidence allows, no further. `GetZone3D` when it returns the `Zone3D` instance;
   `GetGameStateSub2a04` is not a name. If the evidence only shows shape, skip the key.
 - In the upstream style: functions `VerbNoun` (`GetPartyMemberByIndex`, `PlaySoundEffect`), types
   nouns (`SoundManager`), globals `g` plus the noun (`gZone3D`), members camelCase nouns with a `p`
-  prefix for pointers (`pAllocator_4c_` comes out of stem `pAllocator`), booleans `is`/`has`. A library
-  function identified by `libid.py` keeps its library name (`NNS_SndArcGetSeqInfo`). No `Maybe`, `Unknown`, `Probably`, `Helper`, `Do`,
-  `Handle` without an object, numbered stems.
+  prefix for pointers (`pAllocator_4c_` comes out of stem `pAllocator`), booleans `is`/`has`. No
+  `Maybe`, `Unknown`, `Probably`, `Helper`, `Do`, `Handle` without an object, numbered stems.
 - The same thing gets the same word everywhere. Check `names.py show` and the dossier's callee names
   before choosing a word another row already uses differently.
 
@@ -33,7 +35,7 @@ Each row needs at least one item a reviewer can check without trusting you:
 - `upstream:` a human name the code touches (upstream types, methods, fields)
 - `str:` a string the function loads
 - `dyn:` a scenario observation (`dyn: menu 214496 calls, idle 117900: per-frame, not menu-specific`)
-- `data:`, `save:`, `web:` a game table, save offset or a URL with the fact
+- `data:`, `save:`, `web:` a game table, save offset, or a URL confirming a behavior (never a name)
 
 A guess is not evidence. A name derived from another unlanded proposal says so (`call: depends on
 func_X -> Y`).
@@ -51,5 +53,6 @@ named in their batch, and the dossier keeps listing it until then.
 
 The auditor gets the rows and the dossiers, not the namer's reasoning. For each row: is every evidence
 item true when checked against the source and the dossier, does the stem follow from it, does it hold
-for every caller, is it consistent with landed names? Reply per key `accept` or `reject: <why>`. Reject
-when in doubt.
+for every caller, is it consistent with landed names, and is it the namer's own rather than an
+identifier from an external source (an SDK-style `NNS_`/`OS_` name, another project's name)? Reply per
+key `accept` or `reject: <why>`. Reject when in doubt.

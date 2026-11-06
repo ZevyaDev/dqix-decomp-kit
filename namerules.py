@@ -13,9 +13,8 @@ DEFAULT = re.compile(rf"(func|data|inline|Struct|Enum|Type)_({ADDR_TAIL})((?:_[A
 SLOT = re.compile(r"(?:arg|var)\d+")
 PASCAL = re.compile(r"[A-Z][A-Za-z0-9]*")
 CAMEL = re.compile(r"[a-z][A-Za-z0-9]*")
-FUNC_STEM = re.compile(r"[A-Z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)*")
-DATA_STEM = re.compile(r"g?[A-Z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)*")
-STEMS = {"func": FUNC_STEM, "data": DATA_STEM, "type": PASCAL}
+DATA_STEM = re.compile(r"g?[A-Z][A-Za-z0-9]*")
+STEMS = {"func": PASCAL, "data": DATA_STEM, "type": PASCAL}
 KINDS = {"func": "func", "inline": "func", "data": "data", "Struct": "type", "Enum": "type", "Type": "type"}
 RESERVED = set("""
 alignas alignof and asm auto bitand bitor bool break case catch char class compl const const_cast
@@ -45,7 +44,7 @@ def final(key, stem):
         raise ValueError(f"{key}: not a plain func_/data_/inline_/Struct_/Enum_/Type_ name")
     kind = KINDS[m.group(1)]
     if not STEMS[kind].fullmatch(stem) or re.search(r"(?:^|_)[0-9a-f]{8}(?:_|$)", stem):
-        raise ValueError(f"{stem!r}: PascalCase (a library name may keep its underscores; a global may start with g)")
+        raise ValueError(f"{stem!r}: PascalCase (a global may start with g)")
     return kind, f"{stem}_{m.group(2)}{m.group(3)}"
 
 

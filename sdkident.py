@@ -2,7 +2,7 @@
 """IDENTIFY unmatched functions against reference DS decompilations. Research first, never asm-first.
 
     python sdkident.py index              build the reference index from everything under refs/
-    python sdkident.py match <mod> <addr> what in the references implements this function (matched or not)
+    python sdkident.py match <mod> <addr> what in the references implements this function
     python sdkident.py sweep [mod]        every unmatched function, ranked by identifiability
     python sdkident.py show <proj/file> <name>   print a reference implementation
 
@@ -251,7 +251,7 @@ def load_index():
     return json.load(open(INDEX, encoding="utf-8"))
 
 
-def our_functions(mod="main", matched=False):
+def our_functions(mod="main"):
     cfg = f"{REPO}/config/usa/arm9" if mod == "main" else \
           f"{REPO}/config/usa/arm9/overlays/ov{mod}"
     sym = open(f"{cfg}/symbols.txt", encoding="utf-8", errors="ignore").read()
@@ -262,7 +262,7 @@ def our_functions(mod="main", matched=False):
     for m in re.finditer(r"(?m)^(\S+)\s+kind:function\((arm|thumb),size=0x([0-9a-fA-F]+)\)"
                          r"\s+addr:0x([0-9a-fA-F]+)", sym):
         name, isa, size, a = m.group(1), m.group(2), int(m.group(3), 16), int(m.group(4), 16)
-        if size and (matched or not any(s <= a < e for s, e in done)):
+        if size and not any(s <= a < e for s, e in done):
             out.append((a, size, name, isa))
     return sorted(out)
 
@@ -420,9 +420,9 @@ def main():
     if cmd == "match":
         mod, addr = sys.argv[2], sys.argv[3]
         a = int(addr, 16)
-        hit = next((f for f in our_functions(mod, matched=True) if f[0] == a), None)
+        hit = next((f for f in our_functions(mod) if f[0] == a), None)
         if not hit:
-            sys.exit("no function at this address in this module")
+            sys.exit("not an unmatched function in this module")
         report(mod, hit[0], hit[1], hit[2], hit[3], idx)
         return 0
     mod = sys.argv[2] if len(sys.argv) > 2 else "main"

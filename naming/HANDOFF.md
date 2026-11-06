@@ -17,7 +17,8 @@ Every region's symbol carries the USA address: one name per function in all thre
 or global with no USA symbol carries its region and its own address (`Stem_jpn_<addr>`,
 `Stem_ov004_jpn_<addr>`). A source alias `#define func_<usa> func_<jpn>` is deleted when its function is
 named and the JPN symbol takes the USA name; an alias whose JPN name is also a USA symbol is refused
-(`ALIAS COLLIDES`). Library functions identified by signature are suffixed too. No source comments:
+(`ALIAS COLLIDES`). Every name comes from our own analysis; no identifier is taken from an external
+source (other decomps, SDK or NitroSystem names, fan tools, docs). No source comments:
 evidence lives in the ledger.
 
 ## Loop
