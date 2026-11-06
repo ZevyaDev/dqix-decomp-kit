@@ -225,8 +225,25 @@ def region_finals(tree, rows):
 
 
 def write_header(tree, entries):
-    path = os.path.join(tree, HEADER)
+    current = header_map(tree)
+    for region, pairs in entries.items():
+        current[region].update(pairs)
+    with open(os.path.join(tree, HEADER), "w", encoding="utf-8", newline="\n") as fh:
+        fh.write("#pragma once\n\n" + region_block(current))
+    gdefs = os.path.join(tree, GLOBALDEFS)
+    with open(gdefs, encoding="utf-8", newline="") as fh:
+        text = fh.read()
+    include = f'#include "{os.path.basename(HEADER)}"'
+    if include not in text:
+        nl = "\r\n" if "\r\n" in text else "\n"
+        with open(gdefs, "w", encoding="utf-8", newline="") as fh:
+            fh.write(text.rstrip("\r\n") + nl + include + nl)
+    return [HEADER, GLOBALDEFS]
+
+
+def header_map(tree):
     current = {region: {} for region in OTHER_REGIONS}
+    path = os.path.join(tree, HEADER)
     if os.path.isfile(path):
         with open(path, encoding="utf-8") as fh:
             region = None
@@ -237,24 +254,60 @@ def write_header(tree, entries):
                 d = re.match(r"#define (\w+) (\w+)", line)
                 if d and region in current:
                     current[region][d.group(1)] = d.group(2)
-    for region, pairs in entries.items():
-        current[region].update(pairs)
-    lines = ["#pragma once", ""]
+    return current
+
+
+def region_block(maps):
+    lines = []
     for i, region in enumerate(OTHER_REGIONS):
         lines.append(f"#{'if' if i == 0 else 'elif'} defined({region})")
-        lines += [f"#define {a} {b}" for a, b in sorted(current[region].items())]
-    lines += ["#endif", ""]
-    with open(path, "w", encoding="utf-8", newline="\n") as fh:
-        fh.write("\n".join(lines))
-    gdefs = os.path.join(tree, GLOBALDEFS)
-    with open(gdefs, encoding="utf-8", newline="") as fh:
-        text = fh.read()
-    include = f'#include "{os.path.basename(HEADER)}"'
-    if include not in text:
-        nl = "\r\n" if "\r\n" in text else "\n"
-        with open(gdefs, "w", encoding="utf-8", newline="") as fh:
-            fh.write(text.rstrip("\r\n") + nl + include + nl)
-    return [HEADER, GLOBALDEFS]
+        lines += [f"#define {a} {b}" for a, b in sorted(maps[region].items())]
+    return "\n".join(lines + ["#endif"]) + "\n"
+
+
+def fallback_blocks(tree):
+    maps = header_map(tree)
+    names = {n.encode() for m in maps.values() for n in m}
+    if not names:
+        return []
+    block = re.compile(rb"#if defined\(eur\)\r?\n(?:#define \w+ \w+\r?\n)*#elif defined\(jpn\)\r?\n"
+                       rb"(?:#define \w+ \w+\r?\n)*#endif\r?\n")
+    changed = []
+    for path in tree_files(tree):
+        if path.endswith("symbols.txt") or os.path.normpath(path) == os.path.normpath(os.path.join(tree, HEADER)):
+            continue
+        with open(path, "rb") as fh:
+            data = fh.read()
+        if b"globaldefs.h" in data:
+            continue
+        used = names & set(TOKEN.findall(data))
+        if not used:
+            continue
+        old = block.search(data)
+        have = {region: {} for region in OTHER_REGIONS}
+        if old:
+            region = None
+            for line in old.group(0).decode().splitlines():
+                g = re.match(r"#(?:el)?if defined\((\w+)\)", line)
+                region = g.group(1) if g else region
+                d = re.match(r"#define (\w+) (\w+)", line)
+                if d:
+                    have[region][d.group(1)] = d.group(2)
+        for region in OTHER_REGIONS:
+            have[region].update({a: b for a, b in maps[region].items() if a.encode() in used})
+        nl = b"\r\n" if b"\r\n" in data else b"\n"
+        text = region_block(have).replace("\n", nl.decode()).encode()
+        if old:
+            new = data[:old.start()] + text + data[old.end():]
+        else:
+            once = re.match(rb"[ \t]*#[ \t]*pragma[ \t]+once[^\n]*\n", data)
+            at = once.end() if once else 0
+            new = data[:at] + text + data[at:]
+        if new != data:
+            with open(path, "wb") as fh:
+                fh.write(new)
+            changed.append(os.path.relpath(path, tree).replace("\\", "/"))
+    return changed
 
 
 def apply(tree, ledger, todo):
@@ -290,6 +343,7 @@ def apply(tree, ledger, todo):
             changed.add(os.path.relpath(path, tree).replace("\\", "/"))
     if header:
         changed |= set(write_header(tree, header))
+        changed |= set(fallback_blocks(tree))
     return sorted(changed), misses, finals
 
 

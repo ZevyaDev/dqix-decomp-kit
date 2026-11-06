@@ -525,7 +525,9 @@ def _names_region_addresses():
     src = ("#include <globaldefs.h>\n#if defined(jpn)\n#define func_02003000 func_02003300\n#endif\n"
            "extern \"C\" int func_02001000(void);\nextern \"C\" int func_02003000(void) { return func_02001000(); }\n")
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
-        root = _naming_tree(d, "", {"src/a.cpp": src, "include/globaldefs.h": "#pragma once\n"})
+        root = _naming_tree(d, "", {"src/a.cpp": src, "include/globaldefs.h": "#pragma once\n",
+                                    "src/b.cpp": "extern \"C\" int func_02001000(void);\n"
+                                                 "int g() { return func_02001000(); }\n"})
         for region, (a, aa, b, ba) in sym.items():
             os.makedirs(f"{root}/config/{region}/arm9", exist_ok=True)
             with open(f"{root}/config/{region}/arm9/symbols.txt", "w", newline="\n") as fh:
@@ -536,6 +538,9 @@ def _names_region_addresses():
         read = lambda rel: open(f"{root}/{rel}").read()
         got = {r: read(f"config/{r}/arm9/symbols.txt").split() for r in sym}
         source, header, gdefs = read("src/a.cpp"), read("include/region_names.h"), read("include/globaldefs.h")
+        alone = read("src/b.cpp")
+    if not alone.startswith("#if defined(eur)\n#elif defined(jpn)\n#define Total_02001000 Total_02001100\n#endif\n"):
+        return "a file without globaldefs.h got no region block:\n%s" % alone
     want = {"usa": ["Total_02001000", "Reset_02003000"], "eur": ["Total_02001000", "Reset_02003010"],
             "jpn": ["Total_02001100", "Reset_02003300"]}
     for region, names in want.items():
