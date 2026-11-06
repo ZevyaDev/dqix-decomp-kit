@@ -13,7 +13,9 @@ every function.
 
 A probe samples a function in bursts of BURST hits at least GAP frames apart, up to --hits (default
 HITS), so the samples spread over the whole scenario. It writes
-$SP/names/dyn/probe/<scenario>/<module>_<addr>.json and PNGs of both screens beside it, one at the
+$SP/names/dyn/probe/<scenario>/<module>_<addr>.json (a later run of the same function and scenario
+writes <module>_<addr>.r2.json, .r3..., so cited evidence is never overwritten) and PNGs of both
+screens beside it under the same stem, one at the
 hit and one AFTER frames later (`_<n>after.png`); `dossier.py` shows them. Several probes may run at once, each in its own process.
 
 A scenario is naming/scenarios/<name>.py: START = {"save": <.sav>, "state": <.mst>} (paths relative to
@@ -119,8 +121,8 @@ class Probe:
                 sys.exit(f"{key}: no such function")
             self.watch.setdefault(sym.addr, []).append(sym)
             self.data[sym.key] = {"scenario": name, "function": sym.name, "module": sym.module,
-                                  "addr": f"{sym.addr:08x}", "sites": {}, "rows": [], "shots": [],
-                                  "returns": {}, "burst": 0, "resume": 0}
+                                  "addr": f"{sym.addr:08x}", "file": self.fresh(f"{sym.module}_{sym.addr:08x}"),
+                                  "sites": {}, "rows": [], "shots": [], "returns": {}, "burst": 0, "resume": 0}
         for addr in self.watch:
             self.points[addr] = con.add_breakpoint(addr)
 
@@ -211,10 +213,18 @@ class Probe:
             self.con.remove_point(self.return_points.pop(pc))
             del self.returns[pc]
 
+    def fresh(self, base):
+        if not os.path.exists(os.path.join(self.dir, f"{base}.json")):
+            return base
+        run = 2
+        while os.path.exists(os.path.join(self.dir, f"{base}.r{run}.json")):
+            run += 1
+        return f"{base}.r{run}"
+
     def shot(self, sym, n):
         from PIL import Image
         os.makedirs(self.dir, exist_ok=True)
-        path = os.path.join(self.dir, f"{sym.module}_{sym.addr:08x}_{n}.png")
+        path = os.path.join(self.dir, f"{self.data[sym.key]['file']}_{n}.png")
         px = bytes(self.con.screen())
         Image.frombuffer("RGBA", (256, 384), px, "raw", "BGRA", 0, 1).convert("RGB").save(path)
         return path
@@ -225,7 +235,7 @@ class Probe:
             d["calls"] = self.rec.calls.get(f"{module}:{addr:08x}", 0)
             for k in ("burst", "resume"):
                 d.pop(k)
-            with open(os.path.join(self.dir, f"{module}_{addr:08x}.json"), "w", encoding="utf-8", newline="\n") as fh:
+            with open(os.path.join(self.dir, f"{d['file']}.json"), "w", encoding="utf-8", newline="\n") as fh:
                 json.dump(d, fh, indent=0)
             print(f"{d['function']}: {len(d['rows'])} sampled of {d['calls']} calls, "
                   f"{len(d['sites'])} call sites, {len(d['shots'])} shots")
@@ -300,8 +310,8 @@ def load(name):
 
 
 def probes(sym, scenario_name="*"):
-    pattern = os.path.join(PROBES, scenario_name, f"{sym.module}_{sym.addr:08x}.json")
-    for path in sorted(glob.glob(pattern)):
+    base = os.path.join(PROBES, scenario_name, f"{sym.module}_{sym.addr:08x}")
+    for path in sorted(glob.glob(f"{base}.json") + glob.glob(f"{base}.r*.json")):
         with open(path, encoding="utf-8") as fh:
             yield json.load(fh)
 
@@ -318,7 +328,8 @@ def probe_lines(sym, scenario_name="*", rows=6):
     out = []
     for d in probes(sym, scenario_name):
         sites = sorted(d["sites"].items(), key=lambda x: -x[1])
-        out.append(f"{d['scenario']} probe: {len(d['rows'])} sampled of {d['calls']} calls; "
+        stem = d.get("file") or f"{d['module']}_{d['addr']}"
+        out.append(f"{d['scenario']} probe {stem}: {len(d['rows'])} sampled of {d['calls']} calls; "
                    f"call sites {', '.join(f'{s} x{n}' for s, n in sites[:6])}"
                    + (f" (+{len(sites) - 6})" if len(sites) > 6 else ""))
         if d.get("returns"):
