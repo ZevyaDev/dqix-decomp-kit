@@ -608,8 +608,9 @@ def _names_relative_tree():
     N = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(N)
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
-        src = "extern \"C\" int func_02001000(int arg0) {\n    int var0 = arg0;\n    return var0;\n}\n"
-        root = _naming_tree(d, "func_02001000 kind:function(arm,size=0x8) addr:0x02001000\n",
+        sym = "func_02001000"
+        src = "extern \"C\" int %s(int arg0) {\n    int var0 = arg0;\n    return var0;\n}\n" % sym
+        root = _naming_tree(d, f"{sym} kind:function(arm,size=0x8) addr:0x02001000\n",
                             {"src/a.cpp": src, "include/globaldefs.h": "#pragma once\n"})
         ledger = f"{root}/ledger.jsonl"
         with open(ledger, "w", newline="\n") as fh:
