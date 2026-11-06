@@ -4,9 +4,11 @@ every function.
     python naming/dyn.py run <scenario>...           writes $SP/names/dyn/<scenario>.json
     python naming/dyn.py list
     python naming/dyn.py only <scenario> <other>...  functions the first scenario calls and the others do not
-    python naming/dyn.py probe <scenario> <key>... [--hits N]
+    python naming/dyn.py probe <scenario> <key>... [--hits N] [--every]
                                                      each function's arguments, caller chain, return value,
-                                                     pointed-to memory and screenshots while the scenario plays
+                                                     pointed-to memory and screenshots while the scenario plays;
+                                                     --every watches every call, tallies the return values and
+                                                     keeps BURST rows and a screenshot pair per distinct value
     python naming/dyn.py show <key> [scenario]       print what probes recorded
 
 A probe samples a function in bursts of BURST hits at least GAP frames apart, up to --hits (default
@@ -105,8 +107,8 @@ def peek(con, table, value):
 
 
 class Probe:
-    def __init__(self, con, rec, keys, hits, name):
-        self.con, self.rec, self.hits = con, rec, hits
+    def __init__(self, con, rec, keys, hits, name, every=False):
+        self.con, self.rec, self.hits, self.every = con, rec, hits, every
         self.dir = os.path.join(PROBES, name)
         self.watch, self.data, self.points = {}, {}, {}
         self.returns, self.return_points, self.misses = {}, {}, {}
@@ -118,7 +120,7 @@ class Probe:
             self.watch.setdefault(sym.addr, []).append(sym)
             self.data[sym.key] = {"scenario": name, "function": sym.name, "module": sym.module,
                                   "addr": f"{sym.addr:08x}", "sites": {}, "rows": [], "shots": [],
-                                  "burst": 0, "resume": 0}
+                                  "returns": {}, "burst": 0, "resume": 0}
         for addr in self.watch:
             self.points[addr] = con.add_breakpoint(addr)
 
@@ -149,35 +151,59 @@ class Probe:
         chain = [self.rec.table.describe(f["site"], self.con) for f in stack[:5]]
         if chain:
             d["sites"][chain[0]] = d["sites"].get(chain[0], 0) + 1
+        if self.every:
+            self.pend(regs, self.row(regs, chain), sym)
+            return
         if not self.ready(d):
             if all(not self.ready(self.data[s.key]) for s in self.watch[pc]):
                 self.con.enable_point(self.points[pc], False)
             return
-        args = [regs[f"r{i}"] for i in range(4)]
-        row = {"frame": self.con.frames, "callers": chain, "args": args,
-               "stack": list(struct.unpack("<4I", self.con.read(regs["sp"], 16))),
-               "mem": {f"r{i}": m for i, a in enumerate(args) if (m := peek(self.con, self.rec.table, a))}}
+        row = self.row(regs, chain)
         d["rows"].append(row)
         d["burst"] += 1
         if len(d["rows"]) % SHOT_EVERY == 1:
-            d["shots"].append(self.shot(sym, len(d["rows"])))
-            self.later.append((sym, len(d["rows"]), self.con.frames + AFTER))
+            self.shoot(sym, len(d["rows"]))
         if d["burst"] >= BURST:
             d["burst"], d["resume"] = 0, self.con.frames + GAP
+        self.pend(regs, row, None)
+
+    def row(self, regs, chain):
+        args = [regs[f"r{i}"] for i in range(4)]
+        return {"frame": self.con.frames, "callers": chain, "args": args,
+                "stack": list(struct.unpack("<4I", self.con.read(regs["sp"], 16))),
+                "mem": {f"r{i}": m for i, a in enumerate(args) if (m := peek(self.con, self.rec.table, a))}}
+
+    def shoot(self, sym, n):
+        self.data[sym.key]["shots"].append(self.shot(sym, n))
+        self.later.append((sym, n, self.con.frames + AFTER))
+
+    def pend(self, regs, row, sym):
         lr = regs["lr"] & ~1
-        self.returns.setdefault(lr, []).append((regs["sp"], row))
+        self.returns.setdefault(lr, []).append((regs["sp"], row, sym))
         if lr not in self.return_points:
             self.return_points[lr] = self.con.add_breakpoint(lr)
             self.misses[lr] = 0
 
+    def outcome(self, sym, row):
+        d = self.data[sym.key]
+        value = f"{row['ret']:x}"
+        d["returns"][value] = d["returns"].get(value, 0) + 1
+        kept = sum(1 for r in d["rows"] if r["ret"] == row["ret"])
+        if kept < BURST and len(d["rows"]) < self.hits:
+            d["rows"].append(row)
+            if kept == 0:
+                self.shoot(sym, len(d["rows"]))
+
     def returned(self, pc, regs):
         pending = self.returns[pc]
-        for i, (sp, row) in enumerate(pending):
+        for i, (sp, row, sym) in enumerate(pending):
             if sp == regs["sp"]:
                 row["ret"] = regs["r0"]
                 if m := peek(self.con, self.rec.table, regs["r0"]):
                     row["mem"]["ret"] = m
                 del pending[i]
+                if sym is not None:
+                    self.outcome(sym, row)
                 break
         else:
             self.misses[pc] += 1
@@ -205,7 +231,7 @@ class Probe:
                   f"{len(d['sites'])} call sites, {len(d['shots'])} shots")
 
 
-def run(name, keys=(), hits=HITS):
+def run(name, keys=(), hits=HITS, every=False):
     sys.path.insert(0, MCP)
     sys.path.insert(0, PLAY)
     from melonds_mcp.native import Console
@@ -227,7 +253,7 @@ def run(name, keys=(), hits=HITS):
             con.load_state(os.path.join(PLAY, sc.START["state"]))
         con.track_calls(True)
         rec = Recorder(con, g, table)
-        probe = Probe(con, rec, keys, hits, name) if keys else None
+        probe = Probe(con, rec, keys, hits, name, every) if keys else None
 
         class Field(dqix_auto.Field):
             def run(self, frames):
@@ -295,6 +321,9 @@ def probe_lines(sym, scenario_name="*", rows=6):
         out.append(f"{d['scenario']} probe: {len(d['rows'])} sampled of {d['calls']} calls; "
                    f"call sites {', '.join(f'{s} x{n}' for s, n in sites[:6])}"
                    + (f" (+{len(sites) - 6})" if len(sites) > 6 else ""))
+        if d.get("returns"):
+            tally = sorted(d["returns"].items(), key=lambda x: -x[1])
+            out.append("  every call, r0 at return: " + ", ".join(f"{v} x{n}" for v, n in tally[:12]))
         step = max(1, len(d["rows"]) // rows)
         for row in d["rows"][::step][:rows]:
             mem = row.get("mem", {})
@@ -319,7 +348,9 @@ def main():
             i = args.index("--hits")
             hits = int(args[i + 1])
             del args[i:i + 2]
-        run(args[1], args[2:], hits)
+        every = "--every" in args
+        args = [a for a in args if a != "--every"]
+        run(args[1], args[2:], hits, every)
     elif args[0] == "show" and len(args) > 1:
         sym = Graph("usa").lookup(args[1])
         if sym is None:

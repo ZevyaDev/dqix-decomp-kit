@@ -12,7 +12,9 @@ code (a bare accessor returning a global of an upstream-named type is plain) nee
 from `python $KIT/naming/dyn.py probe <scenario> <key>...` (caller chains, arguments, return values,
 pointed-to memory, screenshots at the call and after it; open the PNGs). When no scenario reaches the
 behavior, write one in `naming/scenarios/`. A name the game contradicts is wrong however well the
-code reads.
+code reads. A name that states a condition (`IsDead`, `IsEmpty`, `IsGuest`) needs a run where the
+condition is both true and false: play until it happens (kill an enemy, empty the bag, join a
+session) and probe with `--every`, which tallies every return value and keeps a screenshot per value.
 
 ## What a name must be
 
