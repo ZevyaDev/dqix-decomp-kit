@@ -7,12 +7,15 @@ or local. final(key, stem) is the name it gets: the stem plus the key's address 
 import re
 
 ADDR_TAIL = r"(?:ov\d{3}_)?(?:jpn_|eur_)?[0-9a-f]{8}"
-NAMED = re.compile(rf"[A-Za-z][A-Za-z0-9]*_({ADDR_TAIL})(?:_[A-Z]+|_\d+)?")
+NAMED = re.compile(rf"[A-Za-z][A-Za-z0-9_]*?_({ADDR_TAIL})(?:_[A-Z]+|_\d+)?")
 MEMBER = re.compile(r"([a-z][A-Za-z0-9]*)_([0-9a-f]+)_(?:(\d+)_)?")
 DEFAULT = re.compile(rf"(func|data|inline|Struct|Enum|Type)_({ADDR_TAIL})((?:_[A-Z]+|_\d+)?)")
 SLOT = re.compile(r"(?:arg|var)\d+")
 PASCAL = re.compile(r"[A-Z][A-Za-z0-9]*")
 CAMEL = re.compile(r"[a-z][A-Za-z0-9]*")
+FUNC_STEM = re.compile(r"[A-Z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)*")
+DATA_STEM = re.compile(r"g?[A-Z][A-Za-z0-9]*(?:_[A-Za-z0-9]+)*")
+STEMS = {"func": FUNC_STEM, "data": DATA_STEM, "type": PASCAL}
 KINDS = {"func": "func", "inline": "func", "data": "data", "Struct": "type", "Enum": "type", "Type": "type"}
 RESERVED = set("""
 alignas alignof and asm auto bitand bitor bool break case catch char class compl const const_cast
@@ -41,8 +44,8 @@ def final(key, stem):
     if not m:
         raise ValueError(f"{key}: not a plain func_/data_/inline_/Struct_/Enum_/Type_ name")
     kind = KINDS[m.group(1)]
-    if not PASCAL.fullmatch(stem):
-        raise ValueError(f"{stem!r}: functions, globals and types are PascalCase")
+    if not STEMS[kind].fullmatch(stem) or re.search(r"(?:^|_)[0-9a-f]{8}(?:_|$)", stem):
+        raise ValueError(f"{stem!r}: PascalCase (a library name may keep its underscores; a global may start with g)")
     return kind, f"{stem}_{m.group(2)}{m.group(3)}"
 
 

@@ -511,4 +511,4 @@ widths, instead of a guessed `char pad[N]` ·
 the compiler containing each address into `<out-dir>`; the commands are in `docs/COMPILER.md` ·
 `bandcost.py` cost per size band from the worker logs, in `$/match` and `$/matched-byte` -- judge a
 band on the second ·
-`naming/` the naming pass: `names.py` ledger (add, import, accept, check, apply) and `namesland.sh` (apply in the integration tree, gate every region, publish), `rank.py` reach ranking, `dossier.py` evidence for one symbol, `dyn.py` scenario call counts from headless melonDS (`scenarios/`), `graph.py` symbols and relocations; `naming/HANDOFF.md` first
+`naming/` the naming pass: `names.py` ledger (add, import, accept, check, apply) and `namesland.sh` (apply in the integration tree, gate every region, publish), `rank.py` reach ranking, `dossier.py` evidence for one symbol, `dyn.py` scenario call counts from headless melonDS (`scenarios/`), `libid.py` library names from `sdkident` exact shapes, `graph.py` symbols and relocations; `naming/HANDOFF.md` first

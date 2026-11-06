@@ -16,8 +16,9 @@ disagree. Run a scenario (`python $KIT/naming/dyn.py run <name>`) only when the 
 - Specific as the evidence allows, no further. `GetZone3D` when it returns the `Zone3D` instance;
   `GetGameStateSub2a04` is not a name. If the evidence only shows shape, skip the key.
 - In the upstream style: functions `VerbNoun` (`GetPartyMemberByIndex`, `PlaySoundEffect`), types
-  nouns (`SoundManager`), members camelCase nouns with a `p` prefix for pointers (`pAllocator_4c_` comes
-  out of stem `pAllocator`), booleans `is`/`has`. No `Maybe`, `Unknown`, `Probably`, `Helper`, `Do`,
+  nouns (`SoundManager`), globals `g` plus the noun (`gZone3D`), members camelCase nouns with a `p`
+  prefix for pointers (`pAllocator_4c_` comes out of stem `pAllocator`), booleans `is`/`has`. A library
+  function identified by `libid.py` keeps its library name (`NNS_SndArcGetSeqInfo`). No `Maybe`, `Unknown`, `Probably`, `Helper`, `Do`,
   `Handle` without an object, numbered stems.
 - The same thing gets the same word everywhere. Check `names.py show` and the dossier's callee names
   before choosing a word another row already uses differently.

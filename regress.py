@@ -508,12 +508,14 @@ def _namerules_final():
              ("Struct_020a1234_2", "BattleUnit"): ("type", "BattleUnit_020a1234_2"),
              ("Struct_020a1234::unknown1_34_", "hp"): ("member", "hp_34_"),
              ("Struct_020a1234::unknown_c_4_", "isDead"): ("member", "isDead_c_4_"),
-             ("func_02001000::arg0", "unit"): ("local", "unit")}
+             ("func_02001000::arg0", "unit"): ("local", "unit"),
+             ("func_020be7a8", "NNS_SndArcPlayerStartSeqArc"): ("func", "NNS_SndArcPlayerStartSeqArc_020be7a8")}
     for (key, stem), want in cases.items():
         if R.final(key, stem) != want:
             return "%s %s -> %s" % (key, stem, R.final(key, stem))
     for key, stem in (("func_02001000", "setup"), ("func_02001000::arg0", "Unit"), ("Foo", "Bar"),
-                      ("func_02001000::var0", "near"), ("func_02001000", "Set_Up")):
+                      ("func_02001000::var0", "near"), ("Struct_02001000", "Set_Up"),
+                      ("func_02001000", "Foo_02001000"), ("func_02001000", "_Hidden")):
         try:
             R.final(key, stem)
             return "accepted %s %s" % (key, stem)
