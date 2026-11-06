@@ -20,6 +20,7 @@ import delinked
 import gitread
 import kitpaths
 import namerules
+from namerules import MANGLED_FREE, own_ident
 import plausible
 from pragmas import codegen_pragmas
 
@@ -34,24 +35,22 @@ USA_TAG = re.compile(r"(?m)^// USA: \S+")
 REGION_ONLY = re.compile(r"(?m)^#if defined\((jpn|eur)\)\s*$")
 
 
-MANGLED_FREE = re.compile(r"^_Z(\d+)")
 DEFAULT_NAME = re.compile(r"^(func|data)_(ov\d{3}_)?(jpn_|eur_)?[0-9a-f]{8}(_\w+)?$")
+SYMBOL_ADDR = re.compile(r"\baddr:0x([0-9a-fA-F]+)")
+OVERLAY_PATH = re.compile(r"/overlays/(ov\d{3})/")
 
 
-def own_ident(name):
-    if not name.startswith("_Z"):
-        return name
-    if name.startswith("_ZN"):
-        i, last = (4 if name.startswith("_ZNK") else 3), None
-        while i < len(name) and name[i] != "E":
-            m = re.match(r"\d+", name[i:])
-            if not m:
-                return None
-            j = i + len(m.group())
-            last, i = name[j:j + int(m.group())], j + int(m.group())
-        return last
-    m = MANGLED_FREE.match(name)
-    return name[m.end():m.end() + int(m.group(1))] if m else None
+def renames_from(path):
+    if not path:
+        return {}
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def with_renames(text, renames):
+    if not renames:
+        return text
+    return re.sub(r"\b[A-Za-z_]\w*\b", lambda m: renames.get(m.group(0), m.group(0)), text)
 
 
 def introduced(problems, plus, repo=None):
@@ -67,9 +66,15 @@ def introduced(problems, plus, repo=None):
     return out
 
 
-def keeps_address(name, defaults):
-    tail = namerules.address_of(own_ident(name) or "")
-    return bool(tail) and bool({f"func_{tail}", f"data_{tail}"} & defaults)
+def keeps_address(line, path):
+    parts = line.split()
+    tail = namerules.address_of(own_ident(parts[0]) or "") if parts else None
+    addr = SYMBOL_ADDR.search(line)
+    if not tail or not addr:
+        return False
+    m = re.fullmatch(r"(?:(ov\d{3})_)?(?:jpn_|eur_)?([0-9a-f]{8})", tail)
+    overlay = OVERLAY_PATH.search("/" + path)
+    return int(m.group(2), 16) == int(addr.group(1), 16) and m.group(1) == (overlay.group(1) if overlay else None)
 
 
 def toolchain_name(name):
@@ -239,7 +244,9 @@ def decomp(decomp_tip):
         elif path.endswith((".c", ".cpp")) and not region_tagged(show(REPO, "HEAD", path)):
             problems.append(f"NO USA TAG {path}: put `// USA: <USA symbol>` on the line above the definition")
     sources = [p for p in changed if p.startswith("src/") and p.endswith((".c", ".cpp"))]
-    for path, new in zip(sources, plausible_gained([(show(REPO, decomp_tip, p), show(REPO, "HEAD", p)) for p in sources])):
+    renames = renames_from(os.environ.get("PRREADY_RENAMES"))
+    pairs = [(with_renames(show(REPO, decomp_tip, p), renames), show(REPO, "HEAD", p)) for p in sources]
+    for path, new in zip(sources, plausible_gained(pairs)):
         if new:
             problems.append(f"IMPLAUSIBLE {path}: adds {', '.join(new)}; write what a developer wrote "
                             f"(worker_src/core.md, NATURAL FORMS THAT MATCH WHERE A TRICK DID)")
@@ -268,13 +275,12 @@ def decomp(decomp_tip):
             if not SYMBOLS.match(path):
                 continue
             before = names(show(REPO, decomp_tip, path))
-            defaults = {own_ident(n) for n in before}
             for line in plus(path):
                 name = line.split()[0] if line.strip() else ""
                 if name and name not in before and not_upstream(name, full, idents) \
-                        and not keeps_address(name, defaults):
+                        and not keeps_address(line, path):
                     problems.append(f"NOT AN UPSTREAM NAME {name} in {path}: keep the default func_/data_ name, "
-                                    "or rename it through naming/names.py keeping its address")
+                                    "or rename it through naming/names.py ending in this region's address")
     for path in changed:
         m = SYMBOLS.match(path)
         if not m:

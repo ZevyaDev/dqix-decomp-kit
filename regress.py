@@ -492,12 +492,62 @@ def _prready_introduced_names():
         got = R.introduced(problems, lambda path: added if path == "src/a.cpp" else [], root)
     if got != problems[1:]:
         return "introduced %r" % got
-    defaults = {"func_02001000", "data_02002000"}
-    for name, want in (("Total_02001000", True), ("_ZN13Pair_0200200014Reset_02001000Ev", True),
-                       ("Table_02002000", True), ("Total_02003000", False), ("Total", False)):
-        if R.keeps_address(name, defaults) != want:
-            return "keeps_address(%s) != %s" % (name, want)
+    if R.with_renames("x((Struct_02001000*)p); Struct_02001000_2 y;", {"Struct_02001000": "Window_02001000"}) \
+            != "x((Window_02001000*)p); Struct_02001000_2 y;":
+        return "renamed() did not map the old type name onto the before text"
+    usa, jpn, ov2 = "config/usa/arm9/symbols.txt", "config/jpn/arm9/symbols.txt", \
+        "config/usa/arm9/overlays/ov002/symbols.txt"
+    for line, path, want in (("Total_02001000 kind:function(arm,size=0x20) addr:0x02001000", usa, True),
+                             ("Total_02001000 kind:function(arm,size=0x20) addr:0x02001100", jpn, False),
+                             ("Total_02001100 kind:function(arm,size=0x20) addr:0x02001100", jpn, True),
+                             ("_ZN13Pair_0200200014Reset_02001000Ev kind:function(arm,size=0x8) addr:0x02001000",
+                              usa, True),
+                             ("gTable_02002000 kind:bss addr:0x02002000", usa, True),
+                             ("Setup_ov002_02150010 kind:function(arm,size=0x8) addr:0x02150010", ov2, True),
+                             ("Setup_02150010 kind:function(arm,size=0x8) addr:0x02150010", ov2, False),
+                             ("Total kind:function(arm,size=0x20) addr:0x02001000", usa, False)):
+        if R.keeps_address(line, path) != want:
+            return "keeps_address(%s, %s) != %s" % (line.split()[0], path, want)
     return None
+
+
+@check("naming/names.py ends each region's symbol in that region's address, mapped by a region define",
+       "JPN and EUR symbols carry the USA address (func_02012fe4 sits at 0x02012dac in JPN), so a name "
+       "suffixed with the USA address is wrong in every other region")
+def _names_region_addresses():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("names", os.path.join(KIT, "naming", "names.py"))
+    N = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(N)
+    sym = {"usa": ("func_02001000", "02001000", "func_02003000", "02003000"),
+           "eur": ("func_02001000", "02001000", "func_02003000", "02003010"),
+           "jpn": ("func_02001000", "02001100", "func_02003300", "02003300")}
+    src = ("#include <globaldefs.h>\n#if defined(jpn)\n#define func_02003000 func_02003300\n#endif\n"
+           "extern \"C\" int func_02001000(void);\nextern \"C\" int func_02003000(void) { return func_02001000(); }\n")
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        root = _naming_tree(d, "", {"src/a.cpp": src, "include/globaldefs.h": "#pragma once\n"})
+        for region, (a, aa, b, ba) in sym.items():
+            os.makedirs(f"{root}/config/{region}/arm9", exist_ok=True)
+            with open(f"{root}/config/{region}/arm9/symbols.txt", "w", newline="\n") as fh:
+                fh.write(f"{a}" + f" kind:function(arm,size=0x8) addr:0x{aa}\n"
+                         f"{b}" + f" kind:function(arm,size=0x8) addr:0x{ba}\n")
+        todo = [N.proposal("func_02001000", "Total", ["t"], "t"), N.proposal("func_02003000", "Reset", ["t"], "t")]
+        N.apply(root, {}, todo)
+        read = lambda rel: open(f"{root}/{rel}").read()
+        got = {r: read(f"config/{r}/arm9/symbols.txt").split() for r in sym}
+        source, header, gdefs = read("src/a.cpp"), read("include/region_names.h"), read("include/globaldefs.h")
+    want = {"usa": ["Total_02001000", "Reset_02003000"], "eur": ["Total_02001000", "Reset_02003010"],
+            "jpn": ["Total_02001100", "Reset_02003300"]}
+    for region, names in want.items():
+        if [w for w in got[region] if not w.startswith(("kind:", "addr:"))] != names:
+            return "%s symbols %s" % (region, got[region])
+    if "#define Reset_02003000 Reset_02003300" not in source or "return Total_02001000();" not in source:
+        return "source:\n%s" % source
+    if "#define Total_02001000 Total_02001100" not in header or "#define Reset_02003000 Reset_02003010" not in header \
+            or header.index("defined(eur)") > header.index("Reset_02003010") \
+            or "#define Reset_02003000 Reset_02003300" in header:
+        return "header:\n%s" % header
+    return None if '#include "region_names.h"' in gdefs else "globaldefs:\n%s" % gdefs
 
 
 @check("namerules gives a key its stem plus the key's own address or offset, and refuses bad stems",

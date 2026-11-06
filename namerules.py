@@ -49,6 +49,25 @@ def final(key, stem):
     return kind, f"{stem}_{m.group(2)}{m.group(3)}"
 
 
+MANGLED_FREE = re.compile(r"^_Z(\d+)")
+
+
+def own_ident(name):
+    if not name.startswith("_Z"):
+        return name
+    if name.startswith("_ZN"):
+        i, last = (4 if name.startswith("_ZNK") else 3), None
+        while i < len(name) and name[i] != "E":
+            m = re.match(r"\d+", name[i:])
+            if not m:
+                return None
+            j = i + len(m.group())
+            last, i = name[j:j + int(m.group())], j + int(m.group())
+        return last
+    m = MANGLED_FREE.match(name)
+    return name[m.end():m.end() + int(m.group(1))] if m else None
+
+
 def address_of(name):
     m = NAMED.fullmatch(name)
     return m.group(1) if m else None

@@ -13,8 +13,12 @@ Names land on `decomp-matching` through the ledger and `namesland.sh`; nothing e
 | `Owner::unknown_<off>_` | `<stem>_<off>_` (camelCase; the offset is the key's) |
 | `Function::arg<i>`, `Function::var<i>` | `<stem>` (camelCase; only once the function is named) |
 
-The address is the one in the key, which is the USA address in every region's `symbols.txt`. Library
-functions identified by signature are suffixed too. No source comments: evidence lives in the ledger.
+Source spells the USA name. Each region's symbol ends in that region's own address: `names.py` renames
+the EUR and JPN `symbols.txt` entries to it and maps the USA spelling in `include/region_names.h`
+(`#if defined(eur)` / `#elif defined(jpn)`, included by `globaldefs.h`); where a source file already
+aliases the function (`#define func_<usa> func_<jpn>`), the alias's right side gets the JPN name instead.
+Types keep one name everywhere. Library functions identified by signature are suffixed too. No source
+comments: evidence lives in the ledger.
 
 ## Loop
 
