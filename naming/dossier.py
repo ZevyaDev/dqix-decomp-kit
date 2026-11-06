@@ -42,7 +42,8 @@ def close(text, i, opener, closer):
     return -1
 
 
-def definition(text, name):
+def definitions(text, name):
+    out = []
     for m in re.finditer(rf"\b{re.escape(name)}\s*\(", text):
         start = text.rfind("\n", 0, m.start()) + 1
         if CALL_PREFIX.search(text[start:m.start()]):
@@ -55,8 +56,19 @@ def definition(text, name):
             continue
         body_end = close(text, end + 1 + tail.end() - 1, "{", "}")
         if body_end > 0:
-            return text[start:body_end + 1]
-    return None
+            out.append(text[start:body_end + 1])
+    return out
+
+
+def definition(text, name):
+    bodies = definitions(text, name)
+    return "\n".join(bodies) if bodies else None
+
+
+def plain_insides(body):
+    slots = sorted(set(re.findall(r"\b(?:arg|var)\d+\b", body)), key=lambda s: (s[:3], int(s[3:])))
+    members = sorted(set(re.findall(r"(?:->|\.)\s*(unknown\d*_[0-9a-f]+_(?:\d+_)?)", body)))
+    return slots, members
 
 
 def call_site(text, name):
@@ -103,6 +115,9 @@ def dossier(g, sym, n_callers=12, n_lines=160):
         lines = body.splitlines()
         out.append("SOURCE" + (f" (first {n_lines} of {len(lines)} lines)" if len(lines) > n_lines else ""))
         out += lines[:n_lines]
+        slots, members = plain_insides(body)
+        if slots or members:
+            out.append(f"PLAIN INSIDES {' '.join(slots)}" + (f" | members {' '.join(members)}" if members else ""))
         callees = [label(g, k, moved) for k in sorted(g.callees[sym.key])]
         if callees:
             out.append("CALLS " + " ".join(callees))

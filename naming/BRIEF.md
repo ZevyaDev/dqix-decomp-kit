@@ -40,10 +40,12 @@ func_X -> Y`).
 
 ## Insides
 
-Name a function's parameters and locals in the same batch as the function (`func_X::arg0` ->
-`soundId`), and the members it touches when its code makes their meaning plain
-(`Struct_02108760::unknown_b4_` -> `currentBank`, final `currentBank_b4_`). Skip anything unclear;
-a later pass with more context names it.
+A function is done only when every parameter and local in every region's body is named, in the same
+batch as the function (`func_X::arg0` -> `soundId`); the dossier's `PLAIN INSIDES` line lists what is
+left. A loop index is `i` (`j` inside it); otherwise say what the value is. Name the members the
+function touches whose meaning its code shows (`Struct_02108760::unknown_b4_` -> `currentBank`, final
+`currentBank_b4_`), including the type itself; a member whose meaning shows only in other functions is
+named in their batch, and the dossier keeps listing it until then.
 
 ## Audit
 
