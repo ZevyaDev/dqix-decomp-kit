@@ -570,6 +570,60 @@ def _names_region_addresses():
     return None if collide and collide[0].startswith("ALIAS COLLIDES func_02003000") else "collision: %s" % collide
 
 
+@check("naming/names.py refuses a region alias declared with other parameters where both names are visible",
+       "batch 2 renamed JPN func_020474a8(4 args) to FormatMessageText_02046608 in files that also declare "
+       "the USA 7-argument func_02046608 outside any #if: ten JPN units failed with illegal function overloading")
+def _names_alias_signatures():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("names", os.path.join(KIT, "naming", "names.py"))
+    N = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(N)
+    both = ("#include <globaldefs.h>\n#if defined(jpn)\n#define func_02007000 func_02007700\n#endif\n"
+            "extern \"C\" int func_02007000(int a, int b);\n"
+            "#if defined(jpn)\nextern \"C\" void func_02007700(void* p);\n#endif\n")
+    apart = ("#include <globaldefs.h>\n#if defined(jpn)\n#define func_02007000 func_02007700\n"
+             "extern \"C\" void func_02007700(void* p);\n#else\nextern \"C\" int func_02007000(int a, int b);\n"
+             "#endif\n")
+    found = {}
+    for label, src in (("both", both), ("apart", apart)):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+            root = _naming_tree(d, "", {"src/a.cpp": src, "include/globaldefs.h": "#pragma once\n"})
+            for region, name, addr in (("usa", "func_02007000", "02007000"), ("eur", "func_02007000", "02007000"),
+                                       ("jpn", "func_02007700", "02007700")):
+                os.makedirs(f"{root}/config/{region}/arm9", exist_ok=True)
+                with open(f"{root}/config/{region}/arm9/symbols.txt", "w", newline="\n") as fh:
+                    fh.write(f"{name} kind:function(arm,size=0x8) addr:0x{addr}\n")
+            rows = [N.proposal("func_02007000", "Format", ["t"], "t")]
+            found[label] = N.apply(root, {}, N.localized(root, rows))[1]
+    if not (found["both"] and found["both"][0].startswith("ALIAS SIGNATURE func_02007000")):
+        return "a clashing alias declaration was collapsed: %s" % found["both"]
+    return "declarations in exclusive #if branches were refused: %s" % found["apart"] if found["apart"] else None
+
+
+@check("naming/names.py apply resolves function locals and members with a relative tree path",
+       "`names.py apply .` from the tree reported 100 UNRESOLVED UNMATCHED scoped rows that an absolute path renames")
+def _names_relative_tree():
+    import subprocess
+    spec = importlib.util.spec_from_file_location("names", os.path.join(KIT, "naming", "names.py"))
+    N = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(N)
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        src = "extern \"C\" int func_02001000(int arg0) {\n    int var0 = arg0;\n    return var0;\n}\n"
+        root = _naming_tree(d, "func_02001000 kind:function(arm,size=0x8) addr:0x02001000\n",
+                            {"src/a.cpp": src, "include/globaldefs.h": "#pragma once\n"})
+        ledger = f"{root}/ledger.jsonl"
+        with open(ledger, "w", newline="\n") as fh:
+            for key, stem in (("func_02001000", "Total"), ("func_02001000::arg0", "count"),
+                              ("func_02001000::var0", "total")):
+                fh.write(json.dumps(dict(N.proposal(key, stem, ["t"], "t"), status="accepted")) + "\n")
+        r = subprocess.run([sys.executable, os.path.join(KIT, "naming", "names.py"), "apply", "."], cwd=root,
+                           capture_output=True, text=True, env=dict(os.environ, DQIX_NAMES_LEDGER=ledger))
+        text = open(f"{root}/src/a.cpp").read()
+    if r.returncode or "int count" not in text or "total = count" not in text:
+        return "exit %d: %s\n%s" % (r.returncode, (r.stdout + r.stderr).strip()[-300:], text)
+    return None
+
+
 @check("namerules gives a key its stem plus the key's own address or offset, and refuses bad stems",
        "an AI name without its address cannot be mapped back to the ROM (Eakeys, ghidra)")
 def _namerules_final():

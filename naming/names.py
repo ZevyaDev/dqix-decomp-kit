@@ -33,6 +33,10 @@ SYMBOL_ADDR = re.compile(r"\baddr:0x([0-9a-fA-F]+)")
 ALIAS = re.compile(rb"(?m)^[ \t]*#[ \t]*define[ \t]+((?:func|data)_\w+)[ \t]+((?:func|data)_\w+)[ \t]*\r?$")
 OTHER_REGIONS = ("eur", "jpn")
 REGION_TAG = re.compile(r"(?:^|_)(?:jpn|eur)_")
+IDENT = re.compile(r"[A-Za-z_]\w*")
+REGIONS = ("usa", "eur", "jpn")
+PREPROC = re.compile(r"^[ \t]*#[ \t]*(if|ifdef|ifndef|elif|else|endif)\b(.*)$")
+TYPE_WORDS = {"unsigned", "signed", "short", "long", "const", "volatile", "struct", "enum", "union"}
 EMPTY_REGION = re.compile(rb"(?m)^[ \t]*#[ \t]*if(?:def[ \t]+(?:jpn|eur)|[ \t]+defined\((?:jpn|eur)\))"
                           rb"[ \t]*\r?\n[ \t]*#[ \t]*endif[^\n]*\n")
 
@@ -235,11 +239,82 @@ def drop_aliases(tree, pairs):
     return changed
 
 
-def apply(tree, ledger, todo):
-    import plainnames
-    moved = landed_globals(ledger)
-    scoped = {current(r["key"], moved): r["final"] for r in todo if "::" in r["key"]}
-    mapping = {current(r["key"], moved): r["final"] for r in todo if "::" not in r["key"]}
+def parameter_types(params):
+    out = []
+    for p in params.decode(errors="replace").split(","):
+        words = p.replace("*", " * ").replace("&", " & ").split()
+        if len(words) > 1 and IDENT.fullmatch(words[-1]) and words[-2] not in TYPE_WORDS:
+            words = words[:-1]
+        out.append(" ".join(words))
+    return [] if out in ([""], ["void"]) else out
+
+
+def condition(keyword, text):
+    text = text.strip()
+    if keyword in ("ifdef", "ifndef"):
+        if text not in REGIONS:
+            return None
+        return {text} if keyword == "ifdef" else set(REGIONS) - {text}
+    expr = re.sub(r"defined\s*\(\s*(\w+)\s*\)|defined\s+(\w+)", lambda m: f"_{m.group(1) or m.group(2)}_", text)
+    expr = expr.replace("||", " or ").replace("&&", " and ").replace("!", " not ")
+    if not re.fullmatch(r"(?:\s|\(|\)|or|and|not|_(?:usa|eur|jpn)_)*", expr):
+        return None
+    try:
+        return {r for r in REGIONS if eval(expr, {}, {f"_{x}_": x == r for x in REGIONS})}
+    except SyntaxError:
+        return None
+
+
+def line_regions(data):
+    out, stack, cur = [], [], set(REGIONS)
+    for line in data.decode(errors="replace").split("\n"):
+        m = PREPROC.match(line)
+        if m:
+            keyword, rest = m.group(1), m.group(2)
+            if keyword in ("if", "ifdef", "ifndef"):
+                s = condition(keyword, rest)
+                stack.append((cur, None if s is None else set(s)))
+                cur = cur if s is None else cur & s
+            elif stack and keyword == "elif":
+                parent, taken = stack[-1]
+                s = condition("if", rest)
+                stack[-1] = (parent, None if s is None or taken is None else taken | s)
+                cur = parent if s is None or taken is None else parent & (s - taken)
+            elif stack and keyword == "else":
+                parent, taken = stack[-1]
+                cur = parent if taken is None else parent - taken
+            elif stack and keyword == "endif":
+                cur = stack.pop()[0]
+        out.append(cur)
+    return out
+
+
+def declarations(data, name, regions):
+    pattern = rb"(?m)^[ \t]*extern\b[^;{\n]*?\b" + re.escape(name.encode()) + rb"[ \t]*\(([^)]*)\)"
+    return [(tuple(parameter_types(m.group(1))), regions[data.count(b"\n", 0, m.start())])
+            for m in re.finditer(pattern, data)]
+
+
+def signature_clashes(tree, pairs):
+    out = []
+    for path in tree_files(tree) if pairs else ():
+        if path.endswith("symbols.txt"):
+            continue
+        with open(path, "rb") as fh:
+            data = fh.read()
+        regions = None
+        for key, alias in pairs:
+            if key.encode() in data and alias.encode() in data:
+                regions = regions or line_regions(data)
+                mine, theirs = declarations(data, key, regions), declarations(data, alias, regions)
+                if any(r in a and r in b and sa != sb for r in REGIONS for sa, a in mine for sb, b in theirs):
+                    rel = os.path.relpath(path, tree).replace("\\", "/")
+                    out.append(f"ALIAS SIGNATURE {key}: its region alias {alias} is declared with other "
+                               f"parameters in {rel}")
+    return out
+
+
+def alias_plan(tree, mapping):
     usa = region_symbols(tree, "usa")
     aliases = define_aliases(tree)
     collapse, misses = {}, []
@@ -256,6 +331,15 @@ def apply(tree, ledger, todo):
                 misses.append(f"ALIAS COLLIDES {key}: its region alias {alias} is also a USA name")
             else:
                 collapse[(key, alias)] = final
+    return collapse, misses + signature_clashes(tree, list(collapse))
+
+
+def apply(tree, ledger, todo):
+    import plainnames
+    moved = landed_globals(ledger)
+    scoped = {current(r["key"], moved): r["final"] for r in todo if "::" in r["key"]}
+    mapping = {current(r["key"], moved): r["final"] for r in todo if "::" not in r["key"]}
+    collapse, misses = alias_plan(tree, mapping)
     if misses:
         return [], misses
     changed = []
@@ -348,10 +432,13 @@ def main():
     elif cmd == "reject" and len(args) == 2:
         restate(args[0], "rejected", why=args[1])
     elif cmd in ("check", "apply"):
-        tree = args[0] if args else kitpaths.REPO
+        tree = os.path.abspath(args[0] if args else kitpaths.REPO)
         ledger = rows()
         todo = localized(tree, batch(ledger))
         found = problems(tree, ledger, todo)
+        if cmd == "check":
+            moved = landed_globals(ledger)
+            found += alias_plan(tree, {current(r["key"], moved): r["final"] for r in todo if "::" not in r["key"]})[1]
         if cmd == "apply" and not found:
             changed, misses = apply(tree, ledger, todo)
             found = [f"UNRESOLVED {m}" for m in misses]

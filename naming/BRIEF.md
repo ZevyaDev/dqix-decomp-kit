@@ -19,8 +19,9 @@ code reads.
 - Your own. Every name comes from your analysis of the code and of what the game does. Never take an
   identifier from an external source: other decompilations, SDK or NitroSystem names, fan tools,
   wikis, documentation. Outside material may confirm what code does; it never supplies a name. A
-  stem equal to a library identifier with its prefix dropped (`STD_GetStringLength` ->
-  `GetStringLength`) counts as taken: find your own word.
+  generic name that plainly says what the code does (`GetStringLength` for a byte count up to the
+  terminator) is fine even when a library happens to use it; what is banned is wording the code alone
+  would not give you: a library's prefixes, its own terms, its spelling of a concept.
 - True for every caller, not one. A function called from 20 overlays with 20 argument types does one
   thing; name that thing.
 - Specific as the evidence allows, no further. `GetZone3D` when it returns the `Zone3D` instance;
