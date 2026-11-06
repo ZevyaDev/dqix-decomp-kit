@@ -314,6 +314,30 @@ def signature_clashes(tree, pairs):
     return out
 
 
+def region_homonyms(tree, keys):
+    found = {key: [] for key in keys if key.startswith("func_")}
+    for path in tree_files(tree) if found else ():
+        if path.endswith("symbols.txt"):
+            continue
+        with open(path, "rb") as fh:
+            data = fh.read()
+        regions = None
+        for key, seen in found.items():
+            if key.encode() in data:
+                regions = regions or line_regions(data)
+                rel = os.path.relpath(path, tree).replace("\\", "/")
+                seen += [(len(params), where, rel) for params, where in declarations(data, key, regions)]
+    out = []
+    for key, seen in found.items():
+        usa = {n for n, where, _ in seen if "usa" in where}
+        for n, where, rel in seen:
+            if usa and "usa" not in where and n not in usa:
+                out.append(f"REGION HOMONYM {key}: {'/'.join(sorted(where))} declares a {n}-argument {key} "
+                           f"in {rel}; USA's takes {'/'.join(map(str, sorted(usa)))}")
+                break
+    return out
+
+
 def alias_plan(tree, mapping):
     usa = region_symbols(tree, "usa")
     aliases = define_aliases(tree)
@@ -331,7 +355,7 @@ def alias_plan(tree, mapping):
                 misses.append(f"ALIAS COLLIDES {key}: its region alias {alias} is also a USA name")
             else:
                 collapse[(key, alias)] = final
-    return collapse, misses + signature_clashes(tree, list(collapse))
+    return collapse, misses + signature_clashes(tree, list(collapse)) + region_homonyms(tree, list(mapping))
 
 
 def apply(tree, ledger, todo):

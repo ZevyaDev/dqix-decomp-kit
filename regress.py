@@ -600,6 +600,29 @@ def _names_alias_signatures():
     return "declarations in exclusive #if branches were refused: %s" % found["apart"] if found["apart"] else None
 
 
+@check("naming/names.py refuses a key that a region-only block declares as a different function",
+       "JPN's own 1-argument func_02042764 (defined under #if defined(jpn) in func_02042738.cpp) would have "
+       "taken the USA 3-argument function's name, since the rename is by token")
+def _names_region_homonym():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("names", os.path.join(KIT, "naming", "names.py"))
+    N = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(N)
+    sym = "func_02008000"
+    usa = "extern \"C\" void %s(char* a, char* b, int c) { }\n" % sym
+    jpn = "#if defined(jpn)\nextern \"C\" int %s(void* a) { return 0; }\n#endif\n" % sym
+    same = "#if defined(jpn)\nextern \"C\" void %s(char* a, char* b, int c);\n#endif\n" % sym
+    found = {}
+    for label, other in (("homonym", jpn), ("twin", same)):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+            root = _naming_tree(d, f"{sym} kind:function(arm,size=0x8) addr:0x02008000\n",
+                                {"src/a.cpp": usa, "src/b.cpp": other, "include/globaldefs.h": "#pragma once\n"})
+            found[label] = N.region_homonyms(root, [sym])
+    if not (found["homonym"] and found["homonym"][0].startswith(f"REGION HOMONYM {sym}")):
+        return "a region-only function with the key's name was not refused: %s" % found["homonym"]
+    return "a region declaration with the same arity was refused: %s" % found["twin"] if found["twin"] else None
+
+
 @check("naming/names.py apply resolves function locals and members with a relative tree path",
        "`names.py apply .` from the tree reported 100 UNRESOLVED UNMATCHED scoped rows that an absolute path renames")
 def _names_relative_tree():
