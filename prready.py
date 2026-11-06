@@ -66,15 +66,24 @@ def introduced(problems, plus, repo=None):
     return out
 
 
-def keeps_address(line, path):
+def keeps_address(line, path, usa_tails):
     parts = line.split()
     tail = namerules.address_of(own_ident(parts[0]) or "") if parts else None
-    addr = SYMBOL_ADDR.search(line)
-    if not tail or not addr:
+    if not tail:
         return False
-    m = re.fullmatch(r"(?:(ov\d{3})_)?(?:jpn_|eur_)?([0-9a-f]{8})", tail)
+    m = re.fullmatch(r"(?:(ov\d{3})_)?(?:(jpn|eur)_)?([0-9a-f]{8})", tail)
+    if not m.group(2):
+        return tail in usa_tails
+    addr = SYMBOL_ADDR.search(line)
     overlay = OVERLAY_PATH.search("/" + path)
-    return int(m.group(2), 16) == int(addr.group(1), 16) and m.group(1) == (overlay.group(1) if overlay else None)
+    return bool(addr) and int(m.group(3), 16) == int(addr.group(1), 16) and f"config/{m.group(2)}/" in path \
+        and m.group(1) == (overlay.group(1) if overlay else None)
+
+
+def usa_tails(tip):
+    paths = [p for p in files(REPO, tip, "config/usa") if p.endswith("symbols.txt")]
+    texts = gitread.blobs(REPO, [f"{tip}:{p}" for p in paths]).values()
+    return {namerules.address_of(own_ident(n) or "") for t in texts for n in names(t)} - {None}
 
 
 def toolchain_name(name):
@@ -271,6 +280,7 @@ def decomp(decomp_tip):
                                 f"instead of casting it")
     if any(SYMBOLS.match(p) for p in changed):
         full, idents = upstream_names(published(REPO, kitpaths.UPSTREAM_URL, kitpaths.UPSTREAM_BRANCH))
+        tails = usa_tails(decomp_tip)
         for path in changed:
             if not SYMBOLS.match(path):
                 continue
@@ -278,9 +288,9 @@ def decomp(decomp_tip):
             for line in plus(path):
                 name = line.split()[0] if line.strip() else ""
                 if name and name not in before and not_upstream(name, full, idents) \
-                        and not keeps_address(line, path):
+                        and not keeps_address(line, path, tails):
                     problems.append(f"NOT AN UPSTREAM NAME {name} in {path}: keep the default func_/data_ name, "
-                                    "or rename it through naming/names.py ending in this region's address")
+                                    "or rename it through naming/names.py ending in its USA address")
     for path in changed:
         m = SYMBOLS.match(path)
         if not m:

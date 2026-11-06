@@ -497,62 +497,72 @@ def _prready_introduced_names():
         return "renamed() did not map the old type name onto the before text"
     usa, jpn, ov2 = "config/usa/arm9/symbols.txt", "config/jpn/arm9/symbols.txt", \
         "config/usa/arm9/overlays/ov002/symbols.txt"
+    tails = {"02001000", "02002000", "ov002_02150010"}
     for line, path, want in (("Total_02001000 kind:function(arm,size=0x20) addr:0x02001000", usa, True),
-                             ("Total_02001000 kind:function(arm,size=0x20) addr:0x02001100", jpn, False),
-                             ("Total_02001100 kind:function(arm,size=0x20) addr:0x02001100", jpn, True),
+                             ("Total_02001000 kind:function(arm,size=0x20) addr:0x02001100", jpn, True),
+                             ("Total_02001100 kind:function(arm,size=0x20) addr:0x02001100", jpn, False),
                              ("_ZN13Pair_0200200014Reset_02001000Ev kind:function(arm,size=0x8) addr:0x02001000",
                               usa, True),
                              ("gTable_02002000 kind:bss addr:0x02002000", usa, True),
                              ("Setup_ov002_02150010 kind:function(arm,size=0x8) addr:0x02150010", ov2, True),
                              ("Setup_02150010 kind:function(arm,size=0x8) addr:0x02150010", ov2, False),
+                             ("Extra_jpn_02005500 kind:function(arm,size=0x8) addr:0x02005500", jpn, True),
+                             ("Extra_jpn_02005500 kind:function(arm,size=0x8) addr:0x02005500", usa, False),
                              ("Total kind:function(arm,size=0x20) addr:0x02001000", usa, False)):
-        if R.keeps_address(line, path) != want:
+        if R.keeps_address(line, path, tails) != want:
             return "keeps_address(%s, %s) != %s" % (line.split()[0], path, want)
     return None
 
 
-@check("naming/names.py ends each region's symbol in that region's address, mapped by a region define",
-       "JPN and EUR symbols carry the USA address (func_02012fe4 sits at 0x02012dac in JPN), so a name "
-       "suffixed with the USA address is wrong in every other region")
+@check("naming/names.py gives every region's symbol the USA address, and a region-only one its region tag",
+       "Eakeys: USA addresses across the board, FunctionName_jp_<addr> for a JPN-only function; the JPN alias "
+       "`#define func_<usa> func_<jpn>` would otherwise keep the JPN name")
 def _names_region_addresses():
     import importlib.util
     spec = importlib.util.spec_from_file_location("names", os.path.join(KIT, "naming", "names.py"))
     N = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(N)
-    sym = {"usa": ("func_02001000", "02001000", "func_02003000", "02003000"),
-           "eur": ("func_02001000", "02001000", "func_02003000", "02003010"),
-           "jpn": ("func_02001000", "02001100", "func_02003300", "02003300")}
+    sym = {"usa": [("func_02001000", "02001000"), ("func_02003000", "02003000")],
+           "eur": [("func_02001000", "02001000"), ("func_02003000", "02003010")],
+           "jpn": [("func_02001000", "02001100"), ("func_02003300", "02003300"), ("func_02005500", "02005500")]}
     src = ("#include <globaldefs.h>\n#if defined(jpn)\n#define func_02003000 func_02003300\n#endif\n"
-           "extern \"C\" int func_02001000(void);\nextern \"C\" int func_02003000(void) { return func_02001000(); }\n")
-    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+           "extern \"C\" int func_02001000(void);\nextern \"C\" int func_02003000(void) { return func_02001000(); }\n"
+           "#if defined(jpn)\nextern \"C\" int func_02005500(void) { return 1; }\n#endif\n")
+
+    def tree(d, extra=()):
         root = _naming_tree(d, "", {"src/a.cpp": src, "include/globaldefs.h": "#pragma once\n",
                                     "src/b.cpp": "extern \"C\" int func_02001000(void);\n"
                                                  "int g() { return func_02001000(); }\n"})
-        for region, (a, aa, b, ba) in sym.items():
+        for region, rows in sym.items():
             os.makedirs(f"{root}/config/{region}/arm9", exist_ok=True)
             with open(f"{root}/config/{region}/arm9/symbols.txt", "w", newline="\n") as fh:
-                fh.write(f"{a}" + f" kind:function(arm,size=0x8) addr:0x{aa}\n"
-                         f"{b}" + f" kind:function(arm,size=0x8) addr:0x{ba}\n")
-        todo = [N.proposal("func_02001000", "Total", ["t"], "t"), N.proposal("func_02003000", "Reset", ["t"], "t")]
-        N.apply(root, {}, todo)
+                for name, addr in list(rows) + [x for x in extra if region == "usa"]:
+                    fh.write(f"{name}" + f" kind:function(arm,size=0x8) addr:0x{addr}\n")
+        return root
+
+    rows = [N.proposal("func_02001000", "Total", ["t"], "t"), N.proposal("func_02003000", "Reset", ["t"], "t"),
+            N.proposal("func_02005500", "Extra", ["t"], "t")]
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        root = tree(d)
+        todo = N.localized(root, rows)
+        _, misses = N.apply(root, {}, todo)
         read = lambda rel: open(f"{root}/{rel}").read()
-        got = {r: read(f"config/{r}/arm9/symbols.txt").split() for r in sym}
-        source, header, gdefs = read("src/a.cpp"), read("include/region_names.h"), read("include/globaldefs.h")
-        alone = read("src/b.cpp")
-    if not alone.startswith("#if defined(eur)\n#elif defined(jpn)\n#define Total_02001000 Total_02001100\n#endif\n"):
-        return "a file without globaldefs.h got no region block:\n%s" % alone
-    want = {"usa": ["Total_02001000", "Reset_02003000"], "eur": ["Total_02001000", "Reset_02003010"],
-            "jpn": ["Total_02001100", "Reset_02003300"]}
-    for region, names in want.items():
-        if [w for w in got[region] if not w.startswith(("kind:", "addr:"))] != names:
-            return "%s symbols %s" % (region, got[region])
-    if "#define Reset_02003000 Reset_02003300" not in source or "return Total_02001000();" not in source:
+        got = {r: [w for w in read(f"config/{r}/arm9/symbols.txt").split() if not w.startswith(("kind:", "addr:"))]
+               for r in sym}
+        source, alone, header = read("src/a.cpp"), read("src/b.cpp"), os.path.exists(f"{root}/include/region_names.h")
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        root = tree(d, [("func_02003300", "02003300")])
+        _, collide = N.apply(root, {}, N.localized(root, rows))
+    want = {"usa": ["Total_02001000", "Reset_02003000"], "eur": ["Total_02001000", "Reset_02003000"],
+            "jpn": ["Total_02001000", "Reset_02003000", "Extra_jpn_02005500"]}
+    if misses or got != want:
+        return "symbols %s, misses %s" % (got, misses)
+    if "#define" in source or not source.startswith("#include <globaldefs.h>\nextern") \
+            or "int Extra_jpn_02005500(void)" not in source:
         return "source:\n%s" % source
-    if "#define Total_02001000 Total_02001100" not in header or "#define Reset_02003000 Reset_02003010" not in header \
-            or header.index("defined(eur)") > header.index("Reset_02003010") \
-            or "#define Reset_02003000 Reset_02003300" in header:
-        return "header:\n%s" % header
-    return None if '#include "region_names.h"' in gdefs else "globaldefs:\n%s" % gdefs
+    if header or alone != "extern \"C\" int Total_02001000(void);\nint g() { return Total_02001000(); }\n":
+        return "a region header or block was written:\n%s" % alone
+    return None if collide and collide[0].startswith("ALIAS COLLIDES func_02003000") else "collision: %s" % collide
 
 
 @check("namerules gives a key its stem plus the key's own address or offset, and refuses bad stems",

@@ -32,8 +32,9 @@ PATH_EXT = re.compile(rb"\.(?:cpp|c|h|hpp|inc|s)\b")
 SYMBOL_ADDR = re.compile(r"\baddr:0x([0-9a-fA-F]+)")
 ALIAS = re.compile(rb"(?m)^[ \t]*#[ \t]*define[ \t]+((?:func|data)_\w+)[ \t]+((?:func|data)_\w+)[ \t]*\r?$")
 OTHER_REGIONS = ("eur", "jpn")
-HEADER = "include/region_names.h"
-GLOBALDEFS = "include/globaldefs.h"
+REGION_TAG = re.compile(r"(?:^|_)(?:jpn|eur)_")
+EMPTY_REGION = re.compile(rb"(?m)^[ \t]*#[ \t]*if(?:def[ \t]+(?:jpn|eur)|[ \t]+defined\((?:jpn|eur)\))"
+                          rb"[ \t]*\r?\n[ \t]*#[ \t]*endif[^\n]*\n")
 
 
 def rows():
@@ -156,24 +157,15 @@ def renamer(mapping):
     return rename
 
 
-def region_of(tree, path):
-    rel = os.path.relpath(path, tree).replace("\\", "/")
-    m = re.match(r"config/([a-z]+)/", rel)
-    return m.group(1) if m else None
-
-
-def rename_globals(tree, mapping, region_maps=None):
-    if not mapping and not region_maps:
+def rename_globals(tree, mapping):
+    if not mapping:
         return []
-    region_maps = region_maps or {}
-    renames = {None: renamer(mapping)}
-    for region, extra in region_maps.items():
-        renames[region] = renamer({**mapping, **extra})
+    rename = renamer(mapping)
     changed = []
     for path in tree_files(tree):
         with open(path, "rb") as fh:
             data = fh.read()
-        new_data = renames.get(region_of(tree, path), renames[None])(data)
+        new_data = rename(data)
         if new_data != data:
             with open(path, "wb") as fh:
                 fh.write(new_data)
@@ -205,105 +197,38 @@ def define_aliases(tree):
     return out
 
 
-def region_finals(tree, rows):
-    symbols = {r: region_symbols(tree, r) for r in OTHER_REGIONS}
-    aliases = define_aliases(tree)
-    finals = {}
-    for r in rows:
+def localized(tree, todo):
+    usa = region_symbols(tree, "usa")
+    others = {region: region_symbols(tree, region) for region in OTHER_REGIONS}
+    out = []
+    for r in todo:
         m = namerules.DEFAULT.fullmatch(r["key"])
-        if "::" in r["key"] or not m or m.group(1) not in ("func", "data") or re.search(r"(?:jpn|eur)_", m.group(2)):
-            continue
-        overlay = re.match(r"ov\d{3}_", m.group(2))
-        for region in OTHER_REGIONS:
-            names = [r["key"]] + sorted(aliases.get(r["key"], ()))
-            hit = next(((n, symbols[region][n]) for n in names if n in symbols[region]), None)
-            if hit:
-                name, (_, addr) = hit
-                tail = f"{overlay.group(0) if overlay else ''}{addr:08x}{m.group(3)}"
-                finals.setdefault(r["key"], {})[region] = (name, f"{r['stem']}_{tail}")
-    return finals
+        if m and m.group(1) in ("func", "data") and r["key"] not in usa and not REGION_TAG.search(m.group(2)):
+            only = [region for region in OTHER_REGIONS if r["key"] in others[region]]
+            if len(only) == 1:
+                ov = re.match(r"ov\d{3}_", m.group(2))
+                head = ov.group(0) if ov else ""
+                r = dict(r, final=f"{r['stem']}_{head}{only[0]}_{m.group(2)[len(head):]}{m.group(3)}")
+        out.append(r)
+    return out
 
 
-def write_header(tree, entries):
-    current = header_map(tree)
-    for region, pairs in entries.items():
-        current[region].update(pairs)
-    with open(os.path.join(tree, HEADER), "w", encoding="utf-8", newline="\n") as fh:
-        fh.write("#pragma once\n\n" + region_block(current))
-    gdefs = os.path.join(tree, GLOBALDEFS)
-    with open(gdefs, encoding="utf-8", newline="") as fh:
-        text = fh.read()
-    include = f'#include "{os.path.basename(HEADER)}"'
-    if include not in text:
-        nl = "\r\n" if "\r\n" in text else "\n"
-        with open(gdefs, "w", encoding="utf-8", newline="") as fh:
-            fh.write(text.rstrip("\r\n") + nl + include + nl)
-    return [HEADER, GLOBALDEFS]
-
-
-def header_map(tree):
-    current = {region: {} for region in OTHER_REGIONS}
-    path = os.path.join(tree, HEADER)
-    if os.path.isfile(path):
-        with open(path, encoding="utf-8") as fh:
-            region = None
-            for line in fh:
-                g = re.match(r"#(?:el)?if defined\((\w+)\)", line)
-                if g:
-                    region = g.group(1)
-                d = re.match(r"#define (\w+) (\w+)", line)
-                if d and region in current:
-                    current[region][d.group(1)] = d.group(2)
-    return current
-
-
-def region_block(maps):
-    lines = []
-    for i, region in enumerate(OTHER_REGIONS):
-        lines.append(f"#{'if' if i == 0 else 'elif'} defined({region})")
-        lines += [f"#define {a} {b}" for a, b in sorted(maps[region].items())]
-    return "\n".join(lines + ["#endif"]) + "\n"
-
-
-def fallback_blocks(tree):
-    maps = header_map(tree)
-    names = {n.encode() for m in maps.values() for n in m}
-    if not names:
+def drop_aliases(tree, pairs):
+    if not pairs:
         return []
-    block = re.compile(rb"#if defined\(eur\)\r?\n(?:#define \w+ \w+\r?\n)*#elif defined\(jpn\)\r?\n"
-                       rb"(?:#define \w+ \w+\r?\n)*#endif\r?\n")
+    lines = [re.compile(rb"(?m)^[ \t]*#[ \t]*define[ \t]+" + re.escape(key.encode()) + rb"[ \t]+"
+                        + re.escape(alias.encode()) + rb"[ \t]*\r?\n") for key, alias in pairs]
     changed = []
     for path in tree_files(tree):
-        if path.endswith("symbols.txt") or os.path.normpath(path) == os.path.normpath(os.path.join(tree, HEADER)):
+        if path.endswith("symbols.txt"):
             continue
         with open(path, "rb") as fh:
             data = fh.read()
-        if b"globaldefs.h" in data:
-            continue
-        used = names & set(TOKEN.findall(data))
-        if not used:
-            continue
-        old = block.search(data)
-        have = {region: {} for region in OTHER_REGIONS}
-        if old:
-            region = None
-            for line in old.group(0).decode().splitlines():
-                g = re.match(r"#(?:el)?if defined\((\w+)\)", line)
-                region = g.group(1) if g else region
-                d = re.match(r"#define (\w+) (\w+)", line)
-                if d:
-                    have[region][d.group(1)] = d.group(2)
-        for region in OTHER_REGIONS:
-            have[region].update({a: b for a, b in maps[region].items() if a.encode() in used})
-        nl = b"\r\n" if b"\r\n" in data else b"\n"
-        text = region_block(have).replace("\n", nl.decode()).encode()
-        if old:
-            new = data[:old.start()] + text + data[old.end():]
-        else:
-            once = re.match(rb"[ \t]*#[ \t]*pragma[ \t]+once[^\n]*\n", data)
-            at = once.end() if once else 0
-            new = data[:at] + text + data[at:]
+        new = data
+        for line in lines:
+            new = line.sub(b"", new)
         if new != data:
+            new = EMPTY_REGION.sub(b"", new)
             with open(path, "wb") as fh:
                 fh.write(new)
             changed.append(os.path.relpath(path, tree).replace("\\", "/"))
@@ -315,36 +240,23 @@ def apply(tree, ledger, todo):
     moved = landed_globals(ledger)
     scoped = {current(r["key"], moved): r["final"] for r in todo if "::" in r["key"]}
     mapping = {current(r["key"], moved): r["final"] for r in todo if "::" not in r["key"]}
-    changed, misses = [], []
+    usa = region_symbols(tree, "usa")
+    aliases = define_aliases(tree)
+    collapse, misses = {}, []
+    for key, final in mapping.items():
+        for alias in sorted(aliases.get(key, ())):
+            if alias in usa:
+                misses.append(f"ALIAS COLLIDES {key}: its region alias {alias} is also a USA name")
+            else:
+                collapse[(key, alias)] = final
+    if misses:
+        return [], misses
+    changed = []
     if scoped:
         changed, misses = plainnames.rename_scoped(tree, scoped)
-    finals = region_finals(tree, [dict(r, key=current(r["key"], moved)) for r in todo])
-    region_maps, header, fixes = {}, {}, []
-    for key, per in finals.items():
-        for region, (name, final) in per.items():
-            region_maps.setdefault(region, {})[name] = final
-            if name == key and final != mapping[key]:
-                header.setdefault(region, {})[mapping[key]] = final
-            elif name != key:
-                fixes.append((mapping[key], name, final))
-    changed = set(changed) | set(rename_globals(tree, mapping, region_maps))
-    for path in tree_files(tree):
-        if path.endswith("symbols.txt") or not fixes:
-            continue
-        with open(path, "rb") as fh:
-            data = fh.read()
-        new = data
-        for usa, alias, final in fixes:
-            new = re.sub(rb"(#[ \t]*define[ \t]+" + re.escape(usa.encode()) + rb"[ \t]+)" + re.escape(alias.encode())
-                         + rb"\b", lambda g: g.group(1) + final.encode(), new)
-        if new != data:
-            with open(path, "wb") as fh:
-                fh.write(new)
-            changed.add(os.path.relpath(path, tree).replace("\\", "/"))
-    if header:
-        changed |= set(write_header(tree, header))
-        changed |= set(fallback_blocks(tree))
-    return sorted(changed), misses, finals
+    changed = set(changed) | set(drop_aliases(tree, collapse))
+    changed |= set(rename_globals(tree, {**mapping, **{alias: final for (_, alias), final in collapse.items()}}))
+    return sorted(changed), misses
 
 
 def land(dry=False):
@@ -363,10 +275,11 @@ def land(dry=False):
     tip = landpr.fetch(tree, landpr.BRANCH)
     landpr.git(tree, "checkout", "-q", "-f", "--detach", tip)
     landpr.UNDO.append((tree, tip))
+    todo = localized(tree, todo)
     found = problems(tree, ledger, todo)
     if found:
         landpr.refuse("\n".join(found))
-    changed, misses, finals = apply(tree, ledger, todo)
+    changed, misses = apply(tree, ledger, todo)
     if misses:
         landpr.refuse("\n".join(f"UNRESOLVED {m}" for m in misses))
     landpr.git(tree, "add", "--", "src", "include", "config")
@@ -391,8 +304,7 @@ def land(dry=False):
     pooled = landpr.run(kit, sys.executable, f"{kit}/pad/repool.py", "--apply", "--rev", tip)[1].strip()
     print("pools: " + (pooled.splitlines() or [""])[-1])
     for r in todo:
-        regions = {region: final for region, (_, final) in finals.get(current(r["key"], moved), {}).items()}
-        restate(r["key"], "landed", commit=head, regions=regions)
+        restate(r["key"], "landed", commit=head, final=r["final"])
     print(f"LANDED {len(todo)} name(s) in {len(changed)} file(s) at {head}")
 
 
@@ -431,10 +343,10 @@ def main():
     elif cmd in ("check", "apply"):
         tree = args[0] if args else kitpaths.REPO
         ledger = rows()
-        todo = batch(ledger)
+        todo = localized(tree, batch(ledger))
         found = problems(tree, ledger, todo)
         if cmd == "apply" and not found:
-            changed, misses, _ = apply(tree, ledger, todo)
+            changed, misses = apply(tree, ledger, todo)
             found = [f"UNRESOLVED {m}" for m in misses]
             print(f"{len(todo)} name(s), {len(changed)} file(s) changed")
         print("\n".join(found) if found else f"OK {len(todo)} accepted")

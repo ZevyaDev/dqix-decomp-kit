@@ -13,12 +13,12 @@ Names land on `decomp-matching` through the ledger and `namesland.sh`; nothing e
 | `Owner::unknown_<off>_` | `<stem>_<off>_` (camelCase; the offset is the key's) |
 | `Function::arg<i>`, `Function::var<i>` | `<stem>` (camelCase; only once the function is named) |
 
-Source spells the USA name. Each region's symbol ends in that region's own address: `names.py` renames
-the EUR and JPN `symbols.txt` entries to it and maps the USA spelling in `include/region_names.h`
-(`#if defined(eur)` / `#elif defined(jpn)`, included by `globaldefs.h`); where a source file already
-aliases the function (`#define func_<usa> func_<jpn>`), the alias's right side gets the JPN name instead.
-Types keep one name everywhere. Library functions identified by signature are suffixed too. No source
-comments: evidence lives in the ledger.
+Every region's symbol carries the USA address: one name per function in all three regions. A function
+or global with no USA symbol carries its region and its own address (`Stem_jpn_<addr>`,
+`Stem_ov004_jpn_<addr>`). A source alias `#define func_<usa> func_<jpn>` is deleted when its function is
+named and the JPN symbol takes the USA name; an alias whose JPN name is also a USA symbol is refused
+(`ALIAS COLLIDES`). Library functions identified by signature are suffixed too. No source comments:
+evidence lives in the ledger.
 
 ## Loop
 
