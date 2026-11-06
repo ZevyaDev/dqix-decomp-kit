@@ -243,7 +243,14 @@ def apply(tree, ledger, todo):
     usa = region_symbols(tree, "usa")
     aliases = define_aliases(tree)
     collapse, misses = {}, []
+    targets = {}
+    for name, names in aliases.items():
+        for alias in names:
+            targets.setdefault(alias, set()).add(name)
     for key, final in mapping.items():
+        for other in sorted(targets.get(key, set()) - {key}):
+            misses.append(f"ALIAS TARGET {key}: it is {other}'s region alias, so that region's {other} "
+                          f"would take this name")
         for alias in sorted(aliases.get(key, ())):
             if alias in usa:
                 misses.append(f"ALIAS COLLIDES {key}: its region alias {alias} is also a USA name")

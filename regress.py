@@ -553,6 +553,11 @@ def _names_region_addresses():
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
         root = tree(d, [("func_02003300", "02003300")])
         _, collide = N.apply(root, {}, N.localized(root, rows))
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        root = tree(d, [("func_02003300", "02003300")])
+        _, target = N.apply(root, {}, N.localized(root, [N.proposal("func_02003300", "Width", ["t"], "t")]))
+    if not (target and target[0].startswith("ALIAS TARGET func_02003300")):
+        return "a key that is another function's region alias was renamed: %s" % target
     want = {"usa": ["Total_02001000", "Reset_02003000"], "eur": ["Total_02001000", "Reset_02003000"],
             "jpn": ["Total_02001000", "Reset_02003000", "Extra_jpn_02005500"]}
     if misses or got != want:
