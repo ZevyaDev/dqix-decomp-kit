@@ -32,7 +32,9 @@ session) and probe with `--every`, which tallies every return value and keeps a 
   nouns (`SoundManager`), globals `g` plus the noun (`gZone3D`), members camelCase nouns with a `p`
   prefix for pointers (`pAllocator_4c_` comes out of stem `pAllocator`), booleans `is`/`has`. No
   `Maybe`, `Unknown`, `Probably`, `Helper`, `Do`, `Handle` without an object, numbered stems.
-  Abbreviations keep upstream's spelling (`BG`, as in `GetMainBG1ScreenBase`, never `Bg`).
+  Abbreviations keep upstream's spelling (`BG`, as in `GetMainBG1ScreenBase`, never `Bg`). The `p`
+  prefix is for members only: parameters and locals take none (`node`, never `pNode`), as upstream's
+  own functions write them.
 - The same thing gets the same word everywhere. Check `names.py show` (proposed and accepted rows
   too) and the dossier's callee names before choosing a word another row already uses differently;
   when two functions touch the same object, compare the addresses a probe returns.
