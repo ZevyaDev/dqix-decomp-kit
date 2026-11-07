@@ -495,6 +495,11 @@ def _prready_introduced_names():
     if R.with_renames("x((Struct_02001000*)p); Struct_02001000_2 y;", {"Struct_02001000": "Window_02001000"}) \
             != "x((Window_02001000*)p); Struct_02001000_2 y;":
         return "renamed() did not map the old type name onto the before text"
+    old = "    RenderConfig* instance = &data_0210a010;"
+    new = "    RenderConfig* instance = &gRenderConfig_0210a010;"
+    kept = R.unrenamed([new, "    int extra = 1;"], [old], {"data_0210a010": "gRenderConfig_0210a010"})
+    if kept != ["    int extra = 1;"]:
+        return "a line changed only by a rename counted as added: %r" % kept
     usa, jpn, ov2 = "config/usa/arm9/symbols.txt", "config/jpn/arm9/symbols.txt", \
         "config/usa/arm9/overlays/ov002/symbols.txt"
     tails = {"02001000", "02002000", "ov002_02150010"}

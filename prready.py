@@ -53,6 +53,11 @@ def with_renames(text, renames):
     return re.sub(r"\b[A-Za-z_]\w*\b", lambda m: renames.get(m.group(0), m.group(0)), text)
 
 
+def unrenamed(plus_lines, minus_lines, renames):
+    before = {l.rstrip() for l in with_renames("\n".join(minus_lines), renames).splitlines()}
+    return [l for l in plus_lines if l.rstrip() not in before]
+
+
 def introduced(problems, plus, repo=None):
     added, out = {}, []
     for line in problems:
@@ -263,7 +268,8 @@ def decomp(decomp_tip):
              and os.path.isfile(f"{REPO}/{p}")]
     if named:
         import plainnames
-        for line in introduced(plainnames.check(REPO, named), plus):
+        fresh = lambda path: unrenamed(plus(path), minus(path), renames)
+        for line in introduced(plainnames.check(REPO, named), fresh):
             problems.append(f"{line} (python plainnames.py fix {line.split()[4].rsplit(':', 1)[0]})")
     for path in changed:
         if path.startswith("src/"):
