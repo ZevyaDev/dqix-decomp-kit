@@ -605,6 +605,32 @@ def _names_alias_signatures():
     return "declarations in exclusive #if branches were refused: %s" % found["apart"] if found["apart"] else None
 
 
+@check("naming/names.py refuses an alias when that region also keeps the key as its own function",
+       "JPN has func_ov023_021f65d4 in ov023 and an ov004 copy func_ov004_02168eac reached through "
+       "#define func_ov023_021f65d4 func_ov004_02168eac; collapsing gave both one name and the JPN link failed")
+def _names_alias_duplicate():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("names", os.path.join(KIT, "naming", "names.py"))
+    N = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(N)
+    key, alias = "func_02009000", "func_02009900"
+    src = ("#include <globaldefs.h>\n#if defined(jpn)\n#define %s %s\n#endif\n"
+           "extern \"C\" void %s(void);\nvoid g() { %s(); }\n" % (key, alias, key, key))
+    found = {}
+    for label, jpn in (("duplicate", [key, alias]), ("alias", [alias])):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+            root = _naming_tree(d, "", {"src/a.cpp": src, "include/globaldefs.h": "#pragma once\n"})
+            for region, names in (("usa", [key]), ("eur", [key]), ("jpn", jpn)):
+                os.makedirs(f"{root}/config/{region}/arm9", exist_ok=True)
+                with open(f"{root}/config/{region}/arm9/symbols.txt", "w", newline="\n") as fh:
+                    for name in names:
+                        fh.write(f"{name} kind:function(arm,size=0x8) addr:0x{name[-8:]}\n")
+            found[label] = N.alias_plan(root, {key: "Flags_02009000"})[1]
+    if not (found["duplicate"] and found["duplicate"][0].startswith(f"ALIAS DUPLICATE {key}")):
+        return "an alias whose region also keeps the key was collapsed: %s" % found["duplicate"]
+    return "a plain region alias was refused: %s" % found["alias"] if found["alias"] else None
+
+
 @check("naming/names.py refuses a key that a region-only block declares as a different function",
        "JPN's own 1-argument func_02042764 (defined under #if defined(jpn) in func_02042738.cpp) would have "
        "taken the USA 3-argument function's name, since the rename is by token")

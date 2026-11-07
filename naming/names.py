@@ -346,13 +346,18 @@ def alias_plan(tree, mapping):
     for name, names in aliases.items():
         for alias in names:
             targets.setdefault(alias, set()).add(name)
+    others = {region: region_symbols(tree, region) for region in OTHER_REGIONS}
     for key, final in mapping.items():
         for other in sorted(targets.get(key, set()) - {key}):
             misses.append(f"ALIAS TARGET {key}: it is {other}'s region alias, so that region's {other} "
                           f"would take this name")
         for alias in sorted(aliases.get(key, ())):
+            both = [region for region in OTHER_REGIONS if key in others[region] and alias in others[region]]
             if alias in usa:
                 misses.append(f"ALIAS COLLIDES {key}: its region alias {alias} is also a USA name")
+            elif both:
+                misses.append(f"ALIAS DUPLICATE {key}: {'/'.join(both)} has both {key} and its alias {alias}, "
+                              f"two functions that would share one name")
             else:
                 collapse[(key, alias)] = final
     return collapse, misses + signature_clashes(tree, list(collapse)) + region_homonyms(tree, list(mapping))
