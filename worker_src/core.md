@@ -1327,12 +1327,13 @@ the form directly:
 - `while (node)` with a break plus a redundant post-loop null test (`021982ac`).
 - Test at the TOP and a `b` back to it at the bottom, with no guard: `for (;;) { if (!a || b) break; ... }`
   (`0218b5fc`, 137 bytes to MATCH in one edit; the wrong loop form also recoloured the whole function).
-- An SDK-build loop left unrotated, with `mul`/`mla` recomputed each pass, touches an object the SDK
-  declares `ATTRIBUTE_ALIGN(n)`. Declare the extern the same way, `extern SNDCommand data_02112a60[256]
-  __attribute__((aligned(32)));`. A function that touches an aligned object skips loop optimisation
-  (`020d2220`, SND_CommandInit). Game code too: the 0x30000 file buffer is `extern unsigned char
-  data_0211e33c[0x30000] __attribute__((aligned(4)));`; a function using it keeps a counter that is
-  incremented and never read, and repeated array address computations unmerged (`ov000:02165490`).
+- A function that reads any object declared `__attribute__((aligned(n)))`, or contains inline asm,
+  gets no IR optimisation at all: no CSE, copy propagation, dead-store removal or loop rewriting, for
+  any `n`. The ROM shows a load or address recomputed after every call, a counter incremented and
+  never read, `mul`/`mla` each pass. Put the attribute only on an object the developers aligned: an
+  object the SDK declares `ATTRIBUTE_ALIGN(n)` (`020d2220`, SND_CommandInit), a buffer handed to DMA,
+  cache or GX load routines (the 0x30000 `gFileScratchSpace_0211e33c`, `ov000:02165490`; the local
+  palette row copied into a VRAM-bound buffer, `0203c35c`). Never on a constant, float or lookup table.
 
 ## EXTERN "C" AND MANGLING — the WRONG-SYMBOL trap
 Whether a declaration mangles decides both the emitted symbol and the argument widths. Get this
