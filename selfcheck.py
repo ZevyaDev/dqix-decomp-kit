@@ -157,6 +157,23 @@ def _ccovr():
     return None
 
 
+@check("the decomp README's badges show what its CI publishes, through every upstream merge",
+       "an upstream merge took upstream's README and pointed every badge at upstream's numbers")
+def _readme_badges():
+    import subprocess
+    import badgemerge
+    bad = badgemerge.installed(REPO)
+    if bad:
+        return bad + "; run python kit_init.py"
+    want = badgemerge.published(REPO, _kp.DECOMP_URL, _kp.DECOMP_BRANCH)
+    shown = subprocess.run(["git", "-C", REPO, "show", f"{_kp.DECOMP_BRANCH}:README.md"],
+                           capture_output=True, text=True, encoding="utf-8").stdout
+    have = badgemerge.source(shown)
+    if want and have != want:
+        return f"{_kp.DECOMP_BRANCH} README badges read {'/'.join(have or ())}, its CI publishes {'/'.join(want)}"
+    return None
+
+
 @check("integrator output is kept",
        "swallowing it turns every rejection into a bare 'wired-0 -> defer' with no reason")
 def _logged():

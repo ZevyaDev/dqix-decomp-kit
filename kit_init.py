@@ -140,6 +140,12 @@ def main():
     repo_ok = check_repo()
     ok = ok and repo_ok
     if repo_ok:
+        import badgemerge
+        if badgemerge.install(REPO):
+            print("ok    README.md merges keep the decomp's badge source")
+        else:
+            print(f"FAIL  could not register the README.md merge driver in {REPO}")
+            ok = False
         ok = run([sys.executable, "build_worker_docs.py"]) and ok
     if args.refs:
         ok = clone_refs() and ok

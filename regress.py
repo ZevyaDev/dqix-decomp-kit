@@ -211,6 +211,52 @@ def _landpr_strips_asm():
     return None
 
 
+@check("an upstream merge that changes the README badges keeps the fork's badge source and upstream's other edits",
+       "833288c0c merged upstream/main, took upstream's README for the conflicting badge block and pointed "
+       "every decomp-matching badge at upstream's numbers")
+def _upstream_merge_keeps_fork_badges():
+    import subprocess
+    B = load("badgemerge")
+
+    def badge(owner, branch, label):
+        return ("[![%s](https://img.shields.io/endpoint?url=https%%3A%%2F%%2Fraw.githubusercontent.com%%2F%s"
+                "%%2Fdqix-decomp%%2F%s%%2F%s%%2Ffunctions.json)](https://github.com/%s/dqix-decomp/actions/"
+                "workflows/match.yml)\n" % (label, owner, branch, label.lower(), owner))
+
+    def readme(owner, branch, labels, note):
+        return "# DQIX\n\n" + "".join(badge(owner, branch, l) for l in labels) + "\n## About\n\n" + note + "\n"
+
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        path = os.path.join(d, "README.md")
+
+        def git(*args, check=True):
+            return subprocess.run(["git", "-C", d, "-c", "user.name=t", "-c", "user.email=t@t",
+                                   "-c", "core.autocrlf=false", *args], capture_output=True, text=True, check=check)
+
+        def commit(text, msg):
+            with open(path, "w", encoding="utf-8", newline="\n") as fh:
+                fh.write(text)
+            git("add", "-A")
+            git("commit", "-qm", msg)
+
+        git("init", "-q", "-b", "main")
+        commit(readme("DQIX", "badges", ["USA", "JPN"], "usa and jpn only"), "base")
+        git("checkout", "-q", "-b", "fork")
+        commit(readme("ZevyaDev", "badges-matching", ["USA", "JPN"], "usa and jpn only"), "fork badges")
+        git("checkout", "-q", "main")
+        commit(readme("DQIX", "badges", ["USA", "JPN", "EUR"], "usa, jpn and eur"), "eur")
+        git("checkout", "-q", "fork")
+        if not B.install(d):
+            return "badgemerge.install did not register the driver"
+        merged = git("merge", "-q", "--no-edit", "main", check=False)
+        with open(path, encoding="utf-8") as fh:
+            out = fh.read()
+    want = readme("ZevyaDev", "badges-matching", ["USA", "JPN", "EUR"], "usa, jpn and eur")
+    if merged.returncode or out != want:
+        return "merge exit %d left %r" % (merged.returncode, out)
+    return None
+
+
 @check("landpr keeps the comments a file already had and strips only the ones the pull request added",
        "#335 dropped one alias line from 34 files, and landpr's strip would have taken eakeys' comments out of "
        "every upstream file among them; e0738f324 had already stripped 21 from two")

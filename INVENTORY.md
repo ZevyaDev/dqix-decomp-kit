@@ -402,6 +402,11 @@ every pad/ tool takes MWCC=<ver>/<sub> to pick the compiler build
 `merge_human.sh` + `fix_includes.py`, `merge_fixups.sh`, `relink_undefined.py`, `rename_symbols.py`,
 `union_merge.py`
 
+`badgemerge.py` — the decomp's `README.md` merge driver, registered by `kit_init.py` (`install [REPO]`): a
+merge rewrites the other side's badge URLs to the badge source the current branch already shows, then
+three-way merges, so an upstream merge keeps `decomp-matching`'s badges and takes the rest of upstream's
+README; `selfcheck.py` checks it is registered and that the badges match what the decomp's CI publishes
+
 `merge_port/` — the 2026-09-15 upstream `BattleStruct`→`GameState` port, reusable for the next API refactor:
 `port_gamestate.py` (type + accessor→member rewrite, prototype deletion, include swap, mangled renames in
 `symbols.txt`), `fix_local_protos.py` (drop a local prototype a header now declares, cast its call sites),
