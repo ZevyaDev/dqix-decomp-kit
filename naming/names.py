@@ -108,10 +108,36 @@ def batch(ledger):
     return [r for r in ledger.values() if r["status"] == "accepted"]
 
 
-def problems(tree, ledger, todo):
+def upstream_paths(tree):
+    import subprocess
+    git = ["git", "-C", tree]
+    if subprocess.run(git + ["rev-parse", "--git-dir"], capture_output=True).returncode:
+        return set()
+    if subprocess.run(git + ["fetch", "-q", kitpaths.UPSTREAM_URL, kitpaths.UPSTREAM_BRANCH]).returncode:
+        sys.exit(f"FETCH FAILED {kitpaths.UPSTREAM_URL} {kitpaths.UPSTREAM_BRANCH}")
+    listed = subprocess.run(git + ["ls-tree", "-r", "--name-only", "FETCH_HEAD", "--", "src", "include"],
+                            capture_output=True, text=True, check=True).stdout
+    return set(listed.split())
+
+
+def upstream_callers(tree, keys, paths):
+    want = {k.encode(): k for k in keys}
+    out = []
+    for rel in sorted(paths):
+        path = os.path.join(tree, rel)
+        if os.path.isfile(path):
+            with open(path, "rb") as fh:
+                for token in sorted(set(TOKEN.findall(fh.read())) & want.keys()):
+                    out.append(f"UPSTREAM CALLER {want[token]}: upstream's {rel} uses it by this name")
+    return out
+
+
+def problems(tree, ledger, todo, upstream=None):
     moved = landed_globals(ledger)
     tokens = tree_tokens(tree)
     out, finals = [], {}
+    paths = upstream_paths(tree) if upstream is None else upstream
+    out += upstream_callers(tree, sorted({current(r["key"], moved).partition("::")[0] for r in todo}), paths)
     named_now = {r["key"] for r in todo if r["kind"] == "func"}
     for r in todo:
         key = current(r["key"], moved)

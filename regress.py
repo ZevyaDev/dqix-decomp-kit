@@ -677,6 +677,26 @@ def _names_alias_duplicate():
     return "a plain region alias was refused: %s" % found["alias"] if found["alias"] else None
 
 
+@check("naming/names.py refuses a key that upstream's own files call by its plain name",
+       "32 landed names (GetLocalWireless_0202ae18, FreeMemory_02012da4...) were turned back into func_ names "
+       "by the 11-16 upstream merge, because upstream's Zone3D.cpp and others call them by the raw name")
+def _names_upstream_caller():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("names", os.path.join(KIT, "naming", "names.py"))
+    N = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(N)
+    syms = "".join(f"{s} kind:function(arm,size=0x8) addr:0x{s[-8:]}\n" for s in ("func_0200a000", "func_0200a100"))
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        root = _naming_tree(d, syms, {
+            "src/World/Zone.cpp": "extern \"C\" void func_0200a000(void);\nvoid Zone() { func_0200a000(); }\n",
+            "src/ours.cpp": "extern \"C\" void func_0200a000(void);\nextern \"C\" void func_0200a100(void);\n"})
+        rows = [N.proposal("func_0200a000", "Up", ["t"], "t"), N.proposal("func_0200a100", "Ours", ["t"], "t")]
+        found = N.problems(root, {}, rows, upstream={"src/World/Zone.cpp"})
+    if not any(f.startswith("UPSTREAM CALLER func_0200a000") for f in found):
+        return "a key upstream calls by its plain name was not refused: %s" % found
+    return "a key only our files use was refused: %s" % found if any("func_0200a100" in f for f in found) else None
+
+
 @check("naming/names.py refuses a key that a region-only block declares as a different function",
        "JPN's own 1-argument func_02042764 (defined under #if defined(jpn) in func_02042738.cpp) would have "
        "taken the USA 3-argument function's name, since the rename is by token")
