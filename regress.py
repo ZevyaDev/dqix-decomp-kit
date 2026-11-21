@@ -2692,13 +2692,23 @@ def _scaffold(module, addr):
     return r.stdout + r.stderr
 
 
+def _usa_symbol(addr):
+    import kitpaths
+    with open(f"{kitpaths.REPO}/config/usa/arm9/symbols.txt", encoding="utf-8") as fh:
+        for line in fh:
+            if f"addr:0x{addr}" in line:
+                return line.split()[0]
+    return None
+
+
 @check("scaffold names a callee by its symbols.txt name, never by a scratch source's definition",
        "a tracked scratch file defining `Func020c976c` under `// USA: func_020c976c` made main:020d22f4's "
        "scaffold declare a callee that does not exist")
 def _scaffold_symbols_name():
     out = _scaffold("main", "020d22f4")
-    if 'extern "C" void func_020c976c();' not in out or "Func020c976c" in out:
-        return "callee at 0x020c976c is not declared as func_020c976c: %s" % out[-300:]
+    name = _usa_symbol("020c976c")
+    if f'extern "C" void {name}();' not in out or "Func020c976c" in out:
+        return "callee at 0x020c976c is not declared as %s: %s" % (name, out[-300:])
     return None
 
 
@@ -2719,8 +2729,9 @@ def _scaffold_mangled_callee():
        "map left it out")
 def _scaffold_rom_call():
     out = _scaffold("main", "020c8bd4")
-    if not re.search(r"(?m)^\s+\+0x50\s+func_020c8a08$", out):
-        return "the call map has no +0x50 func_020c8a08: %s" % out[-300:]
+    name = _usa_symbol("020c8a08")
+    if not re.search(r"(?m)^\s+\+0x50\s+%s$" % re.escape(name), out):
+        return "the call map has no +0x50 %s: %s" % (name, out[-300:])
     return None
 
 
