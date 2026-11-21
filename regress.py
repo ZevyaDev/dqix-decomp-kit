@@ -2521,6 +2521,27 @@ def _gate_refuses_hand_asm():
     return None
 
 
+@check("an allowlisted method's asm passes by the method's own name, not its class's",
+       "asm_allow_symbols took the first name of a nested symbol, so upstream's "
+       "DetailedTreasureMapData::LoadLegacyBossStats row allowed the class and still flagged the method")
+def _asm_allow_nested_symbol():
+    import subprocess
+    probe = ("import plausible\n"
+             "def hits(name):\n"
+             "    src = 'void Map::%s(bool a) {\\n    __asm(\"mov r0, 0\");\\n}\\n' % name\n"
+             "    return [h[2] for h in plausible.blocking(src) if h[1] == 'HAND-ASM']\n"
+             "print(hits('Load'), hits('Save'))\n")
+    with tempfile.TemporaryDirectory(dir=f"{SP}/handwork", ignore_cleanup_errors=True) as d:
+        allow = os.path.join(d, "asm_allow.txt")
+        with open(allow, "w", encoding="utf-8") as fh:
+            fh.write("02000aaa  _ZN3Map4LoadEb  test\n")
+        r = subprocess.run([sys.executable, "-c", probe], cwd=KIT, capture_output=True, text=True,
+                           env=dict(os.environ, DQIX_ASM_ALLOW=allow))
+    if r.stdout.strip() != "[] ['Save']":
+        return "asm hits for allowlisted Map::Load, unlisted Map::Save: %r %r" % (r.stdout.strip(), r.stderr[-200:])
+    return None
+
+
 @check("wgate reports a landed address ALREADY-COMMITTED even when the source does not compile",
        "the delink check ran after the compile, so a stale copy of a landed function wrote NO-COMPILE "
        "to its gate ledger: 8 of 10 NO-COMPILE ledgers in one hour were landed addresses (#277)")

@@ -29,14 +29,25 @@ def asm_allow():
     return {parts[0].lower() for parts in _allow_rows()}
 
 
+def _unqualified(symbol):
+    nested = symbol.startswith("_ZN")
+    at, name = (3 if nested else 2), None
+    while symbol.startswith("_Z") and at < len(symbol) and symbol[at].isdigit():
+        digits = re.match(r"\d+", symbol[at:]).group()
+        name = symbol[at + len(digits):at + len(digits) + int(digits)]
+        at += len(digits) + int(digits)
+        if not nested:
+            break
+    return name
+
+
 def asm_allow_symbols():
     out = set()
     for parts in _allow_rows():
         if len(parts) >= 2:
             out.add(parts[1])
-            m = re.match(r"_Z(?:N)?(\d+)", parts[1])
-            if m:
-                out.add(parts[1][m.end():m.end() + int(m.group(1))])
+            if _unqualified(parts[1]):
+                out.add(_unqualified(parts[1]))
     return out
 
 

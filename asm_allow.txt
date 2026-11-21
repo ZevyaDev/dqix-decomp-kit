@@ -194,3 +194,6 @@
 0200c1b4  _frdiv                             CW runtime reverse divide: eor operand swap falling through into _fdiv, in _fdiv's .s (pokediamond RUNTIME_f_div.s)
 0200ca98  _frsb                              CW runtime reverse subtract: eor operand swap falling through into _fsub, in _fsub's .s (pokediamond RUNTIME_f_sub.s)
 0200d334  _drdiv                             CW runtime reverse divide: eor operand swap falling through into _ddiv, in _ddiv's .s (pokediamond RUNTIME_d_div.s)
+020c82f0  _Z25CleanInvalidateCacheRangePKvj  mcr p15 has no C form: data cache range clean+invalidate, upstream's src/NitroSDK/Cache.cpp
+020c832c  _Z31InvalidateInstructionCacheRangePKvj  mcr p15 has no C form: instruction cache range invalidate, upstream's src/NitroSDK/Cache.cpp
+020a57e4  _ZN23DetailedTreasureMapData19LoadLegacyBossStatsEbPKh  upstream's own source (asmhacks register pins), merged as upstream wrote it
