@@ -2,6 +2,40 @@
 
 Every plain name in the decomp gets a name that says what the thing is, backed by recorded evidence.
 Names land on `decomp-matching` through the ledger and `namesland.sh`; nothing edits source by hand.
+Rules for a name and its evidence: [BRIEF.md](BRIEF.md).
+
+## Setup (required)
+
+A name is checked against the running game, not only the code: every function whose meaning is not
+plain from a few lines needs `dyn:` evidence from our melonDS fork. Without the setup below you
+cannot produce an acceptable row.
+
+1. The decomp and kit as in [docs/SETUP.md](../docs/SETUP.md), with the USA base ROM extracted in
+   `dqix-decomp/extract/`. Probes run on USA; names land in all three regions.
+2. **ZevyaDev/melonDS, branch `debug`**, cloned beside the kit (`../melonDS`, or set `DQIX_MELONDS`).
+   No other emulator or melonDS build works: `dyn.py` drives the fork's headless library
+   (`melonds_headless`) through its Python package, and the savestates are in the fork's format.
+
+       git clone -b debug https://github.com/ZevyaDev/melonDS ../melonDS
+       cd ../melonDS
+       cmake -B build/headless -G Ninja -DBUILD_QT_SDL=OFF -DBUILD_HEADLESS=ON -DENABLE_OGLRENDERER=OFF
+       cmake --build build/headless
+       python -m pip install -e tools/melonds-mcp
+
+   Install the build packages listed in the fork's `BUILD.md` first (Windows: MSYS2 UCRT64, plus
+   `mingw-w64-ucrt-x86_64-ninja`; run the cmake lines in the UCRT64 shell). On Windows the library
+   loads with `C:\msys64\ucrt64\bin` on the DLL path (`MELONDS_DLL_DIRS` overrides it).
+   For looking around by hand, the fork's Qt debugger build is under
+   [Releases](https://github.com/ZevyaDev/melonDS/releases) (Debug menu: breakpoints, memory, call
+   stack, source view; `DEBUGGER.md` in the fork).
+3. The play data: the saves and savestates every scenario starts from (~250 MB unpacked).
+
+       python naming/play.py fetch
+
+   It goes to `$DQIX_PLAY`, else `$SP/play`, and is checked against `naming/play/data.json`.
+4. `python naming/play.py check` must print `READY`: Python packages, the fork at the required
+   commit, the ROM, every file a scenario starts from, and a savestate that loads and runs. Fix each
+   `MISSING` line it prints.
 
 ## Name forms (`namerules.py`)
 
@@ -44,11 +78,54 @@ Evidence items start with their kind: `src:` (what the code does), `call:` (how 
 
 ## Scenarios
 
-`naming/scenarios/<name>.py`: `START = {"save": ..., "state": ...}` relative to `$DQIX_PLAY`
-(`../dqix-play`), and `play(F)` driving `dqix_auto.Field` (`hold`, `run`, `move_to`, `talk`,
-`go_npc`; flows in `dqix_flows.py`; facts in `dqix_usa.json`). The save is copied first. More saves:
-`D:/Downloads/dqvc/work/saves/manifest.md`; text codec `D:/Downloads/dqvc/work/tools/mestext.py`.
-Results go to `$SP/names/dyn/<scenario>.json`, which `dossier.py` reads.
+`naming/scenarios/<name>.py`: `START = {"save": ..., "state": ...}` relative to the play data, and
+`play(F)` driving `naming/play/dqix_auto.Field` (`hold`, `run`, `move_to`, `talk`, `go_npc`; flows in
+`dqix_flows.py`). The save is copied first. Results go to `$SP/names/dyn/<scenario>.json`, which
+`dossier.py` reads.
+
+`naming/play/dqix_usa.json` is what driving the game has taught us: RAM addresses, coordinates and
+walk speed, input and boot timings, routes, NPC spots, menus, battle and multiplayer facts, and what
+each save and savestate holds. Read it before writing a scenario, and add every new fact you learn
+while playing to it in the same change as the scenario.
+
+| play data | holds |
+|---|---|
+| `saves/story/NNN - <story point>.sav` | 85 story saves, 001-084, hero Laura; `dqix_usa.json` `saves.story_saves` gives each start map |
+| `saves/dq9ds_*.sav` | post-game saves (Kheg Lv88 party, Ayla Lv26 party, ...) |
+| `states/host.sav`, `guest.sav` + `*.mst` | Quester's Rest, a local-wireless session (`mp_joined.0/1`, host and guest), a field battle, an event, a ladder, a grotto, ... (`dqix_usa.json` `multiplayer`) |
+
+A scenario starts from the play data and reaches its state by playing, so anyone can rerun it and get
+the same calls. A new savestate goes into the next data release: `play.py pack DIR TAG`
+(maintainers) uploads it and rewrites `data.json`.
+
+## Contributing names
+
+Names reach `ZevyaDev/dqix-decomp` as pull requests, like matches
+([docs/CONTRIBUTING.md](../docs/CONTRIBUTING.md): your fork as `origin`, ZevyaDev as `zevya`).
+
+1. Reserve with ONE open kit issue listing every key you are naming (`func_ov012_021e4bc8`,
+   `Struct_020a1234`, ...), the same way addresses are reserved (AGENTS.md rule 20). Skip keys in an
+   open issue or an open pull request, and keys `names.py show` already lists as landed.
+2. Pick far-reaching keys first (`rank.py`), whole subsystems at a time, so the words agree.
+3. Write rows by [BRIEF.md](BRIEF.md), with `dyn:` evidence from `dyn.py probe`, and
+   `names.py import` them.
+4. Audit: someone who did not write the rows (a second agent with only the rows, the dossiers and the
+   BRIEF's Audit section) checks each one; `names.py accept` what passes, `names.py reject` the rest.
+5. Land on your fork: `git pull --rebase zevya decomp-matching` in the decomp, push it to your fork,
+   then `bash naming/namesland.sh --dry` and, when it prints GREEN, `bash naming/namesland.sh`. It
+   renames in every region, runs `prready.py`, builds usa, eur and jpn, and pushes the commit to your
+   fork's `decomp-matching`.
+6. New scenarios first: a kit pull request with every scenario your rows cite that is not on kit
+   `main`, plus the facts you added to `dqix_usa.json`. A new savestate goes in a zip attached to
+   that pull request.
+7. Open the decomp pull request with `python naming/names.py evidence <commit>` as its body (the
+   commit `namesland.sh` printed); past GitHub's 65,536-character limit, continue in comments. Keep
+   one pull request under about 100 names. Close the reservation issue naming the pull request.
+
+Review (maintainers): land the kit pull request, `gh pr view N --json body -q .body > prN.md`,
+`names.py import prN.md --by <login>`, rerun every probe the rows cite and audit them afresh. A row
+whose probe does not reproduce or whose evidence does not hold is not landed. When every row holds,
+`bash landpr.sh N`, then `names.py accept` and `names.py landed <merge commit>` the keys.
 
 ## Known traps
 

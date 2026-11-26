@@ -24,6 +24,7 @@ open. Put Git's `usr/bin` before other Bash providers on PATH; keep these settin
       dqix-decomp/        decomp checkout, branch decomp-matching     $DQIX_REPO
       dqix-decomp-kit/    this kit: code, docs, skills only           $KIT
       dqix-kit-state/     everything the pipeline produces            $SP
+      melonDS/            ZevyaDev/melonDS, branch debug (naming)     $DQIX_MELONDS
 
 `kitpaths.py` resolves all three, so nothing has to be set. The state directory is `$DQIX_STATE`,
 else the path written in `$KIT/state.path` (`python kit_init.py --state <dir>` writes it), else
@@ -73,6 +74,8 @@ carries all matched work plus configuration the kit depends on (`tools/cc_flag_o
 | `frida` | optional: `frida/*.py` and the `pad/renum/` forcing tools |
 | `pyyaml` | optional: `frida/schedforce.py` |
 
+The naming pass also needs our melonDS fork and its Python package: [naming/HANDOFF.md](../naming/HANDOFF.md#setup-required).
+
 ## kit_init.py
 
     python kit_init.py              # checks, state directories, OPEN_WORK.md, worker docs
@@ -115,6 +118,8 @@ All of these are under the state directory `$SP`, never under the checkout.
 |---|---|---|
 | `DQIX_REPO` | `../dqix-decomp` | the decomp checkout, for every script |
 | `DQIX_STATE` | `state.path`, else `../dqix-kit-state` | the state directory, for every script |
+| `DQIX_PLAY` | `$SP/play` | the naming pass's saves and savestates (`naming/play.py fetch`) |
+| `DQIX_MELONDS` | `../melonDS` | the ZevyaDev/melonDS checkout the naming pass drives |
 | `DQIX_KIT` | the working directory | where skills and workflows find the checkout when the session runs elsewhere |
 | `CLAUDE_PROJECTS` | `~/.claude/projects` | where `evocap.py` and transcript readers find Claude Code sessions |
 | `MWCC` | the build's version | `<ver>/<sub>` picks another mwccarm build for `wgate.py`, `wdiff.py` and `pad/` tools; diagnosis only |

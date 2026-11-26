@@ -1,5 +1,7 @@
 /*/
 !/scenarios/
+!/play/
 __pycache__/
 *.json
+!/play/*.json
 *.tsv

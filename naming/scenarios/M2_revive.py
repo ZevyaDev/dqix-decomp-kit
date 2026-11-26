@@ -1,9 +1,12 @@
 import struct
+import os
+
+import kitpaths
 
 START = {"save": "saves/dq9ds_kheg_aug30.sav"}
 GAME_STATE = 0x020F33D8
 GARREK = 3
-OUT = "D:/Downloads/decomp/dqix-sp/names/b7/M2/revive"
+OUT = os.path.join(kitpaths.SP, "names/b7/M2/revive")
 
 
 def u32(F, addr):

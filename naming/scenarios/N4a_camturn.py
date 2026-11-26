@@ -1,8 +1,11 @@
 import struct
+import os
+
+import kitpaths
 
 START = {"save": "states/host.sav", "state": "states/inn.0.mst"}
 GAME_STATE = 0x020F33D8
-LOG = "D:/Downloads/decomp/dqix-sp/names/b6/N4a/camturn.log"
+LOG = os.path.join(kitpaths.SP, "names/b6/N4a/camturn.log")
 
 
 def u32(F, addr):

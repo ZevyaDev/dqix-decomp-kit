@@ -1,0 +1,316 @@
+{
+ "rom": "DQIX USA (YDQE), headless melonDS debug build, FreeBIOS + generated firmware",
+ "addresses": {
+  "camera_follow_xyz": {
+   "addr": "0x0210A134",
+   "type": "fx32[3]",
+   "note": "x, height, z of the point the camera follows (= hero). Written by matrix code at 0x020C1CD8 (str r1,[r9,#0x24], r9=0x0210A110); writing it does not move the hero. Copy at 0x0210A250."
+  },
+  "dialog_render_buffers": {
+   "range": [
+    "0x02116000",
+    "0x0211C000"
+   ],
+   "note": "Rendered dialog text, ASCII. Lines start '//Speaker// '. Never zero it (game data shares the range); diff before/after a talk to get the new speaker."
+  },
+  "dialog_script_text": {
+   "note": "Raw script of the talked-to NPC is loaded into heap (seen 0x0238xxxx-0x023Axxxx) with markup: <PAGE> <ADD> <YESNO> <PAD_WAIT> <LEADER> <,> <1>=apostrophe, menus as <N=1>..</N>. Search RAM for '//Name//' to read an NPC's whole script after talking once."
+  },
+  "battle_state": {
+   "addr": "0x02114E04",
+   "type": "u8[4]",
+   "note": "[0] 0 on field/town, 3 from ~50 frames after touching a monster until the battle ends, then 1 for ~60 frames while the field reloads, then 0. [1] 0x20 during the swirl transition, 0x22 in battle. [2] 4 = fighting (set at contact, before [0]), 6 = won (victory, experience and gold messages, which wait for A), back to 4 then 0 as the field returns; after Flee it goes to 0 with [0] = 1."
+  },
+  "menu_text_buffer": {
+   "addr": "0x02118FFC",
+   "note": "Markup of the last built list menu: '<CURSOR=1><N=0>Attack</N><X=69>...<N=3>Abilities</N>' (battle member menu), '<CURSOR=0><N=0>Fight</N>\\n<N=1>Examine</N>...' (battle top menu), '<CURSOR=0><PLTT=15><N=0>Kheg</N>...' (party target list). The CURSOR digit (0x02119004) follows the live cursor while that menu is open; once it closes the buffer keeps the old menu or a message, and a battle's first top menu is never written there."
+  },
+  "game_state": {
+   "addr": "0x020F33D8",
+   "note": "GameState: objects_[0xe9] at +8 (GameObject*), protagonistObjectIndex_ at +0x3AC; hero = *(0x020F33E0 + 4 * *(0x020F3784)) (0x022BBBDC in every save tried). GameObject: Object3D at +0, baseStats_ +0x134, currentStats_ +0x138 (currHP u16 +0, currMP +2, maxHP +4, maxMP +6, attack +8, defense +0xA, status flags u32 +0x14: bit 0 dead), party member data +0x150, ladder state +0x26C."
+  },
+  "zone": {
+   "addr": "0x020FB3F0",
+   "note": "Zone3D: +8 points at a struct whose +5 holds the map short name ('C01' Stornway, 'R04M01' Quester's Rest 1F, 'D08M06' Plumbed Depths B3; data/map/<name>.ambl); NULL on the title screen. Map entity lists by type at +0xA8 + 4*type (first entity; entity: pos fx32[3] at +8, angle s16 at +0x20, next at +0x70). Type 9 = ladder ends (pairs: +0x31 bit 0 set on the top end; func_ov017_021975e4 starts the climb)."
+  },
+  "ladder_state": {
+   "addr": "hero + 0x26C",
+   "note": "Struct_02037d10: [0] 1 while on a ladder (func_02039d7c returns it), [1] phase 0 approach, 1 hasigo_in, 2 hasigo_loop, then out; 0 again once off at the other end."
+  },
+  "hero_actor_position": {
+   "addr": "0x022BBC20 (copies 0x022AAF70, 0x022BBEF0, 0x0210A268); heap, seen in states/field_battle.mst",
+   "type": "fx32[3]",
+   "note": "The hero's own x, y, z: x equals camera_follow x; on the world map z = camera z - 11.76 and y is ground height (~0.3). Party member actors follow every 0x116C0 bytes (0x022CD2E0, 0x022DE9A0, 0x022F0060). Field monsters: 0x198-byte entries from about 0x022F0C74, position at +0 and +0x40 (a she-slime at 0x022F0E0C)."
+  }
+ },
+ "coordinates": {
+  "units": "fx32, 4096 = 1 unit; +x = screen right, +z = screen down (field camera is not axis-aligned: screen moves leak a little into the other axis)",
+  "walk_speed_units_per_frame": 0.103,
+  "stuck_test": "position (x,z) changes < 0.05 over a 3-frame step for 3 steps = blocked; stairs change height (y) while x/z barely move"
+ },
+ "input": {
+  "keys": "A B Select Start Right Left Up Down R L X Y; hold 3-4 frames per press, menus need ~12-20 frames between presses, text needs 40-90 frames",
+  "close_dialog": "B (pressing A after a conversation ends re-talks to the NPC you face)"
+ },
+ "boot": [
+  "run 2400 frames from power-on to the title",
+  "Start, wait 90; A, wait 90 (adventure log list); A, wait 360 (loads the save)",
+  "A twice (welcome text), then B to close; saves made at a church open the priest dialog"
+ ],
+ "church_priest_menu": [
+  "Confession (Save)",
+  "Divination",
+  "Resurrection",
+  "Purification",
+  "Benediction",
+  "Nothing"
+ ],
+ "saves": {
+  "dir": "saves/ in the play data (kitpaths.PLAY; pristine copies: always run on a copy, the game writes to the .sav)",
+  "source": "https://www.woodus.com/den/gallery/graphics/dq9ds/savestate/<name>.sav (list: https://www.woodus.com/den/games/dq9ds/savefiles.php; WebFetch gets 403, curl with a browser User-Agent works)",
+  "format": "Woodus files are 512 KiB but only the first 64 KiB is the save; melonDS uses 64 KiB and writes the .sav back as 64 KiB",
+  "files": {
+   "dq9ds_kheg_aug30.sav": {
+    "sha1": "17cb98f91670c5a9be2015f4c8c8480789ce7165",
+    "hero": "Kheg",
+    "class": "Paladin+1 Lv88",
+    "party": [
+     "Garrek Warrior Lv72",
+     "Natalia Armamentalist Lv67",
+     "Melanie Priest Lv70"
+    ],
+    "location": "Stornway church",
+    "playtime": "378:01",
+    "used_as": "multiplayer host, battle scenario",
+    "battle_stats": "Kheg HP 787 MP 187, Garrek HP 670 MP 63, Natalia HP 654 MP 157, Melanie HP 551 MP 256; all tactics 'Follow Orders'",
+    "kheg_items": [
+     "page 1: Sterling's whistle, 'Secrets of the Shield', 'Clear Spear Theory', 'Swordcraft in Summary'",
+     "page 2: 'The Boomerang Bible', 'Thief's Theory', Sage's elixir, Perfect panacea",
+     "pages 3-4: equipped gear (Uber falcon blade, Erdrick's shield/helmet/armour/gauntlets, Chainmail socks, Aliahan boots, Life bracer)"
+    ],
+    "melanie_spells_page_1": "Heal, Squelch, Snooze, Buff (5 pages)"
+   },
+   "dq9ds_ayla.sav": {
+    "sha1": "31c4b685be58c98df13b5d97f19af29a5ffd427f",
+    "hero": "Ayla",
+    "class": "Thief Lv26",
+    "party": [
+     "Lloyd Gladiator Lv25",
+     "Majere Mage Lv27",
+     "Dinn Priest Lv26"
+    ],
+    "location": "Stornway church",
+    "playtime": "35:11",
+    "used_as": "multiplayer guest"
+   },
+   "dq9ds_priel.sav": {
+    "sha1": "051f4209fd0fdd2096ea2a038d503051c754b818",
+    "note": "unhacked, post-game, JP-server quests; untested here"
+   },
+   "dq9ds_mergnas.sav": {
+    "sha1": "4a28e060ac3d9de75917cdd3399bdae1a023ce91",
+    "note": "legit post-game; untested here"
+   },
+   "dq9ds_01_wes.sav": {
+    "sha1": "9a6117ea30d3afd7341ac1ef98028424cc2f962e",
+    "note": "only 64 KiB, likely truncated; untested"
+   }
+  },
+  "multiplayer_state": "host save after 'Invite friends' has Garrek dropped off at Patty and the log saved at Quester's Rest",
+  "story_saves": {
+   "dir": "saves/story/ in the play data ('NNN - <story point>.sav', 001-084; hero Laura)",
+   "boot": "dqix_flows.boot_all, then 300 frames; quicksaves first show 'Quick save log found. Your adventure will begin from the quick save location.': press A (wait 200) until the zone map name is set (~4300 frames from power-on)",
+   "start_maps": "church saves: 003,005-010 M01M06 Angel Falls; 011-013,015 C01M09 Stornway; 014 M02M02; 016,017,019,020 M03M07; 025,026,028 M05M06; 031,032,034,035 M09M03; 036,039 C02M16; 040-045 M10M05; 046,047,049 M11M04; 050-052,054 M12M05; 055-057 M13M09; 070 C04M06; 001,002,004 X01M06 and 021,064,072 X05M06 (Observatory); 022,024 X02M01. Quicksaves: 018 D04M02, 023 T01M07, 027 S05, 029,030 M07, 033 D09M06, 037 C02M01, 038 D08M06, 048 D13M02, 053 D14M07, 058,059 D16M12, 060 S07M01, 062,063 S07M04, 065 X03M01, 066-069 C04, 071 D17M06, 073 X04, 074,075 X04M09, 076,077 X04M14, 078,079 X04M22, 080,081 X04M24, 082,083 X04M03, 084 F07M02",
+   "ladders_at_start": "only 038 (D08M06, ladder right in front of the hero) and 073 (X04, ladder (31.1..31.4, y 0.2..28.0, z -20.9))"
+  }
+ },
+ "timings_frames": {
+  "power_on_to_title": 2400,
+  "title_start_to_log_list": 90,
+  "log_select_to_field": 360,
+  "menu_cursor_step": 15,
+  "text_page": 90,
+  "adventure_log_save": 400,
+  "turn_in_place": 2,
+  "church_exit_hold_down": 160,
+  "room_transition": 90,
+  "battle_contact_to_top_menu": 480,
+  "battle_menu_ready_after_confirm": 40,
+  "battle_round_four_actions": 570,
+  "battle_victory_to_field": 390,
+  "headless_speed": "about 500 frames/s per console on the debug interpreter (Windows, one console)"
+ },
+ "story_guest": {
+  "member_data": "party member GameObject +0x150 -> member data; low nibble of byte +0x56B is the story-guest id (func_02061bd8 tests it). Ivor in 006 - Ivor Accompanied.sav is member slot 3 (object 0x022CD29C) with nibble 2; Laura's is 0.",
+  "which_saves": "the playinful story run is Laura alone in every save scanned (001-084) except 006 (Laura + Ivor); 005 has Laura alone and 007 Ivor gone, so Ivor joins between 005 and 006 somewhere in Angel Falls (not found). Multiplayer guests (states/mp_joined.N) do not set the nibble.",
+  "scenario": "kit naming/scenarios/joined.py from states/joined.mst (006, church dialog closed): Laura and Ivor walk out of the church to M01; 828 frames, 8 s under the probe"
+ },
+ "maps": {
+  "angel_falls": {
+   "church": "M01M06; story saves load in front of the altar facing the priest; B x3 (60-frame waits) closes the welcome and prayer. Down from the altar is blocked: Left 30, Down 240, Right 28, Down 200 frames leaves through the door; M01 (Angel Falls outside) loads with the camera at about (-2.0, 7.1, 13.0).",
+   "map_icons": "top screen: INN top-left, church centre, item shop right"
+  },
+  "plumbed_depths": {
+   "save": "038 - Drak.sav (quicksave): B3 (D08M06), camera (0.0, 8.52, 26.92), facing a wall ladder (ladder ends (0, 0.1, 14.0) bottom, (0, 2.3, 13.9) top)",
+   "ladder": "hold Up: on the ladder after ~20 frames, off at the top ~60 frames later, B2 (D08M05) loads at the top of a floor hole; hold Down there climbs back down to B3. states/ladder.mst is the field right after boot (frame 4268). A monster on B2 notices the hero ('!') on arrival."
+  },
+  "stornway_town": {
+   "church_exit": "spawn after load inside church; hold Down ~160 frames to exit, outside at about (14.8, 3.5)",
+   "south_gate": "exit lane x -0.1..0.6: from (0.0, 35.4) hold Down ~100 frames, z passes 44.9 and 'Western Stornway' loads ~120 frames later. At x >= 1.8 the hero stops at z 38.19 against the gate wall.",
+   "questers_rest_door": "stand at (-7.6, 32.5), press Up; enters at about (-7.6, 29.6)",
+   "route_church_to_inn": "Left to x=11.6, Down to z=12.2, Left to x=2.1, Down to z=38 (gate), Up to z=32.5, Left to x=-7.6, Up into the door",
+   "map_scale": "top-screen map ~4 px per world unit; the map scrolls with the hero"
+  },
+  "western_stornway": {
+   "arrival": "world map; camera (-39.49, 8.78, -2.74) just south of the town gate",
+   "route_to_encounter": "Down ~180 frames to z 10.4 (a rock stops it near x -39), Left 180 frames to x -55.4, Down+Left 30 frames: (-58.17, 13.24); a she-slime wanders ~2 units to the left",
+   "monsters": "visible on the field, no random encounters: touching one starts the battle. She-slimes near the gate; against Kheg's Lv88 party the she-slime does not notice the party, so the first round is free.",
+   "overlays": "ov000 (battle) stays loaded on the world map with ov011, ov017, ov023; inside Stornway ov003 holds that slot"
+  },
+  "questers_rest_1f": {
+   "entrance": "(0.0, 15.9)",
+   "counter_front_z": 7.92,
+   "npcs": {
+    "Patty": {
+     "stand": [
+      -2.09,
+      7.92
+     ],
+     "face": "Up",
+     "role": "party planning (add/leave companions)"
+    },
+    "Erinn": {
+     "stand": [
+      0.0,
+      7.92
+     ],
+     "face": "Up",
+     "role": "inn, Tag mode ('Canvass for guests', 'View the guestbook', 'Leave')"
+    },
+    "Krak Pot": {
+     "stand": [
+      1.74,
+      7.92
+     ],
+     "face": "Up",
+     "role": "alchemy"
+    },
+    "Sellma": {
+     "stand": [
+      3.63,
+      7.92
+     ],
+     "face": "Up",
+     "role": "DQVC shop (asks 'use DQVC without connecting')"
+    },
+    "Pavo": {
+     "stand": [
+      3.63,
+      7.92
+     ],
+     "face": "Right",
+     "role": "local multiplayer (Rapportal)"
+    }
+   },
+   "stairs_up": "right side, x=7.68 from z~13 upward; z<1.5 with height ~9 is the upper flight; upstairs map uses z around -51",
+   "counter_gap": "left end of the counter is open; walking Up at x<-4 goes behind the counter"
+  }
+ },
+ "battle": {
+  "start_state": "states/field_battle.mst with saves/dq9ds_kheg_aug30.sav: Western Stornway at camera (-58.17, 8.65, 13.24), a she-slime 2 units left; hold Left ~24 frames to touch it. Built from boot_all, leave_church, the church_to_inn route to the gate, the gate exit lane and western_stornway.route_to_encounter.",
+  "flow_frames_from_start_state": "contact ~f28, battle_state[0] = 3 at ~f80, ov026 loads ~f164, 'A she-slime draws near!' and 'doesn't notice the party' auto-advance, top menu ~f504; round 1 runs f784-f1356; victory f1611; field back ~f1995",
+  "top_menu": [
+   "Fight",
+   "Examine",
+   "Flee",
+   "Misc."
+  ],
+  "top_menu_note": "cursor is kept between turns (starts on Fight)",
+  "member_menu": [
+   "0 Attack",
+   "1 Spells",
+   "2 Defend",
+   "3 Abilities",
+   "4 Items",
+   "5 Coup de Grace (greyed until charged)"
+  ],
+  "member_menu_note": "two columns (0-2 left, 3-5 right; Right/Left switch column); opens on the commanding member's own panel and resets to Attack every turn. Attack against a single enemy needs no target pick.",
+  "lists": "Items: 4 per page, Right = next page, then a party target list. Spells: 4 per page (MP cost shown in the help box), then a target list for single-target spells. Target list order Kheg, Garrek, Natalia, Melanie.",
+  "messages": "round messages auto-advance; the victory messages ('Each party member receives some experience', 'The party obtains N gold coins') wait for A",
+  "hand_cursor": "the yellow hand on the bottom screen marks a menu waiting for input: pixels #fbf349 #fbcb28 #fbba08 (>= 5 of them); none while messages, rounds or results show. Centroid by menu: top (75, 210), member menu (75, 213) for the first member, +40 y per member row (Garrek 253), item list (115, 204), target list (163, 202), Melanie's spell list (131, 324). It bobs ~2.5 px in x and < 1 px in y.",
+  "overlays_by_phase": "intro and command input: ov026 (sub_command) loaded over the ov023 slot; round: ov024 (sub_battle) for a few frames, then ov025 (sub_round); after victory: ov023 back and ov013 replaces ov011 until the next menu use. ov000 is loaded throughout, also on the world map.",
+  "turn_order_seen": "free round: Natalia, Melanie, Kheg, Garrek; Melanie's attack kills the she-slime (198 damage) before the others act",
+  "verified_2026_11_06": "kit naming/scenarios/battle.py: turn 1 Kheg Sage's elixir on Melanie ('Melanie's MP are replenished'), Garrek and Natalia Defend, Melanie Buff on Kheg ('Kheg's defence increases a little'); turn 2 all Attack, she-slime defeated, 6/5 exp, 22 gold; 2115 frames, 22 s under dyn.py with call tracking. Flee from the top menu (Down 2, A) also works: everyone shows 'Flee', field back after ~240 frames.",
+  "combatants": "GameState objects_ in battle: [0] Kheg 0x022BBBDC (stats 0x020F550C), [1] Melanie 0x022F001C (0x020F38E0), [2] Natalia 0x022DE95C (0x020F4244), [3] Garrek 0x022CD29C (0x020F4BA8), [0xC0] she-slime 0x02397874 (stats 0x022A4638: HP 18, attack 23, defence 18). Kheg attack 503 defence 751, Melanie 397/477, Natalia 540/560, Garrek 592/672.",
+  "stats_rules": "party defence is recomputed from gear every round (a RAM write lasts one round); every member regains 25 HP per round; the she-slime does 0-1 damage to this party. Status flags u32 at stats+0x14: bit 0 dead, bit 0x10 asleep (set by func_02088338 when Snooze lands).",
+  "snooze": "Melanie: Spells (Down 1), Snooze (Down 2 on page 1), no target pick against one enemy. The spell-list cursor is remembered between turns (later turns: Down 0). Snooze missed twice ('The she-slime isn't affected.') and landed on the 3rd cast; the slime slept 4 rounds.",
+  "faint": "kit naming/scenarios/faint.py: HP 1 + defence 0 written to Garrek and Natalia every 4 frames until one dies; all Defend; Garrek faints in the 2nd round (f1153 of the probe), then Snooze until the slime sleeps, then all Attack; 4638 frames (deterministic across runs), 47 s under the probe. Afterwards the field shows Garrek red with a coffin, Natalia yellow."
+ },
+ "events": {
+  "overlay_slots": "loaded overlay ids: 6 signed bytes at 0x01FFD364 + 6 * u32[0x01FFD348]; slot 0 holds ov000 (field/battle), ov001 (event), ov003 (towns), ov004 (menus incl. the quest list); slot 1 ov011 or ov008 (Battle Records).",
+  "battle_state_during_event": "0x02114E04 reads 4f 40 xx 00 while an ov001 event runs",
+  "bad_cave_marionette": "033 - Tyrantula.sav (quicksave, The Bad Cave B2, D09M06): hold Up ~8x8 frames until the hero stops at (0, 8.36, 16.23) facing Marionette (states/event.mst), A: ov001 loads in ~4 frames; the cutscene (Marionette, the Tyrantula appears) needs an A every ~60 frames, ~39 pages, ov000 is back at ~2350 frames with the Tyrantula visible on the field and no battle yet. kit naming/scenarios/event.py: 2524 frames, 25 s.",
+  "other_boss_triggers": "A in front of the boss NPC after walking Up also starts ov001 in 027 (Cuddiedig Cliff, Lleviathan; Laura Lv15 alone, battle follows ~600 frames later) and 062 (Gortress L1, Lt. Goreham-Hogg with Sterling; pressing A through the fight lost it and returned Laura to a church)."
+ },
+ "quest_list": {
+  "path": "X (wait 60), Right, Down, A (wait 200) = Battle Records (ov008 in slot 1); entries Defeated Monster List, Wardrobe, Item List, Alchenomicon, Accolades Earnt, Quest List (the font makes it read 'Guest List'), Pals Past & Present, First Completion Records; Down x5 at 30-frame steps (15 frames drops presses), A (wait 200) = Normal Quest / Extra Quest choice (ov004 in slot 0), A = the list.",
+  "menu_state": "u32 0x0217101C (ov004) points at the quest menu: +0x48 s16 normal quests listed, +0x4A extra, +0x4C the open list's count, +0x4E total (Kheg: 88, 64, -, 184)",
+  "kheg": "host.sav: quests in progress 090 One Latht Tetht, 092 Warriors Three, 108 Top-Flight Knight Fight; completed shown with a gold star and CLEAR!!; extra list starts at 132 (?????? = not accepted).",
+  "scenario": "kit naming/scenarios/quests.py from states/inn.0.mst: 2492 frames, 18 s under the probe"
+ },
+ "grottos": {
+  "zone_ids": "u16 at 0x020FB3F0 (Zone3D currentZoneID_): towns 1xx (C01 Stornway 100, church C01M09 109), world fields 200NN (F02 Western Stornway 20002), Quester's Rest 50401, regular grotto floors 40001..41100 (Iron Icepit B1 Z00M21 = 40021), legacy boss grottos 41101..41505 (Zoma Lv3 Z01M95 = 41101).",
+  "treasure_map_menu": "X, A (Items), Down x2 (Treasure Maps), A (wait 200): 8 maps per page, Right/Left change page and wrap, the cursor is remembered across openings and sort changes (Select cycles By Type / By Status / By Level). A on a map: 'Go treasure-hunting!' / 'Discard'; going sets the active map ('Kheg sets out to find ...') and the top screen shows its picture.",
+  "active_map": "GameState+0x63E4 = 0x020F97BC GrottoStruct: entrance zone u16 +0xC, entrance x/y/z fx32 +0x10 (world coords like hero+0x44), picture name +0x1C ('mapt_005'), map name +0x2C, active TreasureMapMetadata +0x6C (location byte +21).",
+  "save_maps": "TreasureMapMetadata[99] at .sav offset 0x5E8E, 0x1C each: byte0 bits 0-2 state (1 undiscovered, 4 cleared), bits 3-4 type (1 regular, 2 legacy), location +21, quality/legacy boss +23, legacy level +24, seed +26.",
+  "location_table": "loaded after the map menu opens: entries u16, u16 len, 'mapt_NNN', u32 zone, fx32 x, y, z (first at 0x023997AE in states/inn.0.mst); locations 5-8 are in F02: 5 (-67.2, 1.2, -27.3), 6 (5.1, 0.3, -6.7), 7 (-1.3, 1.2, -72.4), 8 (20.0, 1.3, 45.7). Location 5 is 'west of Stornway' and appears in most saves.",
+  "kheg_location_5": "dq9ds_kheg_aug30.sav holds Zoma's Map Lv3 (legacy, list page 1 row 3) and Iron Icepit of Glee Lv21 (regular, q71) at location 5.",
+  "route_to_location_5": "from states/field_battle.mst (hero (-58.2, 1.5)) a slope climbs the ridge at about (-62, -20.5) (hero y 0.3 -> 1.2); the explorer path from there is UL U U UL L U L U L U in 12-frame steps to (-66.8, -27.2). The hero gets a '!' there; A: 'Kheg spots a grotto!' and the cave appears. Its mouth faces south: stand at (-66.6, -24.3), hold Up 40 frames, then A enters (zone loads in ~70 frames, no prompt).",
+  "inside": "Zoma grotto: hero arrives at (0, 0.4, 12.0) at the foot of stairs; Down walks back out to F02 (~260 frames). Up ~330 frames reaches Zoma; A x5 pages ('Kheg!' ... 'Come forward then, and die in peace!'), battle menu at ~860 frames. Before the fight battle_state is already non-zero: wait for [1] = 0x22. Iron Icepit B1: arrives at (26.7, -0.3, 28.2); Up leaves.",
+  "states": "states/grotto.mst (+ saves/dq9ds_kheg_aug30.sav): F02 at hero (-66.6, 1.2, -24.3) facing the revealed cave of location 5, Zoma's Map active.",
+  "scenario": "kit naming/scenarios/grotto.py: enter Zoma's grotto, walk to Zoma, start the boss battle; 2078 frames, 19 s under the probe. --every: func_020117f0 1 x161 / 0 x102, func_0201b588 1 x2695 / 0 x497, func_0201b5d8 0 x303 / 1 x28.",
+  "zoma_battle": "Zoma Lv3 HP 8115 (objects_[0xC0]); acts: attack, Kacrack (group), Disruptive Wave ('All magical effects cast on Kheg and co. are removed', clears status 0x200). With Kheg's Magic Mirror up, Kacrack shows 'The wall of light deflects the spell.' and 'Does 49 points of damage to Zoma.'"
+ },
+ "battle_skills": {
+  "magic_mirror": "Kheg: Abilities (member menu Right 1), page 6 of 15 (Right x5), row 3 = Magic Mirror. It sets status bit 0x200 (stats+0x14) on Kheg only and lasts about 2 rounds. The ability list remembers its page and row for the next turn. Heal from Melanie onto a mirrored Kheg is not reflected (only enemy-targeted spells are).",
+  "reflect_calls": "func_ov024_021e9f68 runs once per spell target (returns 0 also when it reflects). func_ov024_021eda60 is never called with every member on 'Follow Orders', not even in the Zoma fight: its callers are tactic/AI condition checks (func_ov024_021ed9dc, _021eda78, _021ee0f0.._021eeab8).",
+  "sterlings_whistle": "Kheg's Sterling's whistle calls the Starflight Express, not monsters."
+ },
+ "follower_bit": {
+  "note": "GameObject+0x1CE bit 4: follower hidden/stacked on the leader (set by func_02039d48 / func_02039df4 and on ladders); members 1-3 have it right after leaving a building (Stornway church -> C01). func_02039d58 clears it; in the town, battle, event and grotto runs it was only called on members whose bit was already clear (battle start for all 4 members, zone entry for the leader)."
+ },
+ "multiplayer": {
+  "pavo_menu": [
+   "Visit another world.",
+   "Invite friends from other worlds.",
+   "Learn more about the Rapportal.",
+   "Learn more about other worlds.",
+   "Cancel"
+  ],
+  "host": "Invite friends: needs a free party slot (with 4 members Pavo refuses: 'You have a sufficiency of companions'), then asks to save the adventure log, then opens the Rapportal and adds Misc. > Call to Arms",
+  "guest": "Visit another world: companions stay behind ('you alone may pass'), then searches and lists worlds; pick the host's world",
+  "verified_2026_10_19": "Two headless consoles (host Kheg save, guest Ayla save) joined: host shows 'Ayla has arrived!', Ayla joins Kheg's party bar, guest movement mirrors on the host. Packet log over ~15 s: host 649 CMD + 649 ACK, guest 650 replies.",
+  "recipe": [
+   "boot_all, leave_church + church_to_inn for both (dqix_flows)",
+   "host: patty_drop_off(F, 0) once per save (party must have a free slot), then host_invite(F, 0)",
+   "guest: guest_search(F, 1) until Pavo lists the host's world ('Kheg  1 more player can join')",
+   "then set_pacing(60), c.start() on both (live), L = Field(cons, live=True), guest_join_live(L, 1)",
+   "frame-count runs break once a session exists: a console that stops leaves the other waiting on wireless replies; keep both live and stop them with stop_after(0)"
+  ],
+  "guest_pavo_prompts": [
+   "'You wish to venture into the unknown'",
+   "'you alone, as a Celestrian, may pass' (party of 4)",
+   "Yes/No 'Companions must await your return' -> Yes",
+   "adventure log save",
+   "search",
+   "list of worlds -> A on the host",
+   "Yes/No 'venture into the world of <host>' -> Yes"
+  ],
+  "headless_notes": [
+   "With the Rapportal open the host polls LocalMP with 0 ms waits many times per frame. The headless Platform::Semaphore_TryWait used to sleep a Windows tick on 0 ms and the host ran at 2 fps; fixed, now ~160 lockstep frames/s for two consoles.",
+   "Group runs of several consoles use a per-frame barrier (lockstep); a console that hits a break releases the barrier.",
+   "Checkpoints in states/ of the play data (N = console 0 host, 1 guest; load with host.sav/guest.sav from the same folder): inn.N (both inside Quester's Rest), rapportal.N (host at Pavo's 'Call to Arms' yes/no after inviting, guest at the inn entrance), found_world.N (guest's Pavo list shows Kheg), mp_joined.N (session joined, consoles stopped)."
+  ],
+  "qt_verified_2026_10_19": "Qt frontend, two instances in one process (System > Multiplayer > new instance), each boots the ROM then loads mp_joined.0 / mp_joined.1: session holds, host party bar keeps Ayla and mirrors guest movement. Control build without the Wifi::DoSavestate MP_Begin/End change: host shows Ayla has disappeared. and the guest drops back to boot. Fresh Qt configs have no keyboard mapping (Instance*.Keyboard = -1)."
+ }
+}

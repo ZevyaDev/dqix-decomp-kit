@@ -1,7 +1,8 @@
 import os
+import kitpaths
 
 START = {"save": "saves/dq9ds_kheg_aug30.sav"}
-SHOTS = "D:/Downloads/decomp/dqix-sp/names/b6/N6/shots/N6_wfc_test"
+SHOTS = os.path.join(kitpaths.SP, "names/b6/N6/shots/N6_wfc_test")
 
 
 def snap(F, label):

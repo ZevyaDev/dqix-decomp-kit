@@ -1,9 +1,12 @@
 import struct
+import os
+
+import kitpaths
 
 START = {"save": "states/host.sav", "state": "states/inn.0.mst"}
 
 LAYOUT = 0x0238DEC0
-OUT = "D:/Downloads/decomp/dqix-sp/names/b6/N3/kraktouch"
+OUT = os.path.join(kitpaths.SP, "names/b6/N3/kraktouch")
 
 
 def press(F, key, wait):

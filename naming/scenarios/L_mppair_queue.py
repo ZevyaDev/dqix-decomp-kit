@@ -5,7 +5,7 @@ import tempfile
 import kitpaths
 
 START = {"save": "states/guest.sav", "state": "states/mp_joined.1.mst"}
-PLAY = os.environ.get("DQIX_PLAY") or os.path.join(os.path.dirname(kitpaths.KIT), "dqix-play")
+PLAY = kitpaths.PLAY
 QUEUES = 0x02100044 + 0x1500
 OWN = 0x020fefec + 0x7c0
 RECEIVED = 0x020fefec + 0xbc0

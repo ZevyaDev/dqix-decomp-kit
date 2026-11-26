@@ -1,4 +1,4 @@
-START = {"save": "D:/Downloads/dqvc/work/saves/github_playinful_dq9-tools/001 - Observatory.sav"}
+START = {"save": "saves/story/001 - Observatory.sav"}
 
 
 def play(F):

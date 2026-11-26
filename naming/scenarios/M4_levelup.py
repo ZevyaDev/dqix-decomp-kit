@@ -1,6 +1,7 @@
 import importlib.util
 import os
 import struct
+import kitpaths
 
 _spec = importlib.util.spec_from_file_location("battle", os.path.join(os.path.dirname(__file__), "battle.py"))
 B = importlib.util.module_from_spec(_spec)
@@ -10,8 +11,8 @@ START = B.START
 RECORDS = 0x020F384C
 STRIDE = 0x964
 PRIEST = 2
-LOG = "D:/Downloads/decomp/dqix-sp/names/b7/M4/M4_levelup_mem.log"
-SHOTS = "D:/Downloads/decomp/dqix-sp/names/b7/M4/levelup_shots"
+LOG = os.path.join(kitpaths.SP, "names/b7/M4/M4_levelup_mem.log")
+SHOTS = os.path.join(kitpaths.SP, "names/b7/M4/levelup_shots")
 
 
 def shot(F, path):

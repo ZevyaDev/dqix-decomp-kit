@@ -1,6 +1,6 @@
 import struct
 
-START = {"save": "D:/Downloads/dqvc/work/saves/github_playinful_dq9-tools/006 - Ivor Accompanied.sav",
+START = {"save": "saves/story/006 - Ivor Accompanied.sav",
          "state": "states/joined.mst"}
 GAME_STATE = 0x020F33D8
 ZONE = 0x020FB3F0

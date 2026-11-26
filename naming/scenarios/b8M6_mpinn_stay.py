@@ -6,7 +6,7 @@ import kitpaths
 
 STATES = os.path.join(kitpaths.SP, "names", "b8", "M6")
 START = {"save": "states/host.sav", "state": os.path.join(STATES, "inn_menu.0.mst")}
-PLAY = os.environ.get("DQIX_PLAY") or os.path.join(os.path.dirname(kitpaths.KIT), "dqix-play")
+PLAY = kitpaths.PLAY
 
 
 def play(F):

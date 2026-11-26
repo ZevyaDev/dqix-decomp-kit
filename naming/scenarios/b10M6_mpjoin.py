@@ -5,7 +5,7 @@ import tempfile
 import kitpaths
 
 START = {"save": "states/guest.sav", "state": "states/mp_joined.1.mst"}
-PLAY = os.environ.get("DQIX_PLAY") or os.path.join(os.path.dirname(kitpaths.KIT), "dqix-play")
+PLAY = kitpaths.PLAY
 BATTLE = 0x02114E04
 LOG = os.path.join(kitpaths.SP, "names", "b10", "M6", "b10M6_mpjoin.log")
 SHOTS = os.path.join(kitpaths.SP, "names", "b10", "M6", "mpjoin")

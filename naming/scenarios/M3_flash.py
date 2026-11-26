@@ -1,9 +1,12 @@
 import struct
+import os
+
+import kitpaths
 
 START = {"save": "states/host.sav", "state": "states/inn.0.mst"}
 
 OVERLAY = 0x02108D5C
-OUT = "D:/Downloads/decomp/dqix-sp/names/b7/M3/flash"
+OUT = os.path.join(kitpaths.SP, "names/b7/M3/flash")
 
 
 def play(F):

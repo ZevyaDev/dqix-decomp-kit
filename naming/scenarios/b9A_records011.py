@@ -3,7 +3,7 @@ import struct
 
 import kitpaths
 
-START = {"save": "D:/Downloads/dqvc/work/saves/github_playinful_dq9-tools/011 - Arrival in Stornway.sav"}
+START = {"save": "saves/story/011 - Arrival in Stornway.sav"}
 GAME_STATE = 0x020F33D8
 OUT = os.path.join(kitpaths.SP, "names", "b9", "A", "shots")
 

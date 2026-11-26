@@ -1,6 +1,7 @@
 import importlib.util
 import os
 import struct
+import kitpaths
 
 _spec = importlib.util.spec_from_file_location("battle", os.path.join(os.path.dirname(__file__), "battle.py"))
 B = importlib.util.module_from_spec(_spec)
@@ -11,7 +12,7 @@ GAME_STATE = 0x020F33D8
 GARREK = 3
 POISONED = 0x2
 DEFEND_ROUNDS = 3
-LOG = "D:/Downloads/decomp/dqix-sp/names/b7/M4/M4_venom_mem.log"
+LOG = os.path.join(kitpaths.SP, "names/b7/M4/M4_venom_mem.log")
 
 
 def u16(F, addr):

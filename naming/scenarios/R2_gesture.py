@@ -1,7 +1,10 @@
+import os
+
+import kitpaths
 START = {"save": "states/host.sav", "state": "states/inn.0.mst"}
 
 HERO = 0x022bbbdc
-LOG = "D:/Downloads/decomp/dqix-sp/names/b7/R2/gesture_mem.log"
+LOG = os.path.join(kitpaths.SP, "names/b7/R2/gesture_mem.log")
 
 
 def play(F):

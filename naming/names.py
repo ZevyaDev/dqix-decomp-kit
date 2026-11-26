@@ -1,9 +1,12 @@
 """The naming pass's ledger: what each plain name becomes, the evidence for it, and whether it landed.
 
     python naming/names.py add KEY STEM EVIDENCE... [--by WHO]
-    python naming/names.py import FILE             JSON lines {key, stem, evidence: [...], by}
+    python naming/names.py import FILE             JSON lines {key, stem, evidence: [...], by}, or the
+                                                   markdown `evidence` prints (a pull request's body)
     python naming/names.py accept KEY...           proposed -> accepted (the audit passed)
     python naming/names.py reject KEY WHY
+    python naming/names.py landed COMMIT KEY...    accepted -> landed, for rows a merged pull request landed
+    python naming/names.py evidence COMMIT         markdown of the rows landed at COMMIT, for a pull request
     python naming/names.py check [DIR]             every accepted row not landed, against DIR
     python naming/names.py apply DIR               rename them in decomp tree DIR
     python naming/names.py show [KEY...]
@@ -66,6 +69,38 @@ def proposal(key, stem, evidence, by):
         raise ValueError(f"{key}: no evidence")
     return {"key": key, "stem": stem, "final": final, "kind": kind, "evidence": evidence, "by": by,
             "status": "proposed", "t": time.strftime("%Y-%m-%dT%H:%M:%S")}
+
+
+def stem_of(key, final):
+    parts = final.split("_")
+    for n in range(len(parts), 0, -1):
+        stem = "_".join(parts[:n])
+        try:
+            if namerules.final(key, stem)[1] == final:
+                return stem
+        except ValueError:
+            pass
+    raise ValueError(f"{key}: {final} is not a name form of it")
+
+
+def evidence_rows(text):
+    out, row = [], None
+    for line in text.splitlines():
+        head = re.match(r"- `([^`]+)` -> `([^`]+)`\s*$", line)
+        if head:
+            row = {"key": head.group(1), "stem": stem_of(head.group(1), head.group(2)), "evidence": []}
+            out.append(row)
+        elif row and line.startswith("  - "):
+            row["evidence"].append(line[4:])
+    return out
+
+
+def read_rows(path):
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    if text.lstrip().startswith("- `"):
+        return evidence_rows(text)
+    return [json.loads(line) for line in text.splitlines() if line.strip()]
 
 
 def restate(key, status, **extra):
@@ -467,14 +502,11 @@ def main():
         write([proposal(args[0], args[1], args[2:], by)])
     elif cmd == "import" and len(args) == 1:
         new, bad = [], []
-        with open(args[0], encoding="utf-8") as fh:
-            for line in fh:
-                if line.strip():
-                    r = json.loads(line)
-                    try:
-                        new.append(proposal(r["key"], r["stem"], r.get("evidence", []), r.get("by", by)))
-                    except (ValueError, KeyError) as e:
-                        bad.append(f"BAD {e}")
+        for r in read_rows(args[0]):
+            try:
+                new.append(proposal(r["key"], r["stem"], r.get("evidence", []), r.get("by", by)))
+            except (ValueError, KeyError) as e:
+                bad.append(f"BAD {e}")
         write(new)
         print("\n".join(bad + [f"{len(new)} proposed"]))
         sys.exit(1 if bad else 0)
@@ -484,6 +516,13 @@ def main():
             if ledger.get(key, {}).get("status") != "proposed":
                 sys.exit(f"{key}: not proposed")
             restate(key, "accepted")
+    elif cmd == "landed" and len(args) >= 2:
+        ledger = rows()
+        for key in args[1:]:
+            if ledger.get(key, {}).get("status") != "accepted":
+                sys.exit(f"{key}: not accepted")
+        for key in args[1:]:
+            restate(key, "landed", commit=args[0])
     elif cmd == "reject" and len(args) == 2:
         restate(args[0], "rejected", why=args[1])
     elif cmd in ("check", "apply"):
@@ -507,6 +546,14 @@ def main():
         for r in ledger.values():
             if not args or r["key"] in args:
                 print(f"{r['status']:9} {r['key']} -> {r['final']}  [{'; '.join(r['evidence'])}]")
+    elif cmd == "evidence" and len(args) == 1:
+        landed = [r for r in rows().values() if r["status"] == "landed" and r.get("commit")
+                  and (r["commit"].startswith(args[0]) or args[0].startswith(r["commit"]))]
+        if not landed:
+            sys.exit(f"no row landed at {args[0]}")
+        for r in landed:
+            print(f"- `{r['key']}` -> `{r['final']}`")
+            print("\n".join(f"  - {item}" for item in r["evidence"]))
     else:
         sys.exit(__doc__)
 

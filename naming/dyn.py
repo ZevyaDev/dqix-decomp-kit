@@ -19,10 +19,10 @@ screens beside it under the same stem, one at the
 hit and one AFTER frames later (`_<n>after.png`); `dossier.py` shows them. Several probes may run at once, each in its own process.
 
 A scenario is naming/scenarios/<name>.py: START = {"save": <.sav>, "state": <.mst>} (paths relative to
-$DQIX_PLAY; state optional) and play(F), driving the console through dqix_auto.Field. A .sav is copied
+kitpaths.PLAY; state optional) and play(F), driving the console through dqix_auto.Field. A .sav is copied
 first, since the game writes it. Call counts are taken after every 60 frames, with the overlays loaded
 at that moment, so an overlay function is credited to the overlay that held it.
-Environment: DQIX_PLAY (default ../dqix-play), DQIX_MELONDS_MCP (default ../melonDS/tools/melonds-mcp).
+Setup: naming/HANDOFF.md; `python naming/play.py check` says what is missing.
 """
 import glob
 import importlib.util
@@ -40,9 +40,9 @@ sys.path.insert(0, os.path.dirname(HERE))
 import kitpaths
 from graph import Graph
 
-ROOT = os.path.dirname(kitpaths.KIT)
-PLAY = os.environ.get("DQIX_PLAY") or os.path.join(ROOT, "dqix-play")
-MCP = os.environ.get("DQIX_MELONDS_MCP") or os.path.join(ROOT, "melonDS", "tools", "melonds-mcp")
+PLAY = kitpaths.PLAY
+HARNESS = os.path.join(HERE, "play")
+MCP = os.path.join(kitpaths.MELONDS, "tools", "melonds-mcp")
 OUT = os.path.join(kitpaths.SP, "names", "dyn")
 PROBES = os.path.join(OUT, "probe")
 CHUNK = 60
@@ -243,7 +243,7 @@ class Probe:
 
 def run(name, keys=(), hits=HITS, every=False):
     sys.path.insert(0, MCP)
-    sys.path.insert(0, PLAY)
+    sys.path.insert(0, HARNESS)
     from melonds_mcp.native import Console
     from melonds_mcp.symbols import SymbolTable
     import dqix_auto

@@ -7,7 +7,7 @@ _spec = importlib.util.spec_from_file_location("battle", os.path.join(os.path.di
 B = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(B)
 
-START = {"save": "D:/Downloads/dqvc/work/saves/github_playinful_dq9-tools/066 - Lt. Hootingham-Gore.sav",
+START = {"save": "saves/story/066 - Lt. Hootingham-Gore.sav",
          "state": os.path.join(kitpaths.SP, "names", "b8", "R3", "hg.mst")}
 GAME_STATE = 0x020F33D8
 LAURA, GORE = 0, 0xC1

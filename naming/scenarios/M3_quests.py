@@ -1,4 +1,7 @@
 import struct
+import os
+
+import kitpaths
 
 START = {"save": "states/host.sav", "state": "states/inn.0.mst"}
 SLOT_SET = 0x01FFD348
@@ -7,7 +10,7 @@ MENU_CALLBACK_OVERLAY = 4
 QUEST_MENU = 0x0217101C
 FLAG_MANAGER = 0x02108844
 QUEST_MANAGER = 0x02109418
-OUT = "D:/Downloads/decomp/dqix-sp/names/b7/M3/quests"
+OUT = os.path.join(kitpaths.SP, "names/b7/M3/quests")
 
 
 def press(F, key, wait):

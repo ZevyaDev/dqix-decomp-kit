@@ -1,6 +1,6 @@
 import struct
 
-START = {"save": "D:/Downloads/dqvc/work/saves/github_playinful_dq9-tools/033 - Tyrantula.sav",
+START = {"save": "saves/story/033 - Tyrantula.sav",
          "state": "states/event.mst"}
 SLOT_SET = 0x01FFD348
 SLOTS = 0x01FFD364

@@ -6,7 +6,7 @@ import tempfile
 import kitpaths
 
 START = {"save": "states/host.sav", "state": "states/found_world.0.mst"}
-PLAY = os.environ.get("DQIX_PLAY") or os.path.join(os.path.dirname(kitpaths.KIT), "dqix-play")
+PLAY = kitpaths.PLAY
 OUT = os.path.join(kitpaths.SP, "names", "b10", "M1", "join")
 WIRELESS = 0x020FEFEC
 

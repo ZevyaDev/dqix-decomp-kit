@@ -1,4 +1,4 @@
-START = {"save": "D:/Downloads/dqvc/work/saves/github_playinful_dq9-tools/012 - To Loch Storn.sav"}
+START = {"save": "saves/story/012 - To Loch Storn.sav"}
 
 
 def play(F):

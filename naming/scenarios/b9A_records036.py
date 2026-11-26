@@ -5,7 +5,7 @@ _spec = importlib.util.spec_from_file_location("b9A_records011", os.path.join(os
 R = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(R)
 
-START = {"save": "D:/Downloads/dqvc/work/saves/github_playinful_dq9-tools/036 - Arrival at Gleeba.sav"}
+START = {"save": "saves/story/036 - Arrival at Gleeba.sav"}
 
 
 def play(F):

@@ -5,8 +5,10 @@
            the path in KIT/state.path, else ../dqix-kit-state beside the checkout. Kept outside the
            checkout so no git command run in it can touch a single attempt.
     REPO   the decomp checkout: $DQIX_REPO, else ../dqix-decomp beside the checkout.
+    PLAY   the naming pass's saves and savestates (`naming/play.py fetch`): $DQIX_PLAY, else SP/play.
+    MELONDS  the ZevyaDev/melonDS checkout (branch debug): $DQIX_MELONDS, else ../melonDS.
 
-    python kitpaths.py kit|state|repo     print one of them, for shell scripts
+    python kitpaths.py kit|state|repo|play|melonds     print one of them, for shell scripts
     python kitpaths.py behind             commits the published kit is ahead of this checkout
 """
 import os
@@ -64,6 +66,8 @@ def _state():
 
 SP = _state()
 REPO = _norm(os.environ.get("DQIX_REPO", os.path.join(os.path.dirname(KIT), "dqix-decomp")))
+PLAY = _norm(os.environ.get("DQIX_PLAY", os.path.join(SP, "play")))
+MELONDS = _norm(os.environ.get("DQIX_MELONDS", os.path.join(os.path.dirname(KIT), "melonDS")))
 CLAUDE_PROJECTS = _norm(os.environ.get("CLAUDE_PROJECTS", os.path.expanduser("~/.claude/projects")))
 KIT_URL = os.environ.get("DQIX_KIT_URL", "https://github.com/ZevyaDev/dqix-decomp-kit.git")
 KIT_BRANCH = os.environ.get("DQIX_KIT_BRANCH", "main")
@@ -198,7 +202,7 @@ if __name__ == "__main__":
     which = sys.argv[1] if len(sys.argv) > 1 else ""
     if which == "behind":
         print(behind())
-    elif which in ("kit", "state", "repo"):
-        print({"kit": KIT, "state": SP, "repo": REPO}[which])
+    elif which in ("kit", "state", "repo", "play", "melonds"):
+        print({"kit": KIT, "state": SP, "repo": REPO, "play": PLAY, "melonds": MELONDS}[which])
     else:
         sys.exit(__doc__)

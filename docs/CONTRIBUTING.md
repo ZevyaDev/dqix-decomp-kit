@@ -5,7 +5,8 @@ Two repositories take contributions:
 | what | where |
 |---|---|
 | matched functions | [ZevyaDev/dqix-decomp](https://github.com/ZevyaDev/dqix-decomp), branch `decomp-matching` |
-| recipes and script fixes only | [ZevyaDev/dqix-decomp-kit](https://github.com/ZevyaDev/dqix-decomp-kit) |
+| names (the naming pass) | ZevyaDev/dqix-decomp as above; setup and steps in [naming/HANDOFF.md](../naming/HANDOFF.md) |
+| recipes, script fixes and naming scenarios only | [ZevyaDev/dqix-decomp-kit](https://github.com/ZevyaDev/dqix-decomp-kit) |
 
 ## Avoid duplicate work
 
@@ -74,6 +75,8 @@ a change is needed. It takes:
   `regress.py` case that fails without it
 - a tool fault you cannot fix with a `regress.py` case: an issue, not a pull request, with the
   address, the exact command and the output line that shows the fault
+- a naming scenario (`naming/scenarios/`) that rows in your naming pull request cite, with what
+  playing taught you added to `naming/play/dqix_usa.json`: it is checked by running it
 
 Only what can be checked is accepted. Dead ends, residue notes, trial logs, docs and wording,
 refactors, comments and hardening against a fault that never happened are closed without review. Where a recipe or a fix belongs and what proof it needs:
