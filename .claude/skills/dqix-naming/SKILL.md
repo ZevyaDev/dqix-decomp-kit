@@ -15,9 +15,9 @@ Every step below is spelled out in `$KIT/naming/HANDOFF.md`; read it whole first
    `zevya`, the USA base ROM extracted, `ninja check` green), then HANDOFF.md "Setup (required)": the
    ZevyaDev/melonDS `debug` headless build and its Python package, `python naming/play.py fetch`.
    Nothing else starts until `python naming/play.py check` prints `READY`; fix each `MISSING` line.
-3. Reserve: pick a subsystem with `python naming/rank.py --top 50`, skip keys in an open kit issue or
-   pull request and keys `python naming/names.py show` lists as landed, and open ONE kit issue listing
-   every key you take.
+3. Reserve: pick a subsystem with `python naming/rank.py --top 50` (it leaves out keys others hold),
+   then `python naming/reservations.py take KEY...` before any work on them. It refuses keys someone
+   else holds and keeps your one `Naming:` kit issue; never work on a key it refused.
 4. Name each key by BRIEF.md: `naming/dossier.py`, callers' source, `naming/dyn.py probe` in a scenario
    (write one in `naming/scenarios/` when none reaches the behavior), rows into
    `python naming/names.py import`.

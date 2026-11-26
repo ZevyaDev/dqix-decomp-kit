@@ -25,8 +25,10 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kitpaths
 import namerules
+import reservations
 
 LEDGER = os.environ.get("DQIX_NAMES_LEDGER") or os.path.join(kitpaths.SP, "names", "ledger.jsonl")
 SOURCE_EXT = (".c", ".cpp", ".h", ".hpp", ".inc", ".s")
@@ -458,6 +460,11 @@ def land(dry=False):
     landpr.UNDO.append((tree, tip))
     todo = localized(tree, todo)
     found = problems(tree, ledger, todo)
+    try:
+        held = reservations.taken_by_others([r["key"] for r in todo])
+    except (RuntimeError, OSError) as e:
+        landpr.refuse(f"reservations not checked: {e}")
+    found += [f"HELD {key}: {ref} ({owner})" for key, (ref, owner) in sorted(held.items())]
     if found:
         landpr.refuse("\n".join(found))
     changed, misses = apply(tree, ledger, todo)
@@ -507,6 +514,13 @@ def main():
                 new.append(proposal(r["key"], r["stem"], r.get("evidence", []), r.get("by", by)))
             except (ValueError, KeyError) as e:
                 bad.append(f"BAD {e}")
+        try:
+            held = reservations.taken_by_others([r["key"] for r in new])
+        except (RuntimeError, OSError) as e:
+            held = {}
+            print(f"WARN reservations not checked ({e})")
+        bad += [f"HELD {key}: {ref} ({owner})" for key, (ref, owner) in sorted(held.items())]
+        new = [r for r in new if r["key"] not in held]
         write(new)
         print("\n".join(bad + [f"{len(new)} proposed"]))
         sys.exit(1 if bad else 0)

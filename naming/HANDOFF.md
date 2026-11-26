@@ -103,10 +103,13 @@ the same calls. A new savestate goes into the next data release: `play.py pack D
 Names reach `ZevyaDev/dqix-decomp` as pull requests, like matches
 ([docs/CONTRIBUTING.md](../docs/CONTRIBUTING.md): your fork as `origin`, ZevyaDev as `zevya`).
 
-1. Reserve with ONE open kit issue listing every key you are naming (`func_ov012_021e4bc8`,
-   `Struct_020a1234`, ...), the same way addresses are reserved (AGENTS.md rule 20). Skip keys in an
-   open issue or an open pull request, and keys `names.py show` already lists as landed.
-2. Pick far-reaching keys first (`rank.py`), whole subsystems at a time, so the words agree.
+1. Pick far-reaching keys first (`rank.py`), whole subsystems at a time, so the words agree.
+   `rank.py` already leaves out keys someone else holds.
+2. Reserve them before any work: `python naming/reservations.py take KEY...`. It refuses a key held
+   in another person's open kit issue or open decomp pull request (a listed function holds its
+   parameters and locals too), and keeps your ONE open kit issue `Naming: N keys` (AGENTS.md rule 20).
+   `python naming/reservations.py` lists every held key and its owner; `drop KEY...` releases yours.
+   `names.py import` and `namesland.sh` refuse keys someone else holds.
 3. Write rows by [BRIEF.md](BRIEF.md), with `dyn:` evidence from `dyn.py probe`, and
    `names.py import` them.
 4. Audit: someone who did not write the rows (a second agent with only the rows, the dossiers and the

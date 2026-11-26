@@ -745,6 +745,23 @@ def _names_relative_tree():
     return None
 
 
+@check("naming reservations: a listed function holds its insides, and only other people's keys are foreign",
+       "two contributors naming the same keys in parallel waste both batches and collide at landing")
+def _naming_reservations():
+    R = load("naming/reservations")
+    body = ("**M1** (2 keys; main 02010000-02010004)\n\n`func_02010000` `Struct_02010004::unknown_4_`\n"
+            "main 0205faf4\nPR: ZevyaDev/dqix-decomp#27\n- `data_ov031_02290d04` -> `gSubBG1ScreenData_ov031_02290d04`")
+    if R.keys_in(body) != {"func_02010000", "Struct_02010004::unknown_4_", "data_ov031_02290d04"}:
+        return "keys_in: %s" % sorted(R.keys_in(body))
+    table = R.holders([{"ref": "kit#1", "body": body, "login": "alice"},
+                       {"ref": "decomp#2", "body": "`func_02020000`", "login": "bob"}])
+    got = R.foreign(["func_02010000::arg0", "func_02010000", "func_02020000", "func_02030000",
+                     "Struct_02010004::unknown_4_"], table, "bob")
+    want = {"func_02010000::arg0": ("kit#1", "alice"), "func_02010000": ("kit#1", "alice"),
+            "Struct_02010004::unknown_4_": ("kit#1", "alice")}
+    return None if got == want else "foreign: %s" % got
+
+
 @check("namerules gives a key its stem plus the key's own address or offset, and refuses bad stems",
        "an AI name without its address cannot be mapped back to the ROM (Eakeys, ghidra)")
 def _namerules_final():

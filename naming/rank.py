@@ -4,7 +4,8 @@
 
 Columns: key, kind (func|data), module, addr, size, callers (distinct functions that call it),
 modules (distinct modules those callers live in), refs (distinct functions that load its address),
-score = callers + refs + 4 * (modules - 1). Named and upstream symbols are left out.
+score = callers + refs + 4 * (modules - 1). Named and upstream symbols are left out, and so are keys
+someone else holds in an open kit issue or decomp pull request (`reservations.py`).
 """
 import os
 import sys
@@ -13,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import kitpaths
 import namerules
+import reservations
 from graph import Graph
 
 
@@ -36,6 +38,12 @@ def main():
     region = args[args.index("--region") + 1] if "--region" in args else "usa"
     top = int(args[args.index("--top") + 1]) if "--top" in args else 30
     rows = rank(Graph(region))
+    try:
+        held = reservations.taken_by_others([s.name for _, s, _, _, _ in rows])
+    except (RuntimeError, OSError) as e:
+        held = {}
+        print(f"WARN reservations not checked ({e}): look at the open kit issues yourself")
+    rows = [row for row in rows if row[1].name not in held]
     out = os.path.join(kitpaths.SP, "names", "rank.tsv")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", encoding="utf-8", newline="\n") as fh:
@@ -44,7 +52,7 @@ def main():
             fh.write(f"{s.name}\t{s.kind}\t{s.module}\t{s.addr:08x}\t{s.size}\t{c}\t{mm}\t{r}\t{score}\n")
     for score, s, c, mm, r in rows[:top]:
         print(f"{score:5} {s.name:28} {s.kind:4} {s.module:5} size={s.size:<5} callers={c:<4} modules={mm:<3} refs={r}")
-    print(f"{len(rows)} ranked -> {out}")
+    print(f"{len(rows)} ranked -> {out}" + (f"; {len(held)} held by others left out" if held else ""))
 
 
 if __name__ == "__main__":
