@@ -71,7 +71,7 @@ It is sent back, and the review it cost is wasted.
 | what each script does | `INVENTORY.md` |
 | named residues nobody cracked | `OPEN_RESIDUES.md` (grep an address) |
 | closest saved attempt per address | `priors/INDEX.tsv`, `python resumable.py <addr>` |
-| naming already-matched functions | `naming/HANDOFF.md` |
+| help with the naming pass | skill `dqix-naming`; `naming/HANDOFF.md` (Setup, then Contributing names) |
 | finished experiments cited as evidence | `archive/README.md` (nothing runs them) |
 
 ## Skills
@@ -85,6 +85,7 @@ the copy.
 | `dqix-hand-match <addr>` | close one function in this session | all |
 | `dqix-status` | where things are: fleet, coverage, what moved, what needs a decision | all |
 | `dqix-stop` | stop everything now and verify nothing survived | all |
+| `dqix-naming` | help with the naming pass: setup, reserve, name, audit, land, pull request | all |
 | `dqix-coordinate` | coordinate native agents, bounded crack/evolve experiments, and shared findings | native-agent hosts |
 | `dqix-plan` | run the standing plan: one function at a time, gate it, land it or record why | Claude Code |
 | `dqix-continue` | a fresh session after a limit, a crash or a long session | Claude Code |
