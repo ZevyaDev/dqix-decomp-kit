@@ -115,6 +115,19 @@ def read_rows(path):
     return [json.loads(line) for line in text.splitlines() if line.strip()]
 
 
+def landed_row(key, final):
+    found = None
+    with open(LEDGER, encoding="utf-8") as fh:
+        for line in fh:
+            if line.strip():
+                row = json.loads(line)
+                if row["key"] == key and row["status"] == "landed" and row["final"] == final:
+                    found = row
+    if found is None:
+        raise ValueError(f"{key}: no landed row named {final}")
+    return found
+
+
 def restate(key, status, **extra):
     row = dict(rows()[key], status=status, t=time.strftime("%Y-%m-%dT%H:%M:%S"), **extra)
     write([row])
@@ -562,7 +575,9 @@ def main():
         for key in args[1:]:
             restate(key, "landed", commit=args[0])
     elif cmd == "reject" and len(args) == 2:
-        restate(args[0], "rejected", why=args[1])
+        row = restate(args[0], "rejected", why=args[1])
+        if row.get("was"):
+            write([dict(landed_row(args[0], row["was"]), t=time.strftime("%Y-%m-%dT%H:%M:%S"))])
     elif cmd in ("check", "apply"):
         tree = os.path.abspath(args[0] if args else kitpaths.REPO)
         ledger = rows()

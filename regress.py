@@ -769,9 +769,16 @@ def _names_revise_landed():
                             {"src/a.cpp": src, "include/globaldefs.h": "#pragma once\n"})
         N.LEDGER = f"{root}/ledger.jsonl"
         landed = (("func_02001000", "Reset"), ("func_02001000::arg0", "task"), ("Struct_02001000", "Pair"),
-                  ("Struct_02001000::unknown_4_", "left"))
+                  ("Struct_02001000::unknown_4_", "left"), ("Struct_02001000::unknown_0_", "count"))
         N.write([dict(N.proposal(k, s, ["t"], "t"), status="landed") for k, s in landed])
         ledger = N.rows()
+        N.write([N.revision(N.proposal("Struct_02001000::unknown_0_", "total", ["t"], "t"), ledger)])
+        subprocess.run([sys.executable, os.path.join(KIT, "naming", "names.py"), "reject",
+                        "Struct_02001000::unknown_0_", "no"], capture_output=True,
+                       env=dict(os.environ, DQIX_NAMES_LEDGER=N.LEDGER))
+        kept = N.rows()["Struct_02001000::unknown_0_"]
+        if (kept["status"], kept["final"]) != ("landed", "count_0_"):
+            return "a rejected revision left %s %s" % (kept["status"], kept["final"])
         revised = [N.revision(N.proposal(k, s, ["t"], "t"), ledger) for k, s in
                    (("func_02001000", "ResetManager"), ("func_02001000::arg0", "manager"),
                     ("Struct_02001000::unknown_4_", "right"))]
