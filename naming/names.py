@@ -353,9 +353,14 @@ def line_regions(data):
 
 
 def declarations(data, name, regions):
-    pattern = rb"(?m)^[ \t]*extern\b[^;{\n]*?\b" + re.escape(name.encode()) + rb"[ \t]*\(([^)]*)\)"
-    return [(tuple(parameter_types(m.group(1))), regions[data.count(b"\n", 0, m.start())])
+    pattern = rb"(?m)^[ \t]*extern\b([^;{\n]*?)\b" + re.escape(name.encode()) + rb"[ \t]*\(([^)]*)\)"
+    return [((return_type(m.group(1)), *parameter_types(m.group(2))), regions[data.count(b"\n", 0, m.start())])
             for m in re.finditer(pattern, data)]
+
+
+def return_type(text):
+    words = text.decode(errors="replace").replace('"C"', " ").replace("*", " * ").split()
+    return " ".join(w for w in words if w not in ("static", "inline", "ARM", "THUMB"))
 
 
 def signature_clashes(tree, pairs):
@@ -372,8 +377,8 @@ def signature_clashes(tree, pairs):
                 mine, theirs = declarations(data, key, regions), declarations(data, alias, regions)
                 if any(r in a and r in b and sa != sb for r in REGIONS for sa, a in mine for sb, b in theirs):
                     rel = os.path.relpath(path, tree).replace("\\", "/")
-                    out.append(f"ALIAS SIGNATURE {key}: its region alias {alias} is declared with other "
-                               f"parameters in {rel}")
+                    out.append(f"ALIAS SIGNATURE {key}: its region alias {alias} is declared with another "
+                               f"signature in {rel}")
     return out
 
 
@@ -389,7 +394,7 @@ def region_homonyms(tree, keys):
             if key.encode() in data:
                 regions = regions or line_regions(data)
                 rel = os.path.relpath(path, tree).replace("\\", "/")
-                seen += [(len(params), where, rel) for params, where in declarations(data, key, regions)]
+                seen += [(len(params) - 1, where, rel) for params, where in declarations(data, key, regions)]
     out = []
     for key, seen in found.items():
         usa = {n for n, where, _ in seen if "usa" in where}

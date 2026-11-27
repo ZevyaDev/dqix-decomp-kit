@@ -621,9 +621,10 @@ def _names_region_addresses():
     return None if collide and collide[0].startswith("ALIAS COLLIDES func_02003000") else "collision: %s" % collide
 
 
-@check("naming/names.py refuses a region alias declared with other parameters where both names are visible",
+@check("naming/names.py refuses a region alias declared with another signature where both names are visible",
        "batch 2 renamed JPN func_020474a8(4 args) to FormatMessageText_02046608 in files that also declare "
-       "the USA 7-argument func_02046608 outside any #if: ten JPN units failed with illegal function overloading")
+       "the USA 7-argument func_02046608 outside any #if: ten JPN units failed with illegal function overloading; "
+       "batch 12 renamed JPN void func_02042428(char*, int) beside int func_02041d9c(char*, int) in ov012")
 def _names_alias_signatures():
     import importlib.util
     spec = importlib.util.spec_from_file_location("names", os.path.join(KIT, "naming", "names.py"))
@@ -635,8 +636,11 @@ def _names_alias_signatures():
     apart = ("#include <globaldefs.h>\n#if defined(jpn)\n#define func_02007000 func_02007700\n"
              "extern \"C\" void func_02007700(void* p);\n#else\nextern \"C\" int func_02007000(int a, int b);\n"
              "#endif\n")
+    returns = ("#include <globaldefs.h>\n#if defined(jpn)\n#define func_02007000 func_02007700\n#endif\n"
+               "extern \"C\" int func_02007000(char* a, int b);\n"
+               "#if defined(jpn)\nextern \"C\" void func_02007700(char* p, int n);\n#endif\n")
     found = {}
-    for label, src in (("both", both), ("apart", apart)):
+    for label, src in (("both", both), ("apart", apart), ("returns", returns)):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
             root = _naming_tree(d, "", {"src/a.cpp": src, "include/globaldefs.h": "#pragma once\n"})
             for region, name, addr in (("usa", "func_02007000", "02007000"), ("eur", "func_02007000", "02007000"),
@@ -648,6 +652,8 @@ def _names_alias_signatures():
             found[label] = N.apply(root, {}, N.localized(root, rows))[1]
     if not (found["both"] and found["both"][0].startswith("ALIAS SIGNATURE func_02007000")):
         return "a clashing alias declaration was collapsed: %s" % found["both"]
+    if not (found["returns"] and found["returns"][0].startswith("ALIAS SIGNATURE func_02007000")):
+        return "an alias declared with another return type was collapsed: %s" % found["returns"]
     return "declarations in exclusive #if branches were refused: %s" % found["apart"] if found["apart"] else None
 
 
