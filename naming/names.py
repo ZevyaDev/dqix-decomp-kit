@@ -73,6 +73,16 @@ def proposal(key, stem, evidence, by):
             "status": "proposed", "t": time.strftime("%Y-%m-%dT%H:%M:%S")}
 
 
+def revision(row, ledger):
+    old = ledger.get(row["key"])
+    if not old or (old["status"] != "landed" and not old.get("was")):
+        return row
+    was = old["final"] if old["status"] == "landed" else old["was"]
+    if was == row["final"]:
+        raise ValueError(f"{row['key']}: already landed as {was}")
+    return dict(row, was=was)
+
+
 def stem_of(key, final):
     parts = final.split("_")
     for n in range(len(parts), 0, -1):
@@ -133,12 +143,20 @@ def tree_tokens(tree):
 
 
 def landed_globals(ledger):
-    return {r["key"]: r["final"] for r in ledger.values() if r["status"] == "landed" and "::" not in r["key"]}
+    return {r["key"]: r["final"] if r["status"] == "landed" else r["was"] for r in ledger.values()
+            if "::" not in r["key"] and (r["status"] == "landed" or r.get("was"))}
 
 
 def current(key, moved):
     outer, sep, inner = key.partition("::")
     return f"{moved.get(outer, outer)}{sep}{inner}"
+
+
+def tree_key(row, moved):
+    key = current(row["key"], moved)
+    if "::" in key and row.get("was"):
+        return f"{key.partition('::')[0]}::{row['was']}"
+    return key
 
 
 def batch(ledger):
@@ -177,9 +195,9 @@ def problems(tree, ledger, todo, upstream=None):
     out += upstream_callers(tree, sorted({current(r["key"], moved).partition("::")[0] for r in todo}), paths)
     named_now = {r["key"] for r in todo if r["kind"] == "func"}
     for r in todo:
-        key = current(r["key"], moved)
-        outer = key.partition("::")[0]
-        if outer.encode() not in tokens:
+        key = tree_key(r, moved)
+        outer, _, inner = key.partition("::")
+        if outer.encode() not in tokens or (r.get("was") and inner and inner.encode() not in tokens):
             out.append(f"NOT IN TREE {r['key']}")
         if "::" not in key:
             if r["final"].encode() in tokens:
@@ -270,8 +288,9 @@ def localized(tree, todo):
     out = []
     for r in todo:
         m = namerules.DEFAULT.fullmatch(r["key"])
-        if m and m.group(1) in ("func", "data") and r["key"] not in usa and not REGION_TAG.search(m.group(2)):
-            only = [region for region in OTHER_REGIONS if r["key"] in others[region]]
+        name = r.get("was") or r["key"]
+        if m and m.group(1) in ("func", "data") and name not in usa and not REGION_TAG.search(m.group(2)):
+            only = [region for region in OTHER_REGIONS if name in others[region]]
             if len(only) == 1:
                 ov = re.match(r"ov\d{3}_", m.group(2))
                 head = ov.group(0) if ov else ""
@@ -434,7 +453,7 @@ def alias_plan(tree, mapping):
 def apply(tree, ledger, todo):
     import plainnames
     moved = landed_globals(ledger)
-    scoped = {current(r["key"], moved): r["final"] for r in todo if "::" in r["key"]}
+    scoped = {tree_key(r, moved): r["final"] for r in todo if "::" in r["key"]}
     mapping = {current(r["key"], moved): r["final"] for r in todo if "::" not in r["key"]}
     collapse, misses = alias_plan(tree, mapping)
     if misses:
@@ -511,12 +530,12 @@ def main():
         sys.exit(__doc__)
     cmd, args = args[0], args[1:]
     if cmd == "add" and len(args) >= 3:
-        write([proposal(args[0], args[1], args[2:], by)])
+        write([revision(proposal(args[0], args[1], args[2:], by), rows())])
     elif cmd == "import" and len(args) == 1:
-        new, bad = [], []
+        new, bad, ledger = [], [], rows()
         for r in read_rows(args[0]):
             try:
-                new.append(proposal(r["key"], r["stem"], r.get("evidence", []), r.get("by", by)))
+                new.append(revision(proposal(r["key"], r["stem"], r.get("evidence", []), r.get("by", by)), ledger))
             except (ValueError, KeyError) as e:
                 bad.append(f"BAD {e}")
         try:

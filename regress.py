@@ -751,6 +751,47 @@ def _names_relative_tree():
     return None
 
 
+@check("naming/names.py revises a landed function, parameter and member through a new row for the same key",
+       "landed ResetBattleTask_ov017_021b6f18(battleTask) named the object every other landed name calls "
+       "battleManager, and names.py could only rename plain names, so a wrong landed name stayed")
+def _names_revise_landed():
+    import subprocess
+    spec = importlib.util.spec_from_file_location("names", os.path.join(KIT, "naming", "names.py"))
+    N = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(N)
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+        src = ("struct Pair_02001000 { int count_0_; int left_4_; };\n"
+               "extern \"C\" int Reset_02001000(struct Pair_02001000* task) {\n"
+               "    return task->count_0_ + task->left_4_;\n}\n"
+               "extern \"C\" int Caller_02001100(struct Pair_02001000* p) { return Reset_02001000(p); }\n")
+        root = _naming_tree(d, "Reset_02001000 kind:function(arm,size=0x8) addr:0x02001000\n"
+                               "Caller_02001100 kind:function(arm,size=0x8) addr:0x02001100\n",
+                            {"src/a.cpp": src, "include/globaldefs.h": "#pragma once\n"})
+        N.LEDGER = f"{root}/ledger.jsonl"
+        landed = (("func_02001000", "Reset"), ("func_02001000::arg0", "task"), ("Struct_02001000", "Pair"),
+                  ("Struct_02001000::unknown_4_", "left"))
+        N.write([dict(N.proposal(k, s, ["t"], "t"), status="landed") for k, s in landed])
+        ledger = N.rows()
+        revised = [N.revision(N.proposal(k, s, ["t"], "t"), ledger) for k, s in
+                   (("func_02001000", "ResetManager"), ("func_02001000::arg0", "manager"),
+                    ("Struct_02001000::unknown_4_", "right"))]
+        N.write([dict(r, status="accepted") for r in revised])
+        try:
+            N.revision(N.proposal("func_02001000", "Reset", ["t"], "t"), N.rows())
+            same = None
+        except ValueError as e:
+            same = str(e)
+        r = subprocess.run([sys.executable, os.path.join(KIT, "naming", "names.py"), "apply", root],
+                           capture_output=True, text=True, env=dict(os.environ, DQIX_NAMES_LEDGER=N.LEDGER))
+        text = open(f"{root}/src/a.cpp").read()
+        syms = open(f"{root}/config/usa/arm9/symbols.txt").read()
+    want = ("ResetManager_02001000(struct Pair_02001000* manager)", "manager->right_4_",
+            "return ResetManager_02001000(p)")
+    if r.returncode or any(w not in text for w in want) or "ResetManager_02001000 kind" not in syms:
+        return "exit %d: %s\n%s" % (r.returncode, (r.stdout + r.stderr).strip()[-300:], text)
+    return None if same else "a revision repeating the landed name was taken"
+
+
 @check("naming reservations: a listed function holds its insides, and only other people's keys are foreign",
        "two contributors naming the same keys in parallel waste both batches and collide at landing")
 def _naming_reservations():

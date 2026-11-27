@@ -69,7 +69,8 @@ evidence lives in the ledger.
     bash naming/namesland.sh [--dry]               integration tree, prready, ninja check + sha1 x3, publish
 
 The ledger is `$SP/names/ledger.jsonl` (`DQIX_NAMES_LEDGER` overrides it); the last row per key wins;
-status runs proposed, accepted, landed (with the commit), or rejected (with why). `--dry` builds every
+status runs proposed, accepted, landed (with the commit), or rejected (with why). A new row for a landed
+key revises its name: it records the landed name as `was` and goes through the same audit and landing. `--dry` builds every
 region and publishes nothing.
 
 Evidence items start with their kind: `src:` (what the code does), `call:` (how callers use it),
