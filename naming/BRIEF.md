@@ -55,6 +55,8 @@ Each row needs at least one item a reviewer can check without trusting you:
 A guess is not evidence. A name derived from another unlanded proposal says so (`call: depends on
 func_X -> Y`). Quote what a screenshot or probe shows exactly (text, counts, values), and cite only
 probes that exist under `$SP/names/dyn/probe/`; a near-match claimed as equal rejects the row.
+A call-site count comes from the dossier's `SITES` line and names its region (`usa 9 in 8
+functions`): a grep of the sources counts a function's JPN and USA/EUR `#if` copies twice.
 
 ## Insides
 

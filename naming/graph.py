@@ -57,6 +57,7 @@ class Graph:
         self.callees = collections.defaultdict(set)
         self.refs = collections.defaultdict(set)
         self.loads = collections.defaultdict(set)
+        self.sites = collections.defaultdict(collections.Counter)
         for m, d in self.dirs.items():
             path = f"{d}/relocs.txt"
             if not os.path.isfile(path):
@@ -71,6 +72,7 @@ class Graph:
                 if kind in CALLS:
                     self.callers[target.key].add(src.key)
                     self.callees[src.key].add(target.key)
+                    self.sites[target.key][src.key] += 1
                 else:
                     self.refs[target.key].add(src.key)
                     self.loads[src.key].add(target.key)

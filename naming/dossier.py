@@ -100,6 +100,19 @@ def dynamic(sym):
     return out + dyn_mod.probe_lines(sym)
 
 
+def site_counts(g, sym):
+    out = []
+    for region in ("usa", "eur", "jpn"):
+        rg = g if region == g.region else Graph(region, g.repo)
+        s = sym if rg is g else rg.by_name.get(sym.name)
+        if s is None:
+            out.append(f"{region} no symbol {sym.name}")
+            continue
+        sites = rg.sites[s.key]
+        out.append(f"{region} {sum(sites.values())} in {len(sites)} functions")
+    return "SITES (call instructions in the ROM, per region) " + " | ".join(out)
+
+
 def dossier(g, sym, n_callers=12, n_lines=160):
     rows = ledger_mod.rows()
     moved = {r["key"]: r["final"] for r in rows.values() if r["status"] == "landed" and "::" not in r["key"]}
@@ -110,6 +123,8 @@ def dossier(g, sym, n_callers=12, n_lines=160):
     mods = sorted({m for m, _ in callers})
     out.append(f"{sym.kind.upper()} {sym.name}  {sym.module} 0x{sym.addr:08x} size 0x{sym.size:x}  file {file}  "
                f"reach: {len(g.callers[sym.key])} callers, {len(g.refs[sym.key])} refs, {len(mods)} modules")
+    if sym.kind == "func":
+        out.append(site_counts(g, sym))
     text = read(repo, file) if file else ""
     if sym.kind == "func":
         body = definition(text, sym.name) or text
